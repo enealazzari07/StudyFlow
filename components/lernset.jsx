@@ -181,18 +181,29 @@ const CardsList = ({ cards, setCards, currentSetId }) => {
           }}
         />
       ) : (
-        <button
-          onClick={() => setShowAddForm(true)}
-          style={{
-            marginTop: 10, width: '100%', padding: 16,
-            background: 'transparent', border: '1.5px dashed #cbd5e1',
-            borderRadius: 12, color: '#64748b', fontSize: 13,
-            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-            cursor: 'pointer', fontFamily: 'inherit',
-          }}
-        >
-          <Icons.Plus size={16}/> Neue Karte hinzufügen
-        </button>
+        <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
+          <button
+            onClick={() => setShowAddForm(true)}
+            style={{
+              flex: 1, padding: 16,
+              background: 'transparent', border: '1.5px dashed #cbd5e1',
+              borderRadius: 12, color: '#64748b', fontSize: 13,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              cursor: 'pointer', fontFamily: 'inherit',
+            }}
+          >
+            <Icons.Plus size={16}/> Neue Karte hinzufügen
+          </button>
+
+          <a
+            href={`dashboard.html?tab=docs&targetSetId=${encodeURIComponent(setId)}`}
+            className="btn-ghost"
+            style={{ padding: '12px 14px', fontSize: 13, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}
+            title="Dokument hochladen und Karten direkt ins Set speichern"
+          >
+            <Icons.Upload size={13}/> Scann Upload
+          </a>
+        </div>
       )}
     </section>
   );
@@ -316,36 +327,20 @@ const LernsetDetail = () => {
               <p style={{ fontSize: 14, color: '#475569', marginTop: 16, lineHeight: 1.55 }}>
                 {studySet.description}
               </p>
-            ) : (
-              <div style={{ marginTop: 10, display: 'flex', gap: 8 }}>
-                <button
-                  onClick={() => setShowAddForm(true)}
-                  style={{
-                    flex: 1, padding: 16,
-                    background: 'transparent', border: '1.5px dashed #cbd5e1',
-                    borderRadius: 12, color: '#64748b', fontSize: 13,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
-                  <Icons.Plus size={16}/> Neue Karte hinzufügen
-                </button>
-
-                <a
-                  href={`ai-upload.html?targetSetId=${encodeURIComponent(currentSetId)}`}
-                  title="Scann Upload — Dokument/Scan hochladen und Karten hinzufügen"
-                  style={{
-                    flex: 1, padding: 16,
-                    background: 'transparent', border: '1.5px dashed #cbd5e1',
-                    borderRadius: 12, color: '#64748b', fontSize: 13,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                    textDecoration: 'none', cursor: 'pointer', fontFamily: 'inherit',
-                  }}
-                >
-                  <Icons.Upload size={16}/> Scann Upload
-                </a>
+            )}
+            {studySet.folder && (
+              <div style={{ display: 'flex', gap: 6, marginTop: 14 }}>
+                <span className="pill">{studySet.folder}</span>
               </div>
             )}
+          </div>
+
+          <div style={{ display: 'flex', gap: 10 }}>
+            <a href={`lern-modus.html?id=${setId}`} className="btn-primary" style={{ padding: '12px 18px', fontSize: 14, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <Icons.Play size={14}/> Jetzt lernen
+              {due > 0 && <span style={{ marginLeft: 4, background: 'rgba(255,255,255,0.15)', padding: '1px 7px', borderRadius: 5, fontSize: 11 }}>{due} fällig</span>}
+            </a>
+          </div>
         </div>
 
         {/* Progress card */}
