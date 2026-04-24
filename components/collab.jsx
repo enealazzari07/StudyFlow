@@ -30,7 +30,9 @@ const Header = () => (
       </a>
       <div style={{ height: 20, width: 1, background: '#e2e8f0' }}></div>
       <div style={{ fontSize: 14, color: '#0f172a', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span style={{ fontSize: 18 }}>📊</span>
+        <span style={{ width: 26, height: 26, borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#eef2ff', color: '#6366f1', border: '1px solid #c7d2fe' }}>
+          <Icons.Chart size={14}/>
+        </span>
         Mikroökonomie II
       </div>
       <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '3px 9px', background: '#d1fae5', color: '#065f46', borderRadius: 999, fontSize: 11, fontWeight: 500 }}>
@@ -170,7 +172,7 @@ const ActivityPanel = () => (
         </div>
         <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start', justifyContent: 'flex-end' }}>
           <div style={{ background: '#1e293b', padding: '6px 10px', borderRadius: '10px 10px 2px 10px', fontSize: 12, color: 'white' }}>
-            Jep 👍 ich mach Kap. 12
+            Jep, ich mach Kap. 12
           </div>
           <Avatar name="Alex Meier" color="#6366f1" size={22}/>
         </div>

@@ -66,7 +66,6 @@ const Toggle = ({ on, onChange }) => (
 // ─── Create Set Modal ────────────────────────────────────────
 const CreateSetModal = ({ onClose, onCreated, userId }) => {
   const [title, setTitle] = useState('');
-  const [emoji, setEmoji] = useState('📚');
   const [description, setDescription] = useState('');
   const [folder, setFolder] = useState('');
   const [loading, setLoading] = useState(false);
@@ -77,7 +76,7 @@ const CreateSetModal = ({ onClose, onCreated, userId }) => {
     if (!title.trim()) return;
     setLoading(true); setError('');
     const { data, error: err } = await window.sb.from('study_sets').insert({
-      owner_id: userId, title: title.trim(), emoji: emoji || '📚',
+      owner_id: userId, title: title.trim(), emoji: null,
       description: description.trim() || null, folder: folder.trim() || null,
     }).select().single();
     setLoading(false);
@@ -92,10 +91,6 @@ const CreateSetModal = ({ onClose, onCreated, userId }) => {
         {error && <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#991b1b', marginBottom: 16 }}>{error}</div>}
         <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', gap: 10 }}>
-            <div>
-              <label style={{ fontSize: 12, fontWeight: 500, color: '#475569', display: 'block', marginBottom: 6 }}>Emoji</label>
-              <input value={emoji} onChange={e => setEmoji(e.target.value)} className="input-paper" style={{ width: 60, textAlign: 'center', fontSize: 22 }} maxLength={2}/>
-            </div>
             <div style={{ flex: 1 }}>
               <label style={{ fontSize: 12, fontWeight: 500, color: '#475569', display: 'block', marginBottom: 6 }}>Titel *</label>
               <input value={title} onChange={e => setTitle(e.target.value)} className="input-paper" placeholder="z.B. Mikroökonomie II" required autoFocus/>
@@ -164,12 +159,12 @@ const SettingsPanel = ({ user, profile, onProfileUpdate }) => {
   };
 
   const PRO_FEATURES = [
-    { icon: '🤖', label: 'Unbegrenzte AI-Analysen', free: '3 / Monat', pro: 'Unbegrenzt' },
-    { icon: '📁', label: 'Lernsets', free: 'Bis 10', pro: 'Unbegrenzt' },
-    { icon: '🖼️', label: 'Bildanalyse (Vision AI)', free: false, pro: true },
-    { icon: '👥', label: 'Kollaboration', free: false, pro: true },
-    { icon: '📊', label: 'Detaillierte Statistiken', free: false, pro: true },
-    { icon: '🎓', label: 'Uni-Mail Bonus', free: false, pro: 'Kostenlos!' },
+    { icon: <Icons.Sparkles size={14}/>, label: 'Unbegrenzte AI-Analysen', free: '3 / Monat', pro: 'Unbegrenzt' },
+    { icon: <Icons.Cards size={14}/>, label: 'Lernsets', free: 'Bis 10', pro: 'Unbegrenzt' },
+    { icon: <Icons.Eye size={14}/>, label: 'Bildanalyse (Vision AI)', free: false, pro: true },
+    { icon: <Icons.Users size={14}/>, label: 'Kollaboration', free: false, pro: true },
+    { icon: <Icons.Chart size={14}/>, label: 'Detaillierte Statistiken', free: false, pro: true },
+    { icon: <Icons.Mail size={14}/>, label: 'Uni-Mail Bonus', free: false, pro: 'Kostenlos!' },
   ];
 
   return (
@@ -188,7 +183,15 @@ const SettingsPanel = ({ user, profile, onProfileUpdate }) => {
       }}>
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 }}>
-            <span style={{ fontSize: 18 }}>{isPro ? '⚡' : '🆓'}</span>
+            <div style={{
+              width: 28, height: 28, borderRadius: 10,
+              background: isPro ? 'rgba(99,102,241,0.22)' : 'rgba(15,23,42,0.06)',
+              color: isPro ? '#c7d2fe' : '#475569',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              border: isPro ? '1px solid rgba(165,180,252,0.25)' : '1px solid rgba(15,23,42,0.06)',
+            }}>
+              {isPro ? <Icons.Bolt size={14}/> : <Icons.Bookmark size={14}/>}
+            </div>
             <div style={{ fontFamily: 'Instrument Sans', fontSize: 16, fontWeight: 700, color: isPro ? 'white' : '#0f172a' }}>
               {isPro ? 'Pro Plan' : 'Free Plan'}
             </div>
@@ -261,13 +264,19 @@ const SettingsPanel = ({ user, profile, onProfileUpdate }) => {
           {PRO_FEATURES.map((f, i) => (
             <React.Fragment key={i}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0', borderTop: '1px solid rgba(15,23,42,0.04)', fontSize: 13, color: '#334155' }}>
-                <span>{f.icon}</span>{f.label}
+                <span style={{ color: '#6366f1', display: 'flex' }}>{f.icon}</span>{f.label}
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid rgba(15,23,42,0.04)', fontSize: 12 }}>
-                {f.free === false ? <span style={{ color: '#cbd5e1' }}>✗</span> : <span style={{ color: '#64748b' }}>{f.free === true ? '✓' : f.free}</span>}
+                {f.free === false
+                  ? <span style={{ color: '#cbd5e1', display: 'flex' }}><Icons.X size={14}/></span>
+                  : <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>{f.free === true ? <Icons.Check size={14}/> : f.free}</span>
+                }
               </div>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid rgba(15,23,42,0.04)', fontSize: 12, color: '#6366f1', fontWeight: 500 }}>
-                {f.pro === false ? <span style={{ color: '#cbd5e1' }}>✗</span> : f.pro === true ? '✓' : f.pro}
+                {f.pro === false
+                  ? <span style={{ color: '#cbd5e1', display: 'flex' }}><Icons.X size={14}/></span>
+                  : (f.pro === true ? <span style={{ display: 'flex' }}><Icons.Check size={14}/></span> : f.pro)
+                }
               </div>
             </React.Fragment>
           ))}
@@ -297,7 +306,9 @@ const SettingsPanel = ({ user, profile, onProfileUpdate }) => {
       {showUpgrade && (
         <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={() => setShowUpgrade(false)}>
           <div style={{ background: 'white', borderRadius: 24, padding: 36, width: 420, boxShadow: '0 30px 80px rgba(15,23,42,0.25)', textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-            <div style={{ fontSize: 48, marginBottom: 12 }}>⚡</div>
+            <div style={{ width: 64, height: 64, borderRadius: 20, margin: '0 auto 12px', background: 'rgba(99,102,241,0.12)', border: '1px solid rgba(99,102,241,0.22)', color: '#4f46e5', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <Icons.Bolt size={28}/>
+            </div>
             <div style={{ fontFamily: 'Instrument Sans', fontSize: 24, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>StudyFlow Pro</div>
             <div style={{ fontSize: 13, color: '#64748b', marginBottom: 24 }}>Lerne smarter — ohne Einschränkungen.</div>
             <div style={{ fontFamily: 'Instrument Sans', fontSize: 36, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>
@@ -307,7 +318,7 @@ const SettingsPanel = ({ user, profile, onProfileUpdate }) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 28, textAlign: 'left' }}>
               {['Unbegrenzte AI-Analysen & Bildanalyse', 'Unbegrenzte Lernsets', 'Kollaboration in Echtzeit', 'Detaillierte Lernstatistiken', 'Prioritäts-Support'].map(f => (
                 <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#334155' }}>
-                  <span style={{ color: '#6366f1', fontSize: 16 }}>✓</span> {f}
+                  <span style={{ color: '#6366f1', display: 'flex' }}><Icons.Check size={14}/></span> {f}
                 </div>
               ))}
             </div>
@@ -377,6 +388,14 @@ const DocsPanel = ({ userId, profile, onSetCreated, targetSetId }) => {
     setError(''); setResult(null); setSavedSetId(null); setSavedToTarget(false);
 
     try {
+      // Nur bei "Scan" (Bild oder PDF) die externe AI-API nutzen
+      const isPdf = file.type === 'application/pdf' || (file.name || '').toLowerCase().endsWith('.pdf');
+      const isScan = isImage || isPdf;
+      if (!isScan) {
+        setError('Flow AI greift nur bei gescannten Dokumenten (PDF/Bild) auf die API zu.');
+        return;
+      }
+
       // Upload file
       setStep('uploading'); setProgress('Lade Datei hoch…');
       const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -445,7 +464,7 @@ const DocsPanel = ({ userId, profile, onSetCreated, targetSetId }) => {
     setSaving(true);
     const setName = file ? file.name.replace(/\.[^.]+$/, '') : 'Flow AI Set';
     const { data: newSet, error: setErr } = await window.sb.from('study_sets').insert({
-      owner_id: userId, title: setName, emoji: '🤖',
+      owner_id: userId, title: setName, emoji: null,
       description: `Automatisch erstellt aus ${file?.name || 'Dokument'}`,
     }).select().single();
     if (setErr) { setError(setErr.message); setSaving(false); return; }
@@ -522,7 +541,7 @@ const DocsPanel = ({ userId, profile, onSetCreated, targetSetId }) => {
           <div style={{ fontFamily: 'Instrument Sans', fontSize: 17, fontWeight: 600, color: '#0f172a' }}>Datei hierher ziehen</div>
           <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>oder <span style={{ color: '#4f46e5', fontWeight: 500 }}>durchsuchen</span></div>
           <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 14, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {['TXT / Markdown', 'PDF', isPro ? '🖼️ Bilder (Pro)' : '🔒 Bilder (Pro)'].map(t => (
+            {['TXT / Markdown', 'PDF', isPro ? 'Bilder (Pro)' : 'Bilder (Pro)'].map(t => (
               <span key={t} style={{ padding: '3px 8px', background: '#f1f5f9', borderRadius: 5 }}>{t}</span>
             ))}
           </div>
@@ -532,7 +551,7 @@ const DocsPanel = ({ userId, profile, onSetCreated, targetSetId }) => {
           {/* File row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
             <div style={{ width: 44, height: 52, background: isImage ? '#fdf4ff' : '#eef2ff', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isImage ? '#a21caf' : '#6366f1', flexShrink: 0 }}>
-              {isImage ? <span style={{ fontSize: 22 }}>🖼️</span> : <Icons.Doc size={22}/>}
+              {isImage ? <Icons.Eye size={22}/> : <Icons.Doc size={22}/>}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
@@ -606,7 +625,7 @@ const DocsPanel = ({ userId, profile, onSetCreated, targetSetId }) => {
               {result.cards && result.cards.length > 0 && (
                 <div>
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>🃏 {result.cards.length} Karteikarten</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}><Icons.Cards size={15}/> {result.cards.length} Karteikarten</div>
                     {targetSetId ? (
                       savedToTarget ? (
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: '#d1fae5', color: '#065f46', borderRadius: 8, fontSize: 12, fontWeight: 500 }}>
@@ -646,7 +665,7 @@ const DocsPanel = ({ userId, profile, onSetCreated, targetSetId }) => {
 
               {result.quiz && result.quiz.length > 0 && (
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 10 }}>🧠 {result.quiz.length} Quizfragen</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}><Icons.Brain size={15}/> {result.quiz.length} Quizfragen</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 220, overflowY: 'auto' }}>
                     {result.quiz.map((q, i) => (
                       <div key={i} style={{ background: '#fafaf7', borderRadius: 10, padding: '10px 14px', border: '1px solid rgba(15,23,42,0.04)' }}>
@@ -666,7 +685,7 @@ const DocsPanel = ({ userId, profile, onSetCreated, targetSetId }) => {
 
               {result.summary && (
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>📝 Zusammenfassung</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}><Icons.Doc size={15}/> Zusammenfassung</div>
                   <div style={{ background: '#fafaf7', borderRadius: 12, padding: '14px 16px', border: '1px solid rgba(15,23,42,0.04)', maxHeight: 260, overflowY: 'auto' }}>
                     {renderSummary(result.summary)}
                   </div>
@@ -714,7 +733,7 @@ const DocsPanel = ({ userId, profile, onSetCreated, targetSetId }) => {
 };
 
 // ─── Sidebar ─────────────────────────────────────────────────
-const Sidebar = ({ user, profile, sets, active, onNav, onNewSet, onSignOut }) => {
+const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
   const folders = [...new Set((sets || []).map(s => s.folder).filter(Boolean))];
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Nutzer';
   const isPro = profile?.plan === 'pro';
@@ -774,10 +793,13 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet, onSignOut }) =>
           <Avatar name={displayName} color="#6366f1" size={30}/>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
-            <div style={{ fontSize: 11, color: isPro ? '#6366f1' : '#94a3b8', fontWeight: isPro ? 600 : 400 }}>{isPro ? '⚡ Pro Plan' : 'Free Plan'}</div>
+            <div style={{ fontSize: 11, color: isPro ? '#6366f1' : '#94a3b8', fontWeight: isPro ? 600 : 400, display: 'flex', alignItems: 'center', gap: 6 }}>
+              {isPro ? <Icons.Bolt size={12}/> : <Icons.Bookmark size={12}/>}
+              {isPro ? 'Pro Plan' : 'Free Plan'}
+            </div>
           </div>
-          <button onClick={onSignOut} title="Abmelden" style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', color: '#94a3b8', display: 'flex' }}>
-            <Icons.ArrowLeft size={14}/>
+          <button onClick={() => onNav('settings')} title="Einstellungen" style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', color: '#94a3b8', display: 'flex' }}>
+            <Icons.Settings size={16}/>
           </button>
         </div>
       </div>
@@ -793,7 +815,7 @@ const TopBar = ({ search, onSearch }) => (
       <input className="input-paper" placeholder="Suchen…" value={search} onChange={e => onSearch(e.target.value)} style={{ paddingLeft: 36, background: 'white', padding: '8px 12px 8px 36px', fontSize: 13 }}/>
     </div>
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <button style={{ background: 'white', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: 8, cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontFamily: 'inherit' }}>🔥 —</button>
+      <button style={{ background: 'white', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: 8, cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontFamily: 'inherit' }}><Icons.Bolt size={14}/> —</button>
       <button style={{ background: 'white', border: '1px solid #e2e8f0', padding: 7, borderRadius: 8, cursor: 'pointer', color: '#475569', display: 'flex' }}><Icons.Bell size={15}/></button>
     </div>
   </div>
@@ -823,7 +845,9 @@ const SetRow = ({ set, onDelete }) => {
       onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(15,23,42,0.05)'; e.currentTarget.style.background='white'; }}>
       <div style={{ minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <span style={{ fontSize: 16 }}>{set.emoji || '📚'}</span>
+          <span style={{ width: 26, height: 26, borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#eef2ff', color: '#6366f1', border: '1px solid #c7d2fe', flexShrink: 0 }}>
+            <Icons.Cards size={14}/>
+          </span>
           <div style={{ fontSize: 13.5, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{set.title}</div>
           {!isDraft && pct === 100 && <span style={{ fontSize: 10, color: '#059669', background: '#d1fae5', padding: '1px 6px', borderRadius: 4, fontWeight: 500, flexShrink: 0 }}>Fertig</span>}
           {isDraft && <span style={{ fontSize: 10, color: '#64748b', background: '#f1f5f9', padding: '1px 6px', borderRadius: 4, fontWeight: 500, flexShrink: 0 }}>Entwurf</span>}
@@ -869,7 +893,9 @@ const StatsRow = ({ stats }) => (
 // ─── Empty State ─────────────────────────────────────────────
 const EmptyState = ({ onNewSet }) => (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 16, color: '#94a3b8', padding: 40 }}>
-    <div style={{ fontSize: 48 }}>📚</div>
+    <div style={{ width: 64, height: 64, borderRadius: 18, background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #c7d2fe' }}>
+      <Icons.Cards size={28}/>
+    </div>
     <div style={{ fontFamily: 'Caveat', fontSize: 24, color: '#64748b' }}>Noch keine Lernsets</div>
     <div style={{ fontSize: 14, color: '#94a3b8', textAlign: 'center', maxWidth: 300 }}>Erstelle dein erstes Lernset oder lade ein Dokument hoch, um loszulegen.</div>
     <button onClick={onNewSet} className="btn-primary" style={{ padding: '10px 20px' }}><Icons.Plus size={14}/> Erstes Lernset erstellen</button>
@@ -932,7 +958,7 @@ const Dashboard = () => {
     setStats({ dueToday, weekReviews: weekReviews || 0, masteryPct, totalSets: enriched.length });
   };
 
-  const handleSignOut = async () => { await window.sb.auth.signOut(); window.location.href = 'login.html'; };
+  // Abmelden-Button wurde entfernt (Sidebar-UI)
 
   const handleSetCreated = (newSet) => {
     setSets(prev => [{ ...newSet, total_cards: newSet.total_cards || 0, mastered_cards: 0, due_cards: 0, cards: [] }, ...prev]);
@@ -960,7 +986,7 @@ const Dashboard = () => {
 
   return (
     <div className="dot-paper" style={{ height: '100vh', overflow: 'hidden', display: 'flex' }}>
-      <Sidebar user={user} profile={profile} sets={sets} active={active} onNav={setActive} onNewSet={() => setShowModal(true)} onSignOut={handleSignOut}/>
+      <Sidebar user={user} profile={profile} sets={sets} active={active} onNav={setActive} onNewSet={() => setShowModal(true)}/>
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '18px 22px 14px', minWidth: 0, gap: 16, overflow: 'hidden' }}>
         <TopBar search={search} onSearch={setSearch}/>

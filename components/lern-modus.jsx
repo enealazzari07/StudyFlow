@@ -238,7 +238,9 @@ const ActivityHeatmap = ({ streak }) => {
 // ─── Done Screen ──────────────────────────────────────────────
 const DoneScreen = ({ reviewed, setTitle }) => (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', gap: 20 }}>
-    <div style={{ fontSize: 64 }}>🎉</div>
+    <div style={{ width: 76, height: 76, borderRadius: 22, background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #c7d2fe' }}>
+      <Icons.Check size={34}/>
+    </div>
     <div style={{ fontFamily: 'Instrument Sans', fontSize: 28, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em' }}>Session abgeschlossen!</div>
     <div style={{ fontFamily: 'Caveat', fontSize: 22, color: '#64748b' }}>Du hast {reviewed} Karten gelernt.</div>
     <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
@@ -384,7 +386,7 @@ const LernModus = () => {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {streak > 0 && (
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', background: '#fef3c7', borderRadius: 999, fontSize: 12, fontWeight: 500, color: '#92400e' }}>
-              🔥 {streak}
+              <Icons.Bolt size={14}/> {streak}
             </div>
           )}
         </div>

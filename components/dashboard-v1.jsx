@@ -2,12 +2,12 @@
 const { useState, useEffect, useRef } = React;
 
 const MOCK_SETS = [
-  { id: 's1', title: 'Mikroökonomie II', emoji: '📊', cards: 142, mastered: 87, due: 12, color: '#6366f1', lastStudy: 'Heute', collaborators: ['Lara K', 'Tim R'] },
-  { id: 's2', title: 'Statistik — Hypothesentests', emoji: '📈', cards: 68, mastered: 42, due: 8, color: '#10b981', lastStudy: 'Gestern', collaborators: [] },
-  { id: 's3', title: 'Marketing Grundlagen', emoji: '📣', cards: 94, mastered: 94, due: 0, color: '#f59e0b', lastStudy: 'vor 3 T.', collaborators: ['Noah W'], done: true },
-  { id: 's4', title: 'Französisch — B2 Vokabeln', emoji: '🇫🇷', cards: 320, mastered: 180, due: 24, color: '#ec4899', lastStudy: 'Heute', collaborators: ['Mia S', 'Jan P', 'Lea F'] },
-  { id: 's5', title: 'Org. Chemie — Reaktionen', emoji: '🧪', cards: 56, mastered: 12, due: 20, color: '#8b5cf6', lastStudy: 'vor 5 T.', collaborators: [] },
-  { id: 's6', title: 'Neu: Klausur Psych.', emoji: '🧠', cards: 0, mastered: 0, due: 0, color: '#06b6d4', lastStudy: '—', collaborators: [], draft: true },
+  { id: 's1', title: 'Mikroökonomie II', emoji: null, cards: 142, mastered: 87, due: 12, color: '#6366f1', lastStudy: 'Heute', collaborators: ['Lara K', 'Tim R'] },
+  { id: 's2', title: 'Statistik — Hypothesentests', emoji: null, cards: 68, mastered: 42, due: 8, color: '#10b981', lastStudy: 'Gestern', collaborators: [] },
+  { id: 's3', title: 'Marketing Grundlagen', emoji: null, cards: 94, mastered: 94, due: 0, color: '#f59e0b', lastStudy: 'vor 3 T.', collaborators: ['Noah W'], done: true },
+  { id: 's4', title: 'Französisch — B2 Vokabeln', emoji: null, cards: 320, mastered: 180, due: 24, color: '#ec4899', lastStudy: 'Heute', collaborators: ['Mia S', 'Jan P', 'Lea F'] },
+  { id: 's5', title: 'Org. Chemie — Reaktionen', emoji: null, cards: 56, mastered: 12, due: 20, color: '#8b5cf6', lastStudy: 'vor 5 T.', collaborators: [] },
+  { id: 's6', title: 'Neu: Klausur Psych.', emoji: null, cards: 0, mastered: 0, due: 0, color: '#06b6d4', lastStudy: '—', collaborators: [], draft: true },
 ];
 
 const MOCK_DOCS = [
@@ -48,7 +48,9 @@ const SetCard = ({ set, size = 'md' }) => {
       <div style={{ position: 'absolute', top: 0, left: 0, width: 4, height: '100%', background: set.color }}></div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 }}>
-        <div style={{ fontSize: isLarge ? 34 : 26, lineHeight: 1 }}>{set.emoji}</div>
+        <div style={{ width: isLarge ? 44 : 34, height: isLarge ? 44 : 34, borderRadius: isLarge ? 16 : 12, background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #c7d2fe' }}>
+          <Icons.Cards size={isLarge ? 22 : 18}/>
+        </div>
         {set.done && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11, color: '#10b981', background: '#d1fae5', padding: '3px 8px', borderRadius: 999, fontWeight: 500 }}>
             <Icons.Check size={11}/> Fertig
@@ -178,7 +180,7 @@ const TopBar = () => (
 
     <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: '#fef3c7', borderRadius: 999, fontSize: 12.5, fontWeight: 500, color: '#92400e' }}>
-        🔥 47 Tage Streak
+        <Icons.Bolt size={14}/> 47 Tage Streak
       </div>
       <button style={{ background: 'none', border: 'none', padding: 8, borderRadius: 8, cursor: 'pointer', color: '#475569', position: 'relative' }}>
         <Icons.Bell size={18}/>
@@ -241,7 +243,7 @@ const SetsSection = () => (
     <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 16 }}>
       <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
         <h2 style={{ fontFamily: 'Instrument Sans', fontSize: 20, fontWeight: 600, color: '#0f172a', margin: 0, letterSpacing: '-0.01em' }}>Deine Lernsets</h2>
-        <span style={{ fontFamily: 'Caveat', fontSize: 18, color: '#94a3b8', fontWeight: 500 }}>— weiter so 💪</span>
+        <span style={{ fontFamily: 'Caveat', fontSize: 18, color: '#94a3b8', fontWeight: 500 }}>— weiter so</span>
       </div>
       <div style={{ display: 'flex', gap: 8 }}>
         <button className="btn-ghost" style={{ padding: '6px 12px', fontSize: 12.5 }}>Zuletzt geübt</button>

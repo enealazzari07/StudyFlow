@@ -241,7 +241,7 @@ const AIUpload = () => {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, fontSize: 11.5, color: '#94a3b8' }}>
                   {STAGES.slice(1, 5).map(s => (
                     <span key={s.key} style={{ color: stage === s.key ? '#4f46e5' : ((currentStage.pct || 0) >= s.pct ? '#10b981' : '#cbd5e1'), fontWeight: 500 }}>
-                      {(currentStage.pct || 0) >= s.pct ? '✓ ' : ''}{s.label}
+                      {(currentStage.pct || 0) >= s.pct ? <span style={{ display: 'inline-flex', marginRight: 4 }}><Icons.Check size={12}/></span> : null}{s.label}
                     </span>
                   ))}
                 </div>
@@ -254,7 +254,7 @@ const AIUpload = () => {
                   <Icons.Sparkles size={14}/> FLOW HAT ERSTELLT
                 </div>
                 <div style={{ fontFamily: 'Caveat', fontSize: 26, fontWeight: 600, color: '#0f172a', marginTop: 4, lineHeight: 1.15 }}>
-                  Dein Dokument ist hochgeladen 🎉
+                  Dein Dokument ist hochgeladen
                 </div>
                 <div style={{ fontSize: 13, color: '#475569', marginTop: 8 }}>
                   Das Dokument wurde gespeichert und ist bereit für die Verarbeitung.

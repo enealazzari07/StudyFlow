@@ -61,9 +61,9 @@ const BentoVisual = ({ kind }) => {
           <Icons.Sparkles size={12}/> ERZEUGT VON FLOW
         </div>
         <div style={{ fontSize: 13, marginTop: 6, lineHeight: 1.45 }}>
-          ✓ 24 Karteikarten<br/>
-          ✓ Quiz mit 8 Fragen<br/>
-          ✓ Zusammenfassung (3 Seiten)
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icons.Check size={14}/> 24 Karteikarten</span><br/>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icons.Check size={14}/> Quiz mit 8 Fragen</span><br/>
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}><Icons.Check size={14}/> Zusammenfassung (3 Seiten)</span>
         </div>
       </div>
     </div>

@@ -242,7 +242,9 @@ const LernsetDetail = () => {
 
   if (notFound) return (
     <div className="dot-paper" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
-      <div style={{ fontSize: 48 }}>😕</div>
+      <div style={{ width: 64, height: 64, borderRadius: 18, background: '#f1f5f9', color: '#64748b', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid rgba(15,23,42,0.06)' }}>
+        <Icons.X size={24}/>
+      </div>
       <div style={{ fontFamily: 'Caveat', fontSize: 28, color: '#64748b' }}>Lernset nicht gefunden</div>
       <a href="dashboard.html" className="btn-primary" style={{ padding: '10px 20px' }}>Zum Dashboard</a>
     </div>
@@ -300,7 +302,9 @@ const LernsetDetail = () => {
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
           <div style={{ maxWidth: 560 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ fontSize: 44, lineHeight: 1 }}>{studySet.emoji || '📚'}</div>
+              <div style={{ width: 54, height: 54, borderRadius: 18, background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #c7d2fe', flexShrink: 0 }}>
+                <Icons.Cards size={26}/>
+              </div>
               <div>
                 <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 32, fontWeight: 600, color: '#0f172a', margin: 0, letterSpacing: '-0.02em', lineHeight: 1.15 }}>
                   {studySet.title}
