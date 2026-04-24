@@ -31,6 +31,10 @@ const AIUpload = () => {
   const [stage, setStage] = useState('idle');
   const [dragging, setDragging] = useState(false);
   const [output, setOutput] = useState({ summary: true, cards: 20, quiz: true });
+  const [noSummaryMode, setNoSummaryMode] = useState(false);
+  const params = new URLSearchParams(window.location.search);
+  const paramNoSummary = params.get('noSummary') === '1' || params.get('noSummary') === 'true';
+  const paramTargetSetId = params.get('targetSetId') || null;
   const [userId, setUserId] = useState(null);
   const [recentDocs, setRecentDocs] = useState([]);
   const [error, setError] = useState('');
@@ -44,6 +48,11 @@ const AIUpload = () => {
       setUserId(session.user.id);
       loadRecentDocs(session.user.id);
     })();
+    // respect URL params for in-set scanning: disable summary when requested
+    if (paramNoSummary) {
+      setNoSummaryMode(true);
+      setOutput(o => ({ ...o, summary: false }));
+    }
   }, []);
 
   const loadRecentDocs = async (uid) => {
@@ -277,7 +286,7 @@ const AIUpload = () => {
                       { key: 'summary', label: 'Zusammenfassung', sub: 'Kompakte Übersicht der Kernthemen', icon: <Icons.Doc size={16}/> },
                       { key: 'quiz', label: 'Quizfragen', sub: '~8 Multiple-Choice-Fragen', icon: <Icons.Brain size={16}/> },
                     ].map(o => (
-                      <label key={o.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#fafaf7', borderRadius: 10, cursor: 'pointer', border: '1px solid rgba(15,23,42,0.04)' }}>
+                      <label key={o.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#fafaf7', borderRadius: 10, cursor: (o.key === 'summary' && noSummaryMode) ? 'default' : 'pointer', border: '1px solid rgba(15,23,42,0.04)', opacity: (o.key === 'summary' && noSummaryMode) ? 0.6 : 1 }}>
                         <div style={{ color: '#6366f1' }}>{o.icon}</div>
                         <div style={{ flex: 1 }}>
                           <div style={{ fontSize: 13.5, fontWeight: 500, color: '#0f172a' }}>{o.label}</div>
@@ -287,8 +296,8 @@ const AIUpload = () => {
                           width: 36, height: 20, borderRadius: 999,
                           background: output[o.key] ? '#6366f1' : '#cbd5e1',
                           position: 'relative', transition: 'background 0.2s',
-                          cursor: 'pointer',
-                        }} onClick={() => setOutput({ ...output, [o.key]: !output[o.key] })}>
+                          cursor: (o.key === 'summary' && noSummaryMode) ? 'default' : 'pointer',
+                        }} onClick={() => { if (!(o.key === 'summary' && noSummaryMode)) setOutput({ ...output, [o.key]: !output[o.key] }); }}>
                           <div style={{
                             position: 'absolute', top: 2, left: output[o.key] ? 18 : 2,
                             width: 16, height: 16, borderRadius: '50%',

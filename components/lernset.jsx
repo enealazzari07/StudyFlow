@@ -121,6 +121,8 @@ const CardsList = ({ cards, setCards, currentSetId }) => {
   const [focused, setFocused] = useState(null);
   const [filter, setFilter] = useState('all');
   const [showAddForm, setShowAddForm] = useState(false);
+  const [addHover, setAddHover] = useState(false);
+  const [scanHover, setScanHover] = useState(false);
 
   const filtered = cards.filter(c => {
     if (filter === 'all') return true;
@@ -183,27 +185,31 @@ const CardsList = ({ cards, setCards, currentSetId }) => {
       ) : (
         <div style={{ marginTop: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
           <button
+            onMouseEnter={() => setAddHover(true)}
+            onMouseLeave={() => setAddHover(false)}
             onClick={() => setShowAddForm(true)}
             style={{
               flex: 1, padding: 16,
-              background: 'transparent', border: '1.5px dashed #cbd5e1',
+              background: addHover ? '#f3f4f6' : 'transparent', border: '1.5px dashed #cbd5e1',
               borderRadius: 12, color: '#64748b', fontSize: 13,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              cursor: 'pointer', fontFamily: 'inherit',
+              cursor: 'pointer', fontFamily: 'inherit', transition: 'background 0.12s',
             }}
           >
             <Icons.Plus size={16}/> Neue Karte hinzufügen
           </button>
 
           <a
-            href={`dashboard.html?tab=docs&targetSetId=${encodeURIComponent(setId)}`}
+            href={`ai-upload.html?targetSetId=${encodeURIComponent(setId)}&noSummary=1`}
             className="btn-ghost"
+            onMouseEnter={() => setScanHover(true)}
+            onMouseLeave={() => setScanHover(false)}
             style={{
               flex: 1, padding: 16,
-              background: 'transparent', border: '1.5px dashed #cbd5e1',
+              background: scanHover ? '#f3f4f6' : 'transparent', border: '1.5px dashed #cbd5e1',
               borderRadius: 12, color: '#64748b', fontSize: 13,
               display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-              cursor: 'pointer', textDecoration: 'none', fontFamily: 'inherit'
+              cursor: 'pointer', textDecoration: 'none', fontFamily: 'inherit', transition: 'background 0.12s',
             }}
             title="Dokument hochladen und Karten direkt ins Set speichern"
           >
