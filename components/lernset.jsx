@@ -281,6 +281,14 @@ const LernsetDetail = () => {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <a
+            href={`dashboard.html?tab=docs&targetSetId=${encodeURIComponent(setId)}`}
+            className="btn-ghost"
+            style={{ padding: '7px 12px', fontSize: 13, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}
+            title="Dokument hochladen und Karten direkt ins Set speichern"
+          >
+            <Icons.Upload size={13}/> AI-Upload
+          </a>
           <button className="btn-ghost" style={{ padding: '7px 12px', fontSize: 13 }}>
             <Icons.Share size={13}/> Teilen
           </button>
