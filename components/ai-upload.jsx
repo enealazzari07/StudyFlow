@@ -87,6 +87,19 @@ const AIUpload = () => {
     if (f) handleFileSelect(f);
   };
 
+  // Load Tesseract.js dynamically (CDN) for client-side OCR
+  const loadTesseract = () => new Promise((resolve, reject) => {
+    if (window.Tesseract) return resolve(window.Tesseract);
+    const s = document.createElement('script');
+    s.src = 'https://unpkg.com/tesseract.js@2.1.5/dist/tesseract.min.js';
+    s.onload = () => {
+      if (window.Tesseract) resolve(window.Tesseract);
+      else reject(new Error('Tesseract not available'));
+    };
+    s.onerror = reject;
+    document.head.appendChild(s);
+  });
+
   const start = async () => {
     if (!file || !userId) return;
     setError('');
@@ -127,10 +140,26 @@ const AIUpload = () => {
         await window.sb.from('documents').update({ ai_processed: true }).eq('id', doc.id);
       }
 
+      // If uploaded file is an image, attempt OCR -> parse -> fill generatedCards
+      if (file && file.type && file.type.startsWith('image/')) {
+        try {
+          const T = await loadTesseract();
+          const res = await T.recognize(file, 'deu').catch(() => T.recognize(file, 'eng'));
+          const text = (res && res.data && res.data.text) ? res.data.text.trim() : '';
+          if (text) {
+            setRawAIOutput(text);
+            const parsed = parseRawToCards(text);
+            if (parsed && parsed.length) setGeneratedCards(parsed);
+          }
+        } catch (ocrErr) {
+          console.warn('OCR failed', ocrErr);
+        }
+      }
+
       setStage('done');
       loadRecentDocs(userId);
-      // If opened from a Lernset (targetSetId), prepare editable placeholders for generated cards
-      if (paramTargetSetId) {
+      // If opened from a Lernset (targetSetId) and we don't have parsed cards, create placeholders as fallback
+      if (paramTargetSetId && generatedCards.length === 0 && !rawAIOutput) {
         const n = output.cards || 0;
         const placeholders = Array.from({ length: n }, (_, i) => ({ front: `Frage ${i + 1}`, back: `Antwort ${i + 1}` }));
         setGeneratedCards(placeholders);
