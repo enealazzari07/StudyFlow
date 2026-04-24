@@ -198,7 +198,13 @@ const CardsList = ({ cards, setCards, currentSetId }) => {
           <a
             href={`dashboard.html?tab=docs&targetSetId=${encodeURIComponent(setId)}`}
             className="btn-ghost"
-            style={{ padding: '12px 14px', fontSize: 13, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}
+            style={{
+              flex: 1, padding: 16,
+              background: 'transparent', border: '1.5px dashed #cbd5e1',
+              borderRadius: 12, color: '#64748b', fontSize: 13,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+              cursor: 'pointer', textDecoration: 'none', fontFamily: 'inherit'
+            }}
             title="Dokument hochladen und Karten direkt ins Set speichern"
           >
             <Icons.Upload size={13}/> Scann Upload
