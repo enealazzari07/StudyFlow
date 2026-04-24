@@ -17,27 +17,33 @@
   <script type="text/babel">
     const { useState, useEffect } = React;
 
+    const EyeIcon = ({ show }) => (
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        {show
+          ? <><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></>
+          : <><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></>
+        }
+      </svg>
+    );
+
     const Login = () => {
-      const [mode, setMode] = useState('signin');
+      const [mode, setMode] = useState('signin'); // signin | signup
       const [email, setEmail] = useState('');
+      const [password, setPassword] = useState('');
+      const [name, setName] = useState('');
+      const [showPw, setShowPw] = useState(false);
       const [loading, setLoading] = useState(false);
-      const [sent, setSent] = useState(false);
       const [error, setError] = useState('');
+      const [info, setInfo] = useState('');
       const [checking, setChecking] = useState(true);
 
       useEffect(() => {
-        // Already logged in → go to dashboard
         window.sb.auth.getSession().then(({ data: { session } }) => {
-          if (session) {
-            window.location.href = 'dashboard.html';
-          } else {
-            setChecking(false);
-          }
+          if (session) window.location.href = 'dashboard.html';
+          else setChecking(false);
         });
-
-        // Handle magic link callback
         const { data: { subscription } } = window.sb.auth.onAuthStateChange((event, session) => {
-          if (event === 'SIGNED_IN' && session) {
+          if ((event === 'SIGNED_IN' || event === 'USER_UPDATED') && session) {
             window.location.href = 'dashboard.html';
           }
         });
@@ -53,20 +59,46 @@
         if (error) setError(error.message);
       };
 
-      const handleMagicLink = async (e) => {
+      const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!email) return;
+        if (!email || !password) return;
         setLoading(true);
         setError('');
-        const { error } = await window.sb.auth.signInWithOtp({
-          email,
-          options: { emailRedirectTo: window.getBaseUrl() + 'dashboard.html' },
-        });
-        setLoading(false);
-        if (error) {
-          setError(error.message);
+        setInfo('');
+
+        if (mode === 'signup') {
+          // Registration with email + password
+          const { data, error: err } = await window.sb.auth.signUp({
+            email,
+            password,
+            options: {
+              data: { full_name: name.trim() || email.split('@')[0] },
+              emailRedirectTo: window.getBaseUrl() + 'dashboard.html',
+            },
+          });
+          setLoading(false);
+          if (err) {
+            setError(err.message);
+          } else if (data.session) {
+            // Auto-confirmed (email confirmation disabled)
+            window.location.href = 'dashboard.html';
+          } else {
+            setInfo('Bitte bestätige deine E-Mail-Adresse. Wir haben dir eine E-Mail gesendet.');
+          }
         } else {
-          setSent(true);
+          // Sign in with email + password
+          const { error: err } = await window.sb.auth.signInWithPassword({ email, password });
+          setLoading(false);
+          if (err) {
+            if (err.message.includes('Invalid login credentials')) {
+              setError('E-Mail oder Passwort ist falsch.');
+            } else if (err.message.includes('Email not confirmed')) {
+              setError('E-Mail noch nicht bestätigt. Bitte prüfe dein Postfach.');
+            } else {
+              setError(err.message);
+            }
+          }
+          // onAuthStateChange handles redirect on success
         }
       };
 
@@ -100,95 +132,153 @@
             </div>
 
             <div style={{ background: 'white', borderRadius: 20, padding: 36, boxShadow: '0 4px 16px rgba(15,23,42,0.06), 0 20px 60px rgba(15,23,42,0.08)', border: '1px solid rgba(15,23,42,0.06)', marginTop: 60 }}>
-              {!sent ? (
-                <>
-                  <div style={{ textAlign: 'center', marginBottom: 28 }}>
-                    <div style={{ fontFamily: 'Instrument Sans', fontSize: 24, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em' }}>
-                      {mode === 'signin' ? 'Willkommen zurück' : 'Konto erstellen'}
-                    </div>
-                    <div style={{ fontSize: 13.5, color: '#64748b', marginTop: 6 }}>
-                      {mode === 'signin' ? 'Melde dich an, um weiterzulernen' : 'Starte kostenlos — keine Kreditkarte nötig'}
-                    </div>
-                  </div>
+              <div style={{ textAlign: 'center', marginBottom: 28 }}>
+                <div style={{ fontFamily: 'Instrument Sans', fontSize: 24, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em' }}>
+                  {mode === 'signin' ? 'Willkommen zurück' : 'Konto erstellen'}
+                </div>
+                <div style={{ fontSize: 13.5, color: '#64748b', marginTop: 6 }}>
+                  {mode === 'signin' ? 'Melde dich an, um weiterzulernen' : 'Starte kostenlos — keine Kreditkarte nötig'}
+                </div>
+              </div>
 
-                  {error && (
-                    <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#991b1b', marginBottom: 16 }}>
-                      {error}
-                    </div>
-                  )}
-
-                  <button
-                    onClick={handleGoogle}
-                    style={{
-                      width: '100%', padding: '12px 16px', background: 'white',
-                      border: '1px solid #e2e8f0', borderRadius: 10,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                      fontSize: 14, fontWeight: 500, color: '#0f172a',
-                      cursor: 'pointer', fontFamily: 'inherit',
-                    }}
-                    onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-                    onMouseLeave={e => e.currentTarget.style.background = 'white'}
-                  >
-                    <Icons.Google size={18}/>
-                    Mit Google {mode === 'signin' ? 'anmelden' : 'registrieren'}
-                  </button>
-
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '22px 0', color: '#94a3b8', fontSize: 12 }}>
-                    <div style={{ flex: 1, height: 1, background: '#e2e8f0' }}></div>
-                    oder per E-Mail
-                    <div style={{ flex: 1, height: 1, background: '#e2e8f0' }}></div>
-                  </div>
-
-                  <form onSubmit={handleMagicLink}>
-                    <label style={{ fontSize: 12, fontWeight: 500, color: '#475569', display: 'block', marginBottom: 6 }}>E-Mail</label>
-                    <div style={{ position: 'relative' }}>
-                      <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
-                        <Icons.Mail size={16}/>
-                      </div>
-                      <input
-                        className="input-paper"
-                        type="email"
-                        value={email}
-                        onChange={e => setEmail(e.target.value)}
-                        placeholder="du@uni-berlin.de"
-                        style={{ paddingLeft: 38 }}
-                        required
-                      />
-                    </div>
-
-                    <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%', marginTop: 16, padding: '12px 16px', justifyContent: 'center', opacity: loading ? 0.7 : 1 }}>
-                      {loading ? 'Sende Link…' : (
-                        <>
-                          <Icons.Sparkles size={14}/>
-                          Magic Link senden
-                        </>
-                      )}
-                    </button>
-                  </form>
-
-                  <div style={{ textAlign: 'center', fontSize: 13, color: '#64748b', marginTop: 22 }}>
-                    {mode === 'signin' ? 'Noch kein Konto?' : 'Schon ein Konto?'}
-                    {' '}
-                    <button onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); }} style={{ background: 'none', border: 'none', color: '#4f46e5', fontWeight: 500, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', padding: 0 }}>
-                      {mode === 'signin' ? 'Registrieren' : 'Anmelden'}
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <div style={{ textAlign: 'center', padding: '20px 0' }}>
-                  <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', color: '#6366f1' }}>
-                    <Icons.Mail size={26}/>
-                  </div>
-                  <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: '#0f172a', marginTop: 18 }}>Check deine Mails</div>
-                  <div style={{ fontSize: 14, color: '#64748b', marginTop: 8, lineHeight: 1.5 }}>
-                    Wir haben einen Magic Link an<br/>
-                    <span style={{ color: '#0f172a', fontWeight: 500 }}>{email}</span> gesendet.
-                  </div>
-                  <button onClick={() => { setSent(false); setEmail(''); }} style={{ marginTop: 20, background: 'none', border: 'none', color: '#64748b', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Andere E-Mail verwenden
-                  </button>
+              {error && (
+                <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#991b1b', marginBottom: 16 }}>
+                  {error}
                 </div>
               )}
+              {info && (
+                <div style={{ background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#3730a3', marginBottom: 16 }}>
+                  {info}
+                </div>
+              )}
+
+              {/* Google button */}
+              <button
+                onClick={handleGoogle}
+                style={{
+                  width: '100%', padding: '12px 16px', background: 'white',
+                  border: '1px solid #e2e8f0', borderRadius: 10,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                  fontSize: 14, fontWeight: 500, color: '#0f172a',
+                  cursor: 'pointer', fontFamily: 'inherit',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                onMouseLeave={e => e.currentTarget.style.background = 'white'}
+              >
+                <Icons.Google size={18}/>
+                Mit Google {mode === 'signin' ? 'anmelden' : 'registrieren'}
+              </button>
+
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '22px 0', color: '#94a3b8', fontSize: 12 }}>
+                <div style={{ flex: 1, height: 1, background: '#e2e8f0' }}></div>
+                oder mit E-Mail &amp; Passwort
+                <div style={{ flex: 1, height: 1, background: '#e2e8f0' }}></div>
+              </div>
+
+              <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* Name field — only on signup */}
+                {mode === 'signup' && (
+                  <div>
+                    <label style={{ fontSize: 12, fontWeight: 500, color: '#475569', display: 'block', marginBottom: 6 }}>Dein Name</label>
+                    <input
+                      className="input-paper"
+                      type="text"
+                      value={name}
+                      onChange={e => setName(e.target.value)}
+                      placeholder="Max Mustermann"
+                      autoFocus
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 500, color: '#475569', display: 'block', marginBottom: 6 }}>E-Mail</label>
+                  <div style={{ position: 'relative' }}>
+                    <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
+                      <Icons.Mail size={16}/>
+                    </div>
+                    <input
+                      className="input-paper"
+                      type="email"
+                      value={email}
+                      onChange={e => setEmail(e.target.value)}
+                      placeholder="du@uni-berlin.de"
+                      style={{ paddingLeft: 38 }}
+                      required
+                      autoFocus={mode === 'signin'}
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                    <label style={{ fontSize: 12, fontWeight: 500, color: '#475569' }}>Passwort</label>
+                    {mode === 'signin' && (
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          if (!email) { setError('Bitte zuerst E-Mail eingeben.'); return; }
+                          setLoading(true); setError('');
+                          const { error: err } = await window.sb.auth.resetPasswordForEmail(email, {
+                            redirectTo: window.getBaseUrl() + 'login.html',
+                          });
+                          setLoading(false);
+                          if (err) setError(err.message);
+                          else setInfo('Passwort-Reset-Link wurde gesendet. Bitte prüfe dein Postfach.');
+                        }}
+                        style={{ background: 'none', border: 'none', fontSize: 12, color: '#6366f1', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}
+                      >
+                        Passwort vergessen?
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ position: 'relative' }}>
+                    <input
+                      className="input-paper"
+                      type={showPw ? 'text' : 'password'}
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder={mode === 'signup' ? 'Mindestens 6 Zeichen' : '••••••••'}
+                      minLength={6}
+                      required
+                      style={{ paddingRight: 40 }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPw(!showPw)}
+                      style={{ position: 'absolute', right: 12, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 0, display: 'flex' }}
+                    >
+                      <EyeIcon show={showPw}/>
+                    </button>
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={loading}
+                  className="btn-primary"
+                  style={{ width: '100%', marginTop: 4, padding: '12px 16px', justifyContent: 'center', opacity: loading ? 0.7 : 1 }}
+                >
+                  {loading
+                    ? (mode === 'signup' ? 'Konto wird erstellt…' : 'Anmelden…')
+                    : (mode === 'signup'
+                        ? <><Icons.Sparkles size={14}/> Konto erstellen</>
+                        : <><Icons.ArrowRight size={14}/> Anmelden</>
+                      )
+                  }
+                </button>
+              </form>
+
+              <div style={{ textAlign: 'center', fontSize: 13, color: '#64748b', marginTop: 22 }}>
+                {mode === 'signin' ? 'Noch kein Konto?' : 'Schon ein Konto?'}
+                {' '}
+                <button
+                  onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); setInfo(''); setPassword(''); }}
+                  style={{ background: 'none', border: 'none', color: '#4f46e5', fontWeight: 500, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', padding: 0 }}
+                >
+                  {mode === 'signin' ? 'Registrieren' : 'Anmelden'}
+                </button>
+              </div>
             </div>
 
             <div style={{ textAlign: 'center', fontSize: 12, color: '#94a3b8', marginTop: 20 }}>
