@@ -1,14 +1,63 @@
-// StudyFlow — Dashboard (v2: floating sidebar, compact, calm)
+// StudyFlow — Dashboard (v3: inline docs panel + real AI via api.airforce)
 const { useState, useEffect, useRef } = React;
+
+const AIRFORCE_KEY = 'sk-air-tWdMV6mXgoa1zAfHr8UfGVI9BFzyr5dXE2jdZO4pPApRVrXDyH6W6Bdv6RwmUctq';
+const AI_MODEL = 'claude-sonnet-4-6';
+const AI_URL = 'https://api.airforce/v1/chat/completions';
 
 const DOCK_ITEMS = [
   { id: 'home', label: 'Start', icon: <Icons.Home size={18}/> },
   { id: 'cards', label: 'Lernsets', icon: <Icons.Cards size={18}/> },
   { id: 'docs', label: 'Dokumente', icon: <Icons.Doc size={18}/> },
-  { id: 'ai', label: 'Flow AI', icon: <Icons.Sparkles size={18}/>, href: 'ai-upload.html' },
+  { id: 'ai', label: 'Flow AI', icon: <Icons.Sparkles size={18}/> },
   { id: 'stats', label: 'Fortschritt', icon: <Icons.Chart size={18}/> },
-  { id: 'settings', label: 'Einstellungen', icon: <Icons.Settings size={18}/> },
 ];
+
+// ─── Helpers ─────────────────────────────────────────────────
+function formatFileSize(bytes) {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / 1048576).toFixed(1)} MB`;
+}
+function relativeTime(iso) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return 'gerade eben';
+  if (m < 60) return `vor ${m} Min.`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `vor ${h} Std.`;
+  return `vor ${Math.floor(h / 24)} T.`;
+}
+function readFileAsBase64(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
+function readFileAsText(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsText(file);
+  });
+}
+
+async function callAI(messages) {
+  const res = await fetch(AI_URL, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${AIRFORCE_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ model: AI_MODEL, messages }),
+  });
+  if (!res.ok) throw new Error(`API Error ${res.status}`);
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
 
 // ─── Create Set Modal ────────────────────────────────────────
 const CreateSetModal = ({ onClose, onCreated, userId }) => {
@@ -73,24 +122,392 @@ const CreateSetModal = ({ onClose, onCreated, userId }) => {
   );
 };
 
+// ─── Docs Panel ──────────────────────────────────────────────
+const DocsPanel = ({ userId, onSetCreated }) => {
+  const [file, setFile] = useState(null);
+  const [dragging, setDragging] = useState(false);
+  const [mode, setMode] = useState('cards'); // 'cards' | 'summary'
+  const [cardCount, setCardCount] = useState(15);
+  const [step, setStep] = useState('idle'); // idle | uploading | thinking | done
+  const [progress, setProgress] = useState('');
+  const [result, setResult] = useState(null); // { type: 'cards'|'summary', data }
+  const [error, setError] = useState('');
+  const [recentDocs, setRecentDocs] = useState([]);
+  const [saving, setSaving] = useState(false);
+  const [savedSetId, setSavedSetId] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const isImage = file && file.type.startsWith('image/');
+  const isText = file && (file.type === 'text/plain' || file.name.endsWith('.md') || file.name.endsWith('.txt'));
+
+  useEffect(() => {
+    if (userId) loadRecentDocs();
+  }, [userId]);
+
+  const loadRecentDocs = async () => {
+    const { data } = await window.sb.from('documents')
+      .select('*').eq('owner_id', userId)
+      .order('created_at', { ascending: false }).limit(8);
+    setRecentDocs(data || []);
+  };
+
+  const handleFileSelect = (f) => {
+    if (!f) return;
+    setFile(f);
+    setResult(null);
+    setError('');
+    setSavedSetId(null);
+    setStep('idle');
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    setDragging(false);
+    const f = e.dataTransfer.files[0];
+    if (f) handleFileSelect(f);
+  };
+
+  const handleProcess = async () => {
+    if (!file || !userId) return;
+    setError('');
+    setResult(null);
+    setSavedSetId(null);
+
+    try {
+      // Upload to Supabase Storage
+      setStep('uploading');
+      setProgress('Lade Datei hoch…');
+      const safeFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const path = `${userId}/${Date.now()}_${safeFilename}`;
+      const { error: uploadErr } = await window.sb.storage.from('documents').upload(path, file, { contentType: file.type });
+      if (uploadErr) throw new Error(uploadErr.message);
+
+      const { data: doc } = await window.sb.from('documents').insert({
+        owner_id: userId, name: file.name, file_path: path,
+        file_size: file.size, mime_type: file.type,
+      }).select().single();
+
+      // Build AI messages
+      setStep('thinking');
+      setProgress('Flow AI analysiert…');
+
+      let messages;
+      if (isImage) {
+        const base64 = await readFileAsBase64(file);
+        const taskText = mode === 'cards'
+          ? `Analysiere dieses Bild und erstelle genau ${cardCount} Karteikarten auf Deutsch. Antworte NUR mit einem JSON-Array: [{"front":"Frage","back":"Antwort"},...]. Kein weiterer Text.`
+          : 'Analysiere dieses Bild und erstelle eine strukturierte Zusammenfassung auf Deutsch. Nutze Überschriften (## ) und Aufzählungszeichen (-). Antworte nur mit dem Text der Zusammenfassung.';
+        messages = [{
+          role: 'user',
+          content: [
+            { type: 'image_url', image_url: { url: base64 } },
+            { type: 'text', text: taskText },
+          ],
+        }];
+      } else if (isText) {
+        const text = await readFileAsText(file);
+        const truncated = text.slice(0, 12000);
+        const systemPrompt = mode === 'cards'
+          ? `Du bist ein Lernassistent. Erstelle genau ${cardCount} präzise Karteikarten auf Deutsch aus dem Lernmaterial. Antworte NUR mit einem JSON-Array: [{"front":"Frage","back":"Antwort"},...]. Kein weiterer Text.`
+          : 'Du bist ein Lernassistent. Erstelle eine strukturierte Zusammenfassung auf Deutsch. Nutze Überschriften (## ) und Aufzählungszeichen (-).';
+        messages = [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: truncated },
+        ];
+      } else {
+        // PDF or other: can't read content directly
+        const systemPrompt = mode === 'cards'
+          ? `Du bist ein Lernassistent. Der Nutzer hat eine Datei namens "${file.name}" hochgeladen. Erstelle ${cardCount} allgemeine Lernkarteikarten auf Deutsch passend zum Thema des Dateinamens. Antworte NUR mit einem JSON-Array: [{"front":"Frage","back":"Antwort"},...].`
+          : `Der Nutzer hat "${file.name}" hochgeladen. Erstelle eine kurze Zusammenfassung auf Deutsch basierend auf dem Thema des Dateinamens.`;
+        messages = [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `Dateiname: ${file.name}` },
+        ];
+      }
+
+      const rawResponse = await callAI(messages);
+
+      // Parse response
+      if (mode === 'cards') {
+        setProgress('Karten werden erstellt…');
+        const jsonMatch = rawResponse.match(/\[[\s\S]*\]/);
+        if (!jsonMatch) throw new Error('AI hat kein gültiges Format zurückgegeben.');
+        const cards = JSON.parse(jsonMatch[0]);
+        if (!Array.isArray(cards) || cards.length === 0) throw new Error('Keine Karten erhalten.');
+        setResult({ type: 'cards', data: cards });
+      } else {
+        setResult({ type: 'summary', data: rawResponse });
+      }
+
+      if (doc) await window.sb.from('documents').update({ ai_processed: true }).eq('id', doc.id);
+      loadRecentDocs();
+      setStep('done');
+    } catch (err) {
+      setError(err.message || 'Unbekannter Fehler');
+      setStep('idle');
+    }
+  };
+
+  const handleSaveAsSet = async () => {
+    if (!result || result.type !== 'cards' || savedSetId) return;
+    setSaving(true);
+    const setName = file ? file.name.replace(/\.[^.]+$/, '') : 'Neues Set';
+    const { data: newSet, error: setErr } = await window.sb.from('study_sets').insert({
+      owner_id: userId,
+      title: setName,
+      emoji: '🤖',
+      description: `Automatisch erstellt aus ${file?.name || 'Dokument'}`,
+    }).select().single();
+    if (setErr) { setError(setErr.message); setSaving(false); return; }
+
+    const cardsToInsert = result.data.map(c => ({
+      set_id: newSet.id,
+      front: c.front || c.question || c.q || '',
+      back: c.back || c.answer || c.a || '',
+    }));
+    await window.sb.from('cards').insert(cardsToInsert);
+    setSavedSetId(newSet.id);
+    setSaving(false);
+    if (onSetCreated) onSetCreated({ ...newSet, total_cards: cardsToInsert.length, mastered_cards: 0, due_cards: 0, cards: [] });
+  };
+
+  const renderSummary = (text) => {
+    const lines = text.split('\n');
+    return lines.map((line, i) => {
+      if (line.startsWith('## ')) return <div key={i} style={{ fontFamily: 'Instrument Sans', fontSize: 15, fontWeight: 600, color: '#0f172a', marginTop: 16, marginBottom: 4 }}>{line.slice(3)}</div>;
+      if (line.startsWith('# ')) return <div key={i} style={{ fontFamily: 'Instrument Sans', fontSize: 17, fontWeight: 700, color: '#0f172a', marginTop: 20, marginBottom: 6 }}>{line.slice(2)}</div>;
+      if (line.startsWith('- ') || line.startsWith('• ')) return <div key={i} style={{ fontSize: 13, color: '#334155', paddingLeft: 12, marginTop: 3, display: 'flex', gap: 6 }}><span style={{ color: '#6366f1', flexShrink: 0 }}>·</span>{line.slice(2)}</div>;
+      if (line.trim() === '') return <div key={i} style={{ height: 6 }}/>;
+      return <div key={i} style={{ fontSize: 13, color: '#334155', lineHeight: 1.6, marginTop: 2 }}>{line}</div>;
+    });
+  };
+
+  const canProcess = file && step !== 'uploading' && step !== 'thinking';
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, flex: 1, minHeight: 0, overflowY: 'auto', paddingBottom: 80 }}>
+      {/* Header */}
+      <div>
+        <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
+          Dokumente & Flow AI
+        </h1>
+        <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
+          Lade ein Bild oder Textdokument hoch — Flow erstellt Karteikarten oder eine Zusammenfassung.
+        </div>
+      </div>
+
+      {/* Upload area */}
+      <input ref={fileInputRef} type="file" accept="image/*,.pdf,.txt,.md" style={{ display: 'none' }} onChange={e => handleFileSelect(e.target.files[0])}/>
+
+      {!file ? (
+        <div
+          onDragOver={e => { e.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={handleDrop}
+          onClick={() => fileInputRef.current?.click()}
+          style={{
+            border: `2px dashed ${dragging ? '#6366f1' : '#cbd5e1'}`,
+            borderRadius: 16,
+            padding: '48px 32px',
+            textAlign: 'center',
+            background: dragging ? '#eef2ff' : 'white',
+            cursor: 'pointer',
+            transition: 'all 0.15s',
+          }}
+        >
+          <div style={{ width: 64, height: 64, borderRadius: 14, background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <Icons.Upload size={28}/>
+          </div>
+          <div style={{ fontFamily: 'Instrument Sans', fontSize: 17, fontWeight: 600, color: '#0f172a' }}>
+            Datei hochladen
+          </div>
+          <div style={{ fontSize: 13, color: '#64748b', marginTop: 5 }}>
+            oder <span style={{ color: '#4f46e5', fontWeight: 500 }}>durchsuchen</span>
+          </div>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 14, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
+            {['Bilder (JPG/PNG/WEBP)', 'PDF', 'TXT/Markdown'].map(t => (
+              <span key={t} style={{ padding: '3px 8px', background: '#f1f5f9', borderRadius: 5 }}>{t}</span>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <div style={{ background: 'white', borderRadius: 16, padding: 20, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 2px 8px rgba(15,23,42,0.04)' }}>
+          {/* File info */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div style={{ width: 44, height: 52, background: isImage ? '#fdf4ff' : '#eef2ff', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isImage ? '#a21caf' : '#6366f1', flexShrink: 0, fontSize: 22 }}>
+              {isImage ? '🖼️' : <Icons.Doc size={22}/>}
+            </div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
+                {formatFileSize(file.size)}
+                {isImage && <span style={{ marginLeft: 8, color: '#a21caf', fontWeight: 500 }}>· Bildanalyse verfügbar</span>}
+                {isText && <span style={{ marginLeft: 8, color: '#059669', fontWeight: 500 }}>· Volltext-Analyse</span>}
+                {!isImage && !isText && <span style={{ marginLeft: 8, color: '#94a3b8' }}>· Upload & Metadaten-Analyse</span>}
+              </div>
+            </div>
+            {step === 'idle' && (
+              <button onClick={() => { setFile(null); setResult(null); setError(''); setStep('idle'); }} style={{ background: 'none', border: 'none', padding: 6, color: '#94a3b8', cursor: 'pointer' }}>
+                <Icons.X size={16}/>
+              </button>
+            )}
+          </div>
+
+          {/* Options */}
+          {(step === 'idle' || step === 'done') && !result && (
+            <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid rgba(15,23,42,0.06)' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Flow soll erstellen:</div>
+              <div style={{ display: 'flex', gap: 8 }}>
+                {[
+                  { k: 'cards', label: '🃏 Karteikarten', sub: 'Für Spaced Repetition' },
+                  { k: 'summary', label: '📝 Zusammenfassung', sub: 'Strukturierter Überblick' },
+                ].map(o => (
+                  <div key={o.k} onClick={() => setMode(o.k)} style={{
+                    flex: 1, padding: '10px 14px', borderRadius: 10,
+                    border: `2px solid ${mode === o.k ? '#6366f1' : 'rgba(15,23,42,0.06)'}`,
+                    background: mode === o.k ? '#eef2ff' : 'white',
+                    cursor: 'pointer', transition: 'all 0.15s',
+                  }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: mode === o.k ? '#4f46e5' : '#0f172a' }}>{o.label}</div>
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{o.sub}</div>
+                  </div>
+                ))}
+              </div>
+
+              {mode === 'cards' && (
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, padding: '10px 14px', background: '#fafaf7', borderRadius: 10 }}>
+                  <Icons.Cards size={14} style={{ color: '#6366f1' }}/>
+                  <span style={{ fontSize: 13, color: '#475569', flex: 1 }}>Anzahl Karteikarten</span>
+                  <input type="number" value={cardCount} min={3} max={50} onChange={e => setCardCount(Math.max(3, Math.min(50, +e.target.value || 15)))}
+                    style={{ width: 60, padding: '5px 8px', border: '1px solid #e2e8f0', borderRadius: 7, fontSize: 13, textAlign: 'center', fontFamily: 'inherit' }}/>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Error */}
+          {error && (
+            <div style={{ marginTop: 14, background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#991b1b' }}>
+              {error}
+            </div>
+          )}
+
+          {/* Progress */}
+          {(step === 'uploading' || step === 'thinking') && (
+            <div style={{ marginTop: 18, padding: 16, background: '#fafaf7', borderRadius: 12, border: '1px solid rgba(15,23,42,0.04)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <div className="float" style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #6366f1, #818cf8)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icons.Sparkles size={13}/>
+                </div>
+                <div style={{ fontSize: 13, color: '#0f172a', fontWeight: 500 }}>{progress}</div>
+              </div>
+              <div style={{ height: 4, background: '#e2e8f0', borderRadius: 999, marginTop: 14, overflow: 'hidden' }}>
+                <div style={{ width: step === 'uploading' ? '30%' : '75%', height: '100%', background: 'linear-gradient(90deg, #6366f1, #818cf8)', transition: 'width 0.8s ease', borderRadius: 999 }}></div>
+              </div>
+            </div>
+          )}
+
+          {/* Results: Cards */}
+          {result?.type === 'cards' && (
+            <div style={{ marginTop: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
+                  {result.data.length} Karteikarten erstellt ✨
+                </div>
+                {savedSetId ? (
+                  <a href={`lernset.html?id=${savedSetId}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: '#d1fae5', color: '#065f46', borderRadius: 8, fontSize: 12, fontWeight: 500, textDecoration: 'none' }}>
+                    <Icons.Check size={12}/> Gespeichert — Öffnen
+                  </a>
+                ) : (
+                  <button onClick={handleSaveAsSet} disabled={saving} className="btn-primary" style={{ padding: '6px 14px', fontSize: 12, opacity: saving ? 0.7 : 1 }}>
+                    {saving ? 'Speichert…' : <><Icons.Plus size={12}/> Als Lernset speichern</>}
+                  </button>
+                )}
+              </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 340, overflowY: 'auto', paddingRight: 4 }}>
+                {result.data.map((c, i) => (
+                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, background: '#fafaf7', borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(15,23,42,0.04)' }}>
+                    <div style={{ padding: '10px 14px', borderRight: '1px solid rgba(15,23,42,0.06)' }}>
+                      <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>Frage</div>
+                      <div style={{ fontFamily: 'Caveat', fontSize: 16, color: '#0f172a', lineHeight: 1.3 }}>{c.front || c.question || c.q}</div>
+                    </div>
+                    <div style={{ padding: '10px 14px' }}>
+                      <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>Antwort</div>
+                      <div style={{ fontSize: 12.5, color: '#334155', lineHeight: 1.4 }}>{c.back || c.answer || c.a}</div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              <button onClick={() => { setFile(null); setResult(null); setStep('idle'); setSavedSetId(null); }} className="btn-ghost" style={{ marginTop: 12, width: '100%', justifyContent: 'center', padding: '9px 0', fontSize: 13 }}>
+                Weitere Datei hochladen
+              </button>
+            </div>
+          )}
+
+          {/* Results: Summary */}
+          {result?.type === 'summary' && (
+            <div style={{ marginTop: 18 }}>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 12 }}>Zusammenfassung ✨</div>
+              <div style={{ background: '#fafaf7', borderRadius: 12, padding: '16px 18px', border: '1px solid rgba(15,23,42,0.04)', maxHeight: 380, overflowY: 'auto' }}>
+                {renderSummary(result.data)}
+              </div>
+              <button onClick={() => { setFile(null); setResult(null); setStep('idle'); }} className="btn-ghost" style={{ marginTop: 12, width: '100%', justifyContent: 'center', padding: '9px 0', fontSize: 13 }}>
+                Weitere Datei hochladen
+              </button>
+            </div>
+          )}
+
+          {/* Process button */}
+          {canProcess && !result && (
+            <button onClick={handleProcess} className="btn-primary" style={{ marginTop: 16, width: '100%', justifyContent: 'center', padding: '12px 0', background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}>
+              <Icons.Sparkles size={14}/> Verarbeiten mit Flow AI
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Recent documents */}
+      {recentDocs.length > 0 && (
+        <div>
+          <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Zuletzt hochgeladen</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {recentDocs.map(r => (
+              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: 'white', borderRadius: 10, border: '1px solid rgba(15,23,42,0.05)' }}>
+                <Icons.Doc size={14}/>
+                <span style={{ fontSize: 13, color: '#0f172a', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
+                {r.ai_processed && <span style={{ fontSize: 11, color: '#059669', background: '#d1fae5', padding: '2px 7px', borderRadius: 4, flexShrink: 0 }}>KI</span>}
+                <span style={{ fontSize: 12, color: '#64748b', flexShrink: 0 }}>{formatFileSize(r.file_size || 0)}</span>
+                <span style={{ fontSize: 12, color: '#94a3b8', flexShrink: 0 }}>{relativeTime(r.created_at)}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Sidebar ─────────────────────────────────────────────────
-const Sidebar = ({ user, profile, sets, onNewSet, onSignOut }) => {
+const Sidebar = ({ user, profile, sets, active, onNav, onNewSet, onSignOut }) => {
   const folders = [...new Set((sets || []).map(s => s.folder).filter(Boolean))];
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Nutzer';
 
+  const navItems = [
+    { id: 'home', label: 'Alle Lernsets', count: sets ? sets.length : 0, icon: <Icons.Cards size={15}/> },
+    { id: 'docs', label: 'Dokumente', count: null, icon: <Icons.Doc size={15}/> },
+    { id: 'fav', label: 'Favoriten', count: 0, icon: <Icons.Star size={15}/> },
+    { id: 'shared', label: 'Geteilt mit mir', count: 0, icon: <Icons.Users size={15}/> },
+  ];
+
   return (
     <aside style={{
-      width: 240,
-      flexShrink: 0,
+      width: 240, flexShrink: 0,
       margin: '14px 0 14px 14px',
-      background: 'white',
-      borderRadius: 18,
+      background: 'white', borderRadius: 18,
       border: '1px solid rgba(15,23,42,0.06)',
       boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.04)',
       padding: '20px 16px',
-      display: 'flex',
-      flexDirection: 'column',
-      gap: 20,
+      display: 'flex', flexDirection: 'column', gap: 20,
       height: 'calc(100vh - 28px)',
     }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0 4px' }}>
@@ -104,25 +521,23 @@ const Sidebar = ({ user, profile, sets, onNewSet, onSignOut }) => {
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
         <div style={{ fontSize: 10.5, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6, padding: '0 8px' }}>Bibliothek</div>
-        {[
-          { label: 'Alle Lernsets', count: sets ? sets.length : 0, icon: <Icons.Cards size={15}/>, active: true },
-          { label: 'Dokumente', count: 0, icon: <Icons.Doc size={15}/>, href: 'ai-upload.html' },
-          { label: 'Favoriten', count: 0, icon: <Icons.Star size={15}/> },
-          { label: 'Geteilt mit mir', count: 0, icon: <Icons.Users size={15}/> },
-        ].map(item => (
-          <div key={item.label} onClick={() => item.href && (window.location.href = item.href)} style={{
-            display: 'flex', alignItems: 'center', gap: 10,
-            padding: '7px 10px', borderRadius: 8,
-            background: item.active ? '#f1f5f9' : 'transparent',
-            color: item.active ? '#0f172a' : '#475569',
-            fontSize: 13, fontWeight: item.active ? 500 : 400,
-            cursor: 'pointer',
-          }}>
-            {item.icon}
-            <span style={{ flex: 1 }}>{item.label}</span>
-            <span style={{ fontSize: 11, color: '#94a3b8' }}>{item.count}</span>
-          </div>
-        ))}
+        {navItems.map(item => {
+          const isActive = active === item.id || (active === 'cards' && item.id === 'home');
+          return (
+            <div key={item.id} onClick={() => onNav(item.id)} style={{
+              display: 'flex', alignItems: 'center', gap: 10,
+              padding: '7px 10px', borderRadius: 8,
+              background: isActive ? '#f1f5f9' : 'transparent',
+              color: isActive ? '#0f172a' : '#475569',
+              fontSize: 13, fontWeight: isActive ? 500 : 400,
+              cursor: 'pointer', transition: 'background 0.1s',
+            }}>
+              {item.icon}
+              <span style={{ flex: 1 }}>{item.label}</span>
+              {item.count !== null && <span style={{ fontSize: 11, color: '#94a3b8' }}>{item.count}</span>}
+            </div>
+          );
+        })}
       </div>
 
       {folders.length > 0 && (
@@ -137,7 +552,7 @@ const Sidebar = ({ user, profile, sets, onNewSet, onSignOut }) => {
         </div>
       )}
 
-      <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 10, padding: '10px 10px', borderTop: '1px solid rgba(15,23,42,0.06)', paddingTop: 14 }}>
+      <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', gap: 10, borderTop: '1px solid rgba(15,23,42,0.06)', paddingTop: 14 }}>
         <Avatar name={displayName} color="#6366f1" size={30}/>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
@@ -206,68 +621,47 @@ const SetRow = ({ set, onDelete }) => {
     <a href={`lernset.html?id=${set.id}`} style={{
       display: 'grid',
       gridTemplateColumns: 'minmax(0, 1fr) 110px 90px 70px 80px',
-      alignItems: 'center',
-      gap: 14,
-      padding: '10px 14px',
-      background: 'white',
-      borderRadius: 10,
-      border: '1px solid rgba(15,23,42,0.05)',
-      transition: 'border-color 0.15s, background 0.15s',
-      textDecoration: 'none',
+      alignItems: 'center', gap: 14,
+      padding: '10px 14px', background: 'white',
+      borderRadius: 10, border: '1px solid rgba(15,23,42,0.05)',
+      transition: 'border-color 0.15s, background 0.15s', textDecoration: 'none',
     }}
     onMouseEnter={e => { e.currentTarget.style.borderColor = '#cbd5e1'; e.currentTarget.style.background = '#fafbfc'; }}
     onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(15,23,42,0.05)'; e.currentTarget.style.background = 'white'; }}
     >
-      <div style={{ minWidth: 0, overflow: 'hidden' }}>
+      <div style={{ minWidth: 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           <span style={{ fontSize: 16 }}>{set.emoji || '📚'}</span>
           <div style={{ fontSize: 13.5, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{set.title}</div>
           {!isDraft && pct === 100 && <span style={{ fontSize: 10, color: '#059669', background: '#d1fae5', padding: '1px 6px', borderRadius: 4, fontWeight: 500, flexShrink: 0 }}>Fertig</span>}
           {isDraft && <span style={{ fontSize: 10, color: '#64748b', background: '#f1f5f9', padding: '1px 6px', borderRadius: 4, fontWeight: 500, flexShrink: 0 }}>Entwurf</span>}
         </div>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, display: 'flex', alignItems: 'center', gap: 5, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {set.total_cards} Karten
-          <span style={{ color: '#cbd5e1' }}>·</span>
-          {lastStudy}
+        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          {set.total_cards} Karten <span style={{ color: '#cbd5e1' }}>·</span> {lastStudy}
         </div>
       </div>
-
       <div>
         {!isDraft ? (
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginBottom: 3 }}>
-              <span>{pct}%</span>
-              <span>{set.mastered_cards}/{set.total_cards}</span>
+              <span>{pct}%</span><span>{set.mastered_cards}/{set.total_cards}</span>
             </div>
             <div style={{ height: 4, background: '#f1f5f9', borderRadius: 999, overflow: 'hidden' }}>
               <div style={{ width: `${pct}%`, height: '100%', background: '#0f172a', borderRadius: 999 }}></div>
             </div>
           </div>
-        ) : (
-          <div style={{ fontSize: 11.5, color: '#94a3b8' }}>—</div>
-        )}
+        ) : <div style={{ fontSize: 11.5, color: '#94a3b8' }}>—</div>}
       </div>
-
       <div style={{ fontSize: 12, color: '#64748b' }}>
-        {set.due_cards > 0 ? (
-          <span style={{ color: '#dc2626', fontWeight: 500 }}>{set.due_cards} fällig</span>
-        ) : (
-          <span style={{ color: '#94a3b8' }}>keine fällig</span>
-        )}
+        {set.due_cards > 0 ? <span style={{ color: '#dc2626', fontWeight: 500 }}>{set.due_cards} fällig</span> : <span style={{ color: '#94a3b8' }}>keine fällig</span>}
       </div>
-
-      <div>
-        <div style={{ fontSize: 11.5, color: '#cbd5e1' }}>Nur ich</div>
-      </div>
-
+      <div><div style={{ fontSize: 11.5, color: '#cbd5e1' }}>Nur ich</div></div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
         <a href={`lern-modus.html?id=${set.id}`} onClick={e => e.stopPropagation()} style={{
           padding: '5px 10px', background: '#0f172a', color: 'white',
           border: 'none', borderRadius: 6, fontSize: 11.5, fontFamily: 'inherit',
           cursor: 'pointer', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center',
-        }}>
-          Lernen
-        </a>
+        }}>Lernen</a>
         <button onClick={handleDelete} style={{ padding: 5, background: 'none', border: 'none', borderRadius: 6, cursor: 'pointer', color: '#94a3b8', display: 'flex' }}>
           <Icons.MoreH size={14}/>
         </button>
@@ -325,14 +719,10 @@ const Dashboard = () => {
     (async () => {
       const session = await window.requireAuth();
       if (!session) return;
-
       const u = session.user;
       setUser(u);
-
-      // Load profile
       const { data: prof } = await window.sb.from('profiles').select('*').eq('id', u.id).single();
       setProfile(prof);
-
       await loadSets(u.id);
       setLoading(false);
     })();
@@ -344,7 +734,6 @@ const Dashboard = () => {
       .select('*, cards(id, mastery_level, next_review)')
       .eq('owner_id', userId)
       .order('updated_at', { ascending: false });
-
     if (!rawSets) return;
 
     const now = new Date().toISOString();
@@ -354,20 +743,17 @@ const Dashboard = () => {
       mastered_cards: s.cards ? s.cards.filter(c => c.mastery_level === 'mastered').length : 0,
       due_cards: s.cards ? s.cards.filter(c => c.next_review && c.next_review <= now).length : 0,
     }));
-
     setSets(enriched);
 
-    // Compute global stats
     const allCards = enriched.flatMap(s => s.cards || []);
     const dueToday = allCards.filter(c => c.next_review && c.next_review <= now).length;
     const mastered = allCards.filter(c => c.mastery_level === 'mastered').length;
     const masteryPct = allCards.length ? Math.round((mastered / allCards.length) * 100) + '%' : '0%';
 
-    // Reviews this week
     const weekAgo = new Date(Date.now() - 7 * 24 * 3600 * 1000).toISOString();
     const { count: weekReviews } = await window.sb.from('card_reviews')
       .select('id', { count: 'exact', head: true })
-      .eq('user_id', userId || user?.id)
+      .eq('user_id', userId)
       .gte('reviewed_at', weekAgo);
 
     setStats({ dueToday, weekReviews: weekReviews || 0, masteryPct, totalSets: enriched.length });
@@ -379,23 +765,22 @@ const Dashboard = () => {
   };
 
   const handleSetCreated = (newSet) => {
-    setSets(prev => [{ ...newSet, total_cards: 0, mastered_cards: 0, due_cards: 0, cards: [] }, ...prev]);
+    setSets(prev => [{ ...newSet, total_cards: newSet.total_cards || 0, mastered_cards: 0, due_cards: 0, cards: [] }, ...prev]);
     setStats(prev => ({ ...prev, totalSets: (prev.totalSets || 0) + 1 }));
   };
 
-  const handleSetDeleted = (id) => {
-    setSets(prev => prev.filter(s => s.id !== id));
-  };
+  const handleSetDeleted = (id) => setSets(prev => prev.filter(s => s.id !== id));
 
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Nutzer';
 
-  const filteredSets = sets
-    .filter(s => {
-      if (search) return s.title.toLowerCase().includes(search.toLowerCase());
-      if (filter === 'due') return s.due_cards > 0;
-      if (filter === 'shared') return false;
-      return true;
-    });
+  const filteredSets = sets.filter(s => {
+    if (search) return s.title.toLowerCase().includes(search.toLowerCase());
+    if (filter === 'due') return s.due_cards > 0;
+    return true;
+  });
+
+  const showDocs = active === 'docs';
+  const showSets = !showDocs;
 
   if (loading) return (
     <div className="dot-paper" style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -405,79 +790,77 @@ const Dashboard = () => {
 
   return (
     <div className="dot-paper" style={{ height: '100vh', overflow: 'hidden', display: 'flex' }}>
-      <Sidebar user={user} profile={profile} sets={sets} onNewSet={() => setShowModal(true)} onSignOut={handleSignOut}/>
+      <Sidebar
+        user={user} profile={profile} sets={sets}
+        active={active} onNav={setActive}
+        onNewSet={() => setShowModal(true)} onSignOut={handleSignOut}
+      />
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '18px 22px 14px', minWidth: 0, gap: 16, overflow: 'hidden' }}>
         <TopBar search={search} onSearch={setSearch}/>
 
-        <div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-            <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 24, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
-              Servus, {displayName.split(' ')[0]}.
-            </h1>
-            {stats.dueToday > 0 && (
-              <span style={{ fontSize: 13, color: '#64748b' }}>
-                <span style={{ color: '#0f172a', fontWeight: 500 }}>{stats.dueToday} Karten</span> fällig
-              </span>
-            )}
-          </div>
-        </div>
-
-        <StatsRow stats={stats}/>
-
-        <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-              <h2 style={{ fontFamily: 'Instrument Sans', fontSize: 15, fontWeight: 600, color: '#0f172a', margin: 0 }}>Alle Lernsets</h2>
-              <div style={{ display: 'flex', gap: 2, background: '#f1f5f9', padding: 2, borderRadius: 7 }}>
-                {[
-                  { k: 'all', l: 'Alle' },
-                  { k: 'due', l: 'Fällig' },
-                ].map(t => (
-                  <button key={t.k} onClick={() => setFilter(t.k)} style={{
-                    padding: '4px 10px', background: filter === t.k ? 'white' : 'transparent',
-                    border: 'none', borderRadius: 5, fontSize: 11.5,
-                    color: filter === t.k ? '#0f172a' : '#64748b',
-                    fontWeight: filter === t.k ? 500 : 400,
-                    cursor: 'pointer', fontFamily: 'inherit',
-                    boxShadow: filter === t.k ? '0 1px 2px rgba(15,23,42,0.08)' : 'none',
-                  }}>{t.l}</button>
-                ))}
+        {showDocs ? (
+          <DocsPanel userId={user?.id} onSetCreated={handleSetCreated}/>
+        ) : (
+          <>
+            <div>
+              <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
+                <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 24, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
+                  Servus, {displayName.split(' ')[0]}.
+                </h1>
+                {stats.dueToday > 0 && (
+                  <span style={{ fontSize: 13, color: '#64748b' }}>
+                    <span style={{ color: '#0f172a', fontWeight: 500 }}>{stats.dueToday} Karten</span> fällig
+                  </span>
+                )}
               </div>
             </div>
-          </div>
 
-          {filteredSets.length > 0 && (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'minmax(0, 1fr) 110px 90px 70px 80px',
-              gap: 14,
-              padding: '0 14px',
-              fontSize: 10.5, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
-            }}>
-              <div>Name</div>
-              <div>Fortschritt</div>
-              <div>Status</div>
-              <div>Team</div>
-              <div></div>
+            <StatsRow stats={stats}/>
+
+            <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+                  <h2 style={{ fontFamily: 'Instrument Sans', fontSize: 15, fontWeight: 600, color: '#0f172a', margin: 0 }}>Alle Lernsets</h2>
+                  <div style={{ display: 'flex', gap: 2, background: '#f1f5f9', padding: 2, borderRadius: 7 }}>
+                    {[{ k: 'all', l: 'Alle' }, { k: 'due', l: 'Fällig' }].map(t => (
+                      <button key={t.k} onClick={() => setFilter(t.k)} style={{
+                        padding: '4px 10px', background: filter === t.k ? 'white' : 'transparent',
+                        border: 'none', borderRadius: 5, fontSize: 11.5,
+                        color: filter === t.k ? '#0f172a' : '#64748b',
+                        fontWeight: filter === t.k ? 500 : 400,
+                        cursor: 'pointer', fontFamily: 'inherit',
+                        boxShadow: filter === t.k ? '0 1px 2px rgba(15,23,42,0.08)' : 'none',
+                      }}>{t.l}</button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {filteredSets.length > 0 && (
+                <div style={{
+                  display: 'grid',
+                  gridTemplateColumns: 'minmax(0, 1fr) 110px 90px 70px 80px',
+                  gap: 14, padding: '0 14px',
+                  fontSize: 10.5, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase',
+                }}>
+                  <div>Name</div><div>Fortschritt</div><div>Status</div><div>Team</div><div></div>
+                </div>
+              )}
+
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4, paddingBottom: 70 }}>
+                {filteredSets.length > 0
+                  ? filteredSets.map(s => <SetRow key={s.id} set={s} onDelete={handleSetDeleted}/>)
+                  : <EmptyState onNewSet={() => setShowModal(true)}/>
+                }
+              </div>
             </div>
-          )}
-
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4, paddingBottom: 70 }}>
-            {filteredSets.length > 0
-              ? filteredSets.map(s => <SetRow key={s.id} set={s} onDelete={handleSetDeleted}/>)
-              : <EmptyState onNewSet={() => setShowModal(true)}/>
-            }
-          </div>
-        </div>
+          </>
+        )}
       </main>
 
       <div style={{ position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 60 }}>
-        <Dock items={DOCK_ITEMS} active={active} onSelect={(id) => {
-          const item = DOCK_ITEMS.find(i => i.id === id);
-          if (item?.href) window.location.href = item.href;
-          else setActive(id);
-        }}/>
+        <Dock items={DOCK_ITEMS} active={active} onSelect={setActive}/>
       </div>
 
       <AIAssistant/>
