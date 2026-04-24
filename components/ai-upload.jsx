@@ -39,6 +39,8 @@ const AIUpload = () => {
   const [recentDocs, setRecentDocs] = useState([]);
   const [error, setError] = useState('');
   const [uploadedDoc, setUploadedDoc] = useState(null);
+  const [generatedCards, setGeneratedCards] = useState([]);
+  const [saving, setSaving] = useState(false);
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -126,6 +128,12 @@ const AIUpload = () => {
 
       setStage('done');
       loadRecentDocs(userId);
+      // If opened from a Lernset (targetSetId), prepare editable placeholders for generated cards
+      if (paramTargetSetId) {
+        const n = output.cards || 0;
+        const placeholders = Array.from({ length: n }, (_, i) => ({ front: `Frage ${i + 1}`, back: `Antwort ${i + 1}` }));
+        setGeneratedCards(placeholders);
+      }
     } catch (err) {
       setError(err.message || 'Fehler beim Upload');
       setStage('idle');
@@ -274,6 +282,55 @@ const AIUpload = () => {
                   </a>
                   <button onClick={() => { setFile(null); setStage('idle'); setUploadedDoc(null); }} className="btn-ghost" style={{ padding: '10px 16px' }}>Weiteres hochladen</button>
                 </div>
+
+                  {/* If targetSetId provided, show editable generated cards and option to save into Lernset */}
+                  {paramTargetSetId && (
+                    <div style={{ marginTop: 18, background: 'white', padding: 14, borderRadius: 10, border: '1px solid rgba(15,23,42,0.04)' }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 600, color: '#0f172a', marginBottom: 10 }}>Vorschau: Karteikarten für Lernset speichern</div>
+                      {generatedCards.length === 0 ? (
+                        <div style={{ fontSize: 13, color: '#64748b' }}>Keine generierten Karten verfügbar.</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                          {generatedCards.map((g, idx) => (
+                            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'start' }}>
+                              <textarea value={g.front} onChange={e => {
+                                const copy = [...generatedCards]; copy[idx] = { ...copy[idx], front: e.target.value }; setGeneratedCards(copy);
+                              }} style={{ padding: 8, borderRadius: 8, border: '1px solid #e2e8f0', minHeight: 56 }} />
+                              <textarea value={g.back} onChange={e => {
+                                const copy = [...generatedCards]; copy[idx] = { ...copy[idx], back: e.target.value }; setGeneratedCards(copy);
+                              }} style={{ padding: 8, borderRadius: 8, border: '1px solid #e2e8f0', minHeight: 56 }} />
+                              <div>
+                                <button onClick={() => {
+                                  const copy = generatedCards.filter((_, i) => i !== idx); setGeneratedCards(copy);
+                                }} className="btn-ghost" style={{ padding: '8px 10px' }} title="Entfernen">Entfernen</button>
+                              </div>
+                            </div>
+                          ))}
+
+                          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                            <button onClick={async () => {
+                              if (generatedCards.length === 0) return;
+                              setSaving(true);
+                              try {
+                                const rows = generatedCards.map(c => ({ set_id: paramTargetSetId, front: c.front, back: c.back }));
+                                const { data, error: insertErr } = await window.sb.from('cards').insert(rows);
+                                if (insertErr) throw new Error(insertErr.message || 'Fehler beim Speichern');
+                                // redirect back to the Lernset
+                                window.location.href = `lernset.html?id=${encodeURIComponent(paramTargetSetId)}`;
+                              } catch (err) {
+                                alert(err.message || 'Fehler beim Speichern der Karten');
+                              } finally {
+                                setSaving(false);
+                              }
+                            }} className="btn-primary" style={{ padding: '10px 14px' }} disabled={saving}>
+                              {saving ? 'Speichert…' : 'Karten in Lernset speichern'}
+                            </button>
+                            <button onClick={() => { setGeneratedCards([]); }} className="btn-ghost" style={{ padding: '10px 14px' }}>Abbrechen</button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
               </div>
             )}
 
