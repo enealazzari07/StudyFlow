@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Anmelden — StudyFlow</title>
+  <link rel="stylesheet" href="styles/globals.css"/>
+  <script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+  <script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+  <script src="components/supabase-client.js"></script>
+</head>
+<body>
+  <div id="root"></div>
+  <script type="text/babel" src="components/shared.jsx"></script>
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const Login = () => {
+      const [mode, setMode] = useState('signin');
+      const [email, setEmail] = useState('');
+      const [loading, setLoading] = useState(false);
+      const [sent, setSent] = useState(false);
+      const [error, setError] = useState('');
+      const [checking, setChecking] = useState(true);
+
+      useEffect(() => {
+        // Already logged in → go to dashboard
+        window.sb.auth.getSession().then(({ data: { session } }) => {
+          if (session) {
+            window.location.href = 'dashboard.html';
+          } else {
+            setChecking(false);
+          }
+        });
+
+        // Handle magic link callback
+        const { data: { subscription } } = window.sb.auth.onAuthStateChange((event, session) => {
+          if (event === 'SIGNED_IN' && session) {
+            window.location.href = 'dashboard.html';
+          }
+        });
+        return () => subscription.unsubscribe();
+      }, []);
+
+      const handleGoogle = async () => {
+        setError('');
+        const { error } = await window.sb.auth.signInWithOAuth({
+          provider: 'google',
+          options: { redirectTo: window.getBaseUrl() + 'dashboard.html' },
+        });
+        if (error) setError(error.message);
+      };
+
+      const handleMagicLink = async (e) => {
+        e.preventDefault();
+        if (!email) return;
+        setLoading(true);
+        setError('');
+        const { error } = await window.sb.auth.signInWithOtp({
+          email,
+          options: { emailRedirectTo: window.getBaseUrl() + 'dashboard.html' },
+        });
+        setLoading(false);
+        if (error) {
+          setError(error.message);
+        } else {
+          setSent(true);
+        }
+      };
+
+      if (checking) return null;
+
+      return (
+        <div className="dot-paper" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }}>
+          <a href="Landing.html" style={{ position: 'absolute', top: 24, left: 28, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
+            <Icons.ArrowLeft size={14}/> Zurück
+          </a>
+
+          <div style={{ position: 'absolute', top: 80, left: 80 }}>
+            <StickyNote color="pink" rotate={-5} tape>
+              <div style={{ fontFamily: 'Caveat', fontSize: 18, color: '#831843', lineHeight: 1.2, maxWidth: 130 }}>
+                Neu hier? 👋<br/>Erst mal kostenlos!
+              </div>
+            </StickyNote>
+          </div>
+          <div style={{ position: 'absolute', bottom: 80, right: 90 }}>
+            <StickyNote color="green" rotate={4}>
+              <div style={{ fontFamily: 'Caveat', fontSize: 16, color: '#14532d', lineHeight: 1.2, maxWidth: 120 }}>
+                Tipp: Mit Uni-Mail gibt's Pro gratis 🎓
+              </div>
+            </StickyNote>
+          </div>
+
+          <div style={{ width: 420, position: 'relative' }}>
+            <div style={{ position: 'absolute', top: -36, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 8, alignItems: 'center' }}>
+              <Icons.Logo size={36}/>
+              <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 600, color: '#0f172a' }}>StudyFlow</div>
+            </div>
+
+            <div style={{ background: 'white', borderRadius: 20, padding: 36, boxShadow: '0 4px 16px rgba(15,23,42,0.06), 0 20px 60px rgba(15,23,42,0.08)', border: '1px solid rgba(15,23,42,0.06)', marginTop: 60 }}>
+              {!sent ? (
+                <>
+                  <div style={{ textAlign: 'center', marginBottom: 28 }}>
+                    <div style={{ fontFamily: 'Instrument Sans', fontSize: 24, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em' }}>
+                      {mode === 'signin' ? 'Willkommen zurück' : 'Konto erstellen'}
+                    </div>
+                    <div style={{ fontSize: 13.5, color: '#64748b', marginTop: 6 }}>
+                      {mode === 'signin' ? 'Melde dich an, um weiterzulernen' : 'Starte kostenlos — keine Kreditkarte nötig'}
+                    </div>
+                  </div>
+
+                  {error && (
+                    <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#991b1b', marginBottom: 16 }}>
+                      {error}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={handleGoogle}
+                    style={{
+                      width: '100%', padding: '12px 16px', background: 'white',
+                      border: '1px solid #e2e8f0', borderRadius: 10,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
+                      fontSize: 14, fontWeight: 500, color: '#0f172a',
+                      cursor: 'pointer', fontFamily: 'inherit',
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+                    onMouseLeave={e => e.currentTarget.style.background = 'white'}
+                  >
+                    <Icons.Google size={18}/>
+                    Mit Google {mode === 'signin' ? 'anmelden' : 'registrieren'}
+                  </button>
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12, margin: '22px 0', color: '#94a3b8', fontSize: 12 }}>
+                    <div style={{ flex: 1, height: 1, background: '#e2e8f0' }}></div>
+                    oder per E-Mail
+                    <div style={{ flex: 1, height: 1, background: '#e2e8f0' }}></div>
+                  </div>
+
+                  <form onSubmit={handleMagicLink}>
+                    <label style={{ fontSize: 12, fontWeight: 500, color: '#475569', display: 'block', marginBottom: 6 }}>E-Mail</label>
+                    <div style={{ position: 'relative' }}>
+                      <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}>
+                        <Icons.Mail size={16}/>
+                      </div>
+                      <input
+                        className="input-paper"
+                        type="email"
+                        value={email}
+                        onChange={e => setEmail(e.target.value)}
+                        placeholder="du@uni-berlin.de"
+                        style={{ paddingLeft: 38 }}
+                        required
+                      />
+                    </div>
+
+                    <button type="submit" disabled={loading} className="btn-primary" style={{ width: '100%', marginTop: 16, padding: '12px 16px', justifyContent: 'center', opacity: loading ? 0.7 : 1 }}>
+                      {loading ? 'Sende Link…' : (
+                        <>
+                          <Icons.Sparkles size={14}/>
+                          Magic Link senden
+                        </>
+                      )}
+                    </button>
+                  </form>
+
+                  <div style={{ textAlign: 'center', fontSize: 13, color: '#64748b', marginTop: 22 }}>
+                    {mode === 'signin' ? 'Noch kein Konto?' : 'Schon ein Konto?'}
+                    {' '}
+                    <button onClick={() => { setMode(mode === 'signin' ? 'signup' : 'signin'); setError(''); }} style={{ background: 'none', border: 'none', color: '#4f46e5', fontWeight: 500, cursor: 'pointer', fontSize: 13, fontFamily: 'inherit', padding: 0 }}>
+                      {mode === 'signin' ? 'Registrieren' : 'Anmelden'}
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                  <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#eef2ff', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto', color: '#6366f1' }}>
+                    <Icons.Mail size={26}/>
+                  </div>
+                  <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: '#0f172a', marginTop: 18 }}>Check deine Mails</div>
+                  <div style={{ fontSize: 14, color: '#64748b', marginTop: 8, lineHeight: 1.5 }}>
+                    Wir haben einen Magic Link an<br/>
+                    <span style={{ color: '#0f172a', fontWeight: 500 }}>{email}</span> gesendet.
+                  </div>
+                  <button onClick={() => { setSent(false); setEmail(''); }} style={{ marginTop: 20, background: 'none', border: 'none', color: '#64748b', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Andere E-Mail verwenden
+                  </button>
+                </div>
+              )}
+            </div>
+
+            <div style={{ textAlign: 'center', fontSize: 12, color: '#94a3b8', marginTop: 20 }}>
+              Durch die Anmeldung stimmst du unseren <a href="#" style={{ color: '#475569', textDecoration: 'underline' }}>AGB</a> und der <a href="#" style={{ color: '#475569', textDecoration: 'underline' }}>Datenschutzerklärung</a> zu.
+            </div>
+          </div>
+        </div>
+      );
+    };
+
+    ReactDOM.createRoot(document.getElementById('root')).render(<Login/>);
+  </script>
+</body>
+</html>
