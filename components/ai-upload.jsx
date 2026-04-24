@@ -41,6 +41,7 @@ const AIUpload = () => {
   const [uploadedDoc, setUploadedDoc] = useState(null);
   const [generatedCards, setGeneratedCards] = useState([]);
   const [saving, setSaving] = useState(false);
+  const [rawAIOutput, setRawAIOutput] = useState('');
   const fileInputRef = useRef(null);
 
   useEffect(() => {
@@ -287,9 +288,23 @@ const AIUpload = () => {
                   {paramTargetSetId && (
                     <div style={{ marginTop: 18, background: 'white', padding: 14, borderRadius: 10, border: '1px solid rgba(15,23,42,0.04)' }}>
                       <div style={{ fontSize: 13.5, fontWeight: 600, color: '#0f172a', marginBottom: 10 }}>Vorschau: Karteikarten für Lernset speichern</div>
-                      {generatedCards.length === 0 ? (
-                        <div style={{ fontSize: 13, color: '#64748b' }}>Keine generierten Karten verfügbar.</div>
-                      ) : (
+
+                              <div style={{ fontSize: 13, color: '#64748b', marginBottom: 10 }}>Rohdaten (kann AI-Ausgabe oder kopierter Text sein). Verwende "Analysieren" um automatische Karten zu erzeugen.</div>
+                              <textarea value={rawAIOutput || generatedCards.map((g,i)=>`Frage ${i+1}\n${g.back}`).join('\n\n')} onChange={e=>setRawAIOutput(e.target.value)} style={{ width: '100%', minHeight: 120, padding: 10, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 10 }} />
+
+                              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                                <button onClick={() => {
+                                  // parse rawAIOutput into generatedCards
+                                  const parsed = parseRawToCards(rawAIOutput || generatedCards.map((g)=>`${g.front}\n${g.back}`).join('\n\n'));
+                                  if (parsed.length === 0) return alert('Keine Karten gefunden — bitte Format prüfen.');
+                                  setGeneratedCards(parsed);
+                                }} className="btn-primary" style={{ padding: '8px 12px' }}>Analysieren & in Karten umwandeln</button>
+                                <button onClick={() => { setRawAIOutput(''); setGeneratedCards([]); }} className="btn-ghost" style={{ padding: '8px 12px' }}>Zurücksetzen</button>
+                              </div>
+
+                              {generatedCards.length === 0 ? (
+                                <div style={{ fontSize: 13, color: '#64748b' }}>Keine generierten Karten verfügbar. Nutze den Analyzer oben.</div>
+                              ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                           {generatedCards.map((g, idx) => (
                             <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'start' }}>
@@ -411,3 +426,68 @@ const AIUpload = () => {
 };
 
 ReactDOM.createRoot(document.getElementById('root')).render(<AIUpload/>);
+
+// --- Helper: parse raw AI/text into card pairs ---
+function parseRawToCards(text) {
+  if (!text || !text.trim()) return [];
+  // Normalize line endings
+  const t = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+
+  // Try CSV-like: lines with separator ';' or '\t' or '|'
+  const lines = t.split('\n');
+  const csvCandidates = lines.filter(l => /;|\t|\|/.test(l));
+  if (csvCandidates.length >= 1) {
+    const parsed = csvCandidates.map(l => {
+      const sep = l.includes(';') ? ';' : (l.includes('\t') ? '\t' : '|');
+      const [q, a] = l.split(sep).map(s => s.trim());
+      return q && a ? { front: q, back: a } : null;
+    }).filter(Boolean);
+    if (parsed.length) return parsed;
+  }
+
+  // Split by double newlines into blocks
+  const blocks = t.split(/\n{2,}/).map(b => b.trim()).filter(Boolean);
+  const pairs = [];
+  for (const block of blocks) {
+    // If block contains Q: and A:
+    if (/\bQ[:]?\b/i.test(block) && /\bA[:]?\b/i.test(block)) {
+      const qMatch = block.match(/Q[:]?\s*(.*?)\s*(?=A[:]?)/is);
+      const aMatch = block.match(/A[:]?\s*([\s\S]*)/i);
+      const q = qMatch ? qMatch[1].trim() : '';
+      const a = aMatch ? aMatch[1].trim() : '';
+      if (q || a) pairs.push({ front: q || block, back: a || '' });
+      continue;
+    }
+
+    // Otherwise, split by first newline: first line question, rest answer
+    const blines = block.split('\n').map(s=>s.trim()).filter(Boolean);
+    if (blines.length === 1) {
+      // single-line block, try split by ' - ' or ' — ' or ':'
+      const sepMatch = block.match(/\s[-–—:]\s/);
+      if (sepMatch) {
+        const sep = sepMatch[0];
+        const [q,a] = block.split(sep).map(s=>s.trim());
+        if (q && a) { pairs.push({ front: q, back: a }); continue; }
+      }
+      // as fallback, treat as front with empty back
+      pairs.push({ front: blines[0], back: '' });
+    } else {
+      const q = blines[0];
+      const a = blines.slice(1).join(' ');
+      pairs.push({ front: q, back: a });
+    }
+  }
+
+  // If no pairs found but lines are even, pair line-by-line
+  if (pairs.length === 0 && lines.length >= 2) {
+    const out = [];
+    for (let i=0;i<lines.length;i+=2) {
+      const q = lines[i].trim();
+      const a = (lines[i+1]||'').trim();
+      if (q) out.push({ front: q, back: a });
+    }
+    if (out.length) return out;
+  }
+
+  return pairs;
+}
