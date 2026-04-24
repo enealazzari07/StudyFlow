@@ -122,15 +122,30 @@ const CreateSetModal = ({ onClose, onCreated, userId }) => {
   );
 };
 
+// ─── Toggle Switch ────────────────────────────────────────────
+const Toggle = ({ on, onChange }) => (
+  <div onClick={onChange} style={{
+    width: 40, height: 22, borderRadius: 999,
+    background: on ? '#6366f1' : '#cbd5e1',
+    position: 'relative', cursor: 'pointer', transition: 'background 0.2s', flexShrink: 0,
+  }}>
+    <div style={{
+      position: 'absolute', top: 3, left: on ? 20 : 3,
+      width: 16, height: 16, borderRadius: '50%',
+      background: 'white', transition: 'left 0.2s',
+      boxShadow: '0 1px 3px rgba(15,23,42,0.2)',
+    }}/>
+  </div>
+);
+
 // ─── Docs Panel ──────────────────────────────────────────────
 const DocsPanel = ({ userId, onSetCreated }) => {
   const [file, setFile] = useState(null);
   const [dragging, setDragging] = useState(false);
-  const [mode, setMode] = useState('cards'); // 'cards' | 'summary'
-  const [cardCount, setCardCount] = useState(15);
+  const [output, setOutput] = useState({ summary: true, quiz: true, cards: 20 });
   const [step, setStep] = useState('idle'); // idle | uploading | thinking | done
   const [progress, setProgress] = useState('');
-  const [result, setResult] = useState(null); // { type: 'cards'|'summary', data }
+  const [result, setResult] = useState(null); // { cards?, summary?, quiz? }
   const [error, setError] = useState('');
   const [recentDocs, setRecentDocs] = useState([]);
   const [saving, setSaving] = useState(false);
@@ -140,9 +155,7 @@ const DocsPanel = ({ userId, onSetCreated }) => {
   const isImage = file && file.type.startsWith('image/');
   const isText = file && (file.type === 'text/plain' || file.name.endsWith('.md') || file.name.endsWith('.txt'));
 
-  useEffect(() => {
-    if (userId) loadRecentDocs();
-  }, [userId]);
+  useEffect(() => { if (userId) loadRecentDocs(); }, [userId]);
 
   const loadRecentDocs = async () => {
     const { data } = await window.sb.from('documents')
@@ -153,30 +166,65 @@ const DocsPanel = ({ userId, onSetCreated }) => {
 
   const handleFileSelect = (f) => {
     if (!f) return;
-    setFile(f);
-    setResult(null);
-    setError('');
-    setSavedSetId(null);
-    setStep('idle');
+    setFile(f); setResult(null); setError(''); setSavedSetId(null); setStep('idle');
   };
 
   const handleDrop = (e) => {
-    e.preventDefault();
-    setDragging(false);
+    e.preventDefault(); setDragging(false);
     const f = e.dataTransfer.files[0];
     if (f) handleFileSelect(f);
   };
 
+  const buildContentForAI = async () => {
+    if (isImage) {
+      const base64 = await readFileAsBase64(file);
+      return { type: 'image', base64 };
+    }
+    if (isText) {
+      const text = await readFileAsText(file);
+      return { type: 'text', content: text.slice(0, 14000) };
+    }
+    return { type: 'filename', content: file.name };
+  };
+
+  const callAIForOutput = async (contentInfo) => {
+    const parts = [];
+    if (output.summary) parts.push('eine Zusammenfassung (key: "summary", Markdown-Text)');
+    if (output.quiz) parts.push(`${Math.min(output.cards, 8)} Quizfragen (key: "quiz", Array mit {question, options:[A,B,C,D], correct:0-3})`);
+    if (output.cards > 0) parts.push(`genau ${output.cards} Karteikarten (key: "cards", Array mit {front, back})`);
+
+    const taskDesc = `Erstelle auf Deutsch: ${parts.join(', ')}. Antworte NUR mit einem JSON-Objekt mit diesen Keys. Kein weiterer Text außerhalb des JSON.`;
+
+    let messages;
+    if (contentInfo.type === 'image') {
+      messages = [{
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: contentInfo.base64 } },
+          { type: 'text', text: taskDesc },
+        ],
+      }];
+    } else {
+      const ctx = contentInfo.type === 'text'
+        ? contentInfo.content
+        : `Dateiname: ${contentInfo.content}`;
+      messages = [
+        { role: 'system', content: 'Du bist ein präziser Lernassistent. Antworte ausschließlich mit dem angeforderten JSON-Objekt.' },
+        { role: 'user', content: `${taskDesc}\n\nInhalt:\n${ctx}` },
+      ];
+    }
+    return callAI(messages);
+  };
+
   const handleProcess = async () => {
     if (!file || !userId) return;
-    setError('');
-    setResult(null);
-    setSavedSetId(null);
+    if (!output.summary && !output.quiz && output.cards === 0) {
+      setError('Wähle mindestens eine Ausgabe aus.'); return;
+    }
+    setError(''); setResult(null); setSavedSetId(null);
 
     try {
-      // Upload to Supabase Storage
-      setStep('uploading');
-      setProgress('Lade Datei hoch…');
+      setStep('uploading'); setProgress('Lade Datei hoch…');
       const safeFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
       const path = `${userId}/${Date.now()}_${safeFilename}`;
       const { error: uploadErr } = await window.sb.storage.from('documents').upload(path, file, { contentType: file.type });
@@ -187,80 +235,47 @@ const DocsPanel = ({ userId, onSetCreated }) => {
         file_size: file.size, mime_type: file.type,
       }).select().single();
 
-      // Build AI messages
-      setStep('thinking');
-      setProgress('Flow AI analysiert…');
+      setStep('thinking'); setProgress('Flow AI analysiert…');
+      const contentInfo = await buildContentForAI();
+      const rawResponse = await callAIForOutput(contentInfo);
 
-      let messages;
-      if (isImage) {
-        const base64 = await readFileAsBase64(file);
-        const taskText = mode === 'cards'
-          ? `Analysiere dieses Bild und erstelle genau ${cardCount} Karteikarten auf Deutsch. Antworte NUR mit einem JSON-Array: [{"front":"Frage","back":"Antwort"},...]. Kein weiterer Text.`
-          : 'Analysiere dieses Bild und erstelle eine strukturierte Zusammenfassung auf Deutsch. Nutze Überschriften (## ) und Aufzählungszeichen (-). Antworte nur mit dem Text der Zusammenfassung.';
-        messages = [{
-          role: 'user',
-          content: [
-            { type: 'image_url', image_url: { url: base64 } },
-            { type: 'text', text: taskText },
-          ],
-        }];
-      } else if (isText) {
-        const text = await readFileAsText(file);
-        const truncated = text.slice(0, 12000);
-        const systemPrompt = mode === 'cards'
-          ? `Du bist ein Lernassistent. Erstelle genau ${cardCount} präzise Karteikarten auf Deutsch aus dem Lernmaterial. Antworte NUR mit einem JSON-Array: [{"front":"Frage","back":"Antwort"},...]. Kein weiterer Text.`
-          : 'Du bist ein Lernassistent. Erstelle eine strukturierte Zusammenfassung auf Deutsch. Nutze Überschriften (## ) und Aufzählungszeichen (-).';
-        messages = [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: truncated },
-        ];
-      } else {
-        // PDF or other: can't read content directly
-        const systemPrompt = mode === 'cards'
-          ? `Du bist ein Lernassistent. Der Nutzer hat eine Datei namens "${file.name}" hochgeladen. Erstelle ${cardCount} allgemeine Lernkarteikarten auf Deutsch passend zum Thema des Dateinamens. Antworte NUR mit einem JSON-Array: [{"front":"Frage","back":"Antwort"},...].`
-          : `Der Nutzer hat "${file.name}" hochgeladen. Erstelle eine kurze Zusammenfassung auf Deutsch basierend auf dem Thema des Dateinamens.`;
-        messages = [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `Dateiname: ${file.name}` },
-        ];
-      }
+      // Parse JSON response
+      setProgress('Ergebnisse werden aufbereitet…');
+      const jsonMatch = rawResponse.match(/\{[\s\S]*\}/);
+      if (!jsonMatch) throw new Error('AI hat kein gültiges JSON zurückgegeben. Bitte erneut versuchen.');
+      const parsed = JSON.parse(jsonMatch[0]);
 
-      const rawResponse = await callAI(messages);
-
-      // Parse response
-      if (mode === 'cards') {
-        setProgress('Karten werden erstellt…');
-        const jsonMatch = rawResponse.match(/\[[\s\S]*\]/);
-        if (!jsonMatch) throw new Error('AI hat kein gültiges Format zurückgegeben.');
-        const cards = JSON.parse(jsonMatch[0]);
-        if (!Array.isArray(cards) || cards.length === 0) throw new Error('Keine Karten erhalten.');
-        setResult({ type: 'cards', data: cards });
-      } else {
-        setResult({ type: 'summary', data: rawResponse });
-      }
+      setResult({
+        cards: Array.isArray(parsed.cards) ? parsed.cards : null,
+        summary: typeof parsed.summary === 'string' ? parsed.summary : null,
+        quiz: Array.isArray(parsed.quiz) ? parsed.quiz : null,
+      });
 
       if (doc) await window.sb.from('documents').update({ ai_processed: true }).eq('id', doc.id);
       loadRecentDocs();
       setStep('done');
     } catch (err) {
-      setError(err.message || 'Unbekannter Fehler');
+      const msg = err.message || '';
+      if (msg.includes('429') || msg.includes('rate') || msg.toLowerCase().includes('limit')) {
+        setError('API-Limit erreicht (429). Bitte 30 Sekunden warten und erneut versuchen.');
+      } else {
+        setError(msg || 'Unbekannter Fehler');
+      }
       setStep('idle');
     }
   };
 
   const handleSaveAsSet = async () => {
-    if (!result || result.type !== 'cards' || savedSetId) return;
+    if (!result?.cards || savedSetId) return;
     setSaving(true);
-    const setName = file ? file.name.replace(/\.[^.]+$/, '') : 'Neues Set';
+    const setName = file ? file.name.replace(/\.[^.]+$/, '') : 'Flow AI Set';
     const { data: newSet, error: setErr } = await window.sb.from('study_sets').insert({
-      owner_id: userId,
-      title: setName,
-      emoji: '🤖',
+      owner_id: userId, title: setName, emoji: '🤖',
       description: `Automatisch erstellt aus ${file?.name || 'Dokument'}`,
     }).select().single();
     if (setErr) { setError(setErr.message); setSaving(false); return; }
 
-    const cardsToInsert = result.data.map(c => ({
+    const cardsToInsert = result.cards.map(c => ({
       set_id: newSet.id,
       front: c.front || c.question || c.q || '',
       back: c.back || c.answer || c.a || '',
@@ -271,34 +286,27 @@ const DocsPanel = ({ userId, onSetCreated }) => {
     if (onSetCreated) onSetCreated({ ...newSet, total_cards: cardsToInsert.length, mastered_cards: 0, due_cards: 0, cards: [] });
   };
 
-  const renderSummary = (text) => {
-    const lines = text.split('\n');
-    return lines.map((line, i) => {
-      if (line.startsWith('## ')) return <div key={i} style={{ fontFamily: 'Instrument Sans', fontSize: 15, fontWeight: 600, color: '#0f172a', marginTop: 16, marginBottom: 4 }}>{line.slice(3)}</div>;
-      if (line.startsWith('# ')) return <div key={i} style={{ fontFamily: 'Instrument Sans', fontSize: 17, fontWeight: 700, color: '#0f172a', marginTop: 20, marginBottom: 6 }}>{line.slice(2)}</div>;
-      if (line.startsWith('- ') || line.startsWith('• ')) return <div key={i} style={{ fontSize: 13, color: '#334155', paddingLeft: 12, marginTop: 3, display: 'flex', gap: 6 }}><span style={{ color: '#6366f1', flexShrink: 0 }}>·</span>{line.slice(2)}</div>;
-      if (line.trim() === '') return <div key={i} style={{ height: 6 }}/>;
-      return <div key={i} style={{ fontSize: 13, color: '#334155', lineHeight: 1.6, marginTop: 2 }}>{line}</div>;
-    });
-  };
+  const renderSummary = (text) => text.split('\n').map((line, i) => {
+    if (line.startsWith('## ')) return <div key={i} style={{ fontFamily: 'Instrument Sans', fontSize: 14, fontWeight: 600, color: '#0f172a', marginTop: 14, marginBottom: 3 }}>{line.slice(3)}</div>;
+    if (line.startsWith('# ')) return <div key={i} style={{ fontFamily: 'Instrument Sans', fontSize: 16, fontWeight: 700, color: '#0f172a', marginTop: 18, marginBottom: 5 }}>{line.slice(2)}</div>;
+    if (line.startsWith('- ') || line.startsWith('• ')) return <div key={i} style={{ fontSize: 13, color: '#334155', paddingLeft: 10, marginTop: 3, display: 'flex', gap: 6 }}><span style={{ color: '#6366f1' }}>·</span>{line.slice(2)}</div>;
+    if (line.trim() === '') return <div key={i} style={{ height: 5 }}/>;
+    return <div key={i} style={{ fontSize: 13, color: '#334155', lineHeight: 1.6, marginTop: 2 }}>{line}</div>;
+  });
 
-  const canProcess = file && step !== 'uploading' && step !== 'thinking';
+  const isRunning = step === 'uploading' || step === 'thinking';
+  const canProcess = file && !isRunning && !result;
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, flex: 1, minHeight: 0, overflowY: 'auto', paddingBottom: 80 }}>
-      {/* Header */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, flex: 1, minHeight: 0, overflowY: 'auto', paddingBottom: 80 }}>
       <div>
-        <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
-          Dokumente & Flow AI
-        </h1>
-        <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
-          Lade ein Bild oder Textdokument hoch — Flow erstellt Karteikarten oder eine Zusammenfassung.
-        </div>
+        <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>Dokumente & Flow AI</h1>
+        <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>Lade ein Bild, Skript oder Textdokument hoch — Flow erstellt Karteikarten, Zusammenfassung und Quiz.</div>
       </div>
 
-      {/* Upload area */}
       <input ref={fileInputRef} type="file" accept="image/*,.pdf,.txt,.md" style={{ display: 'none' }} onChange={e => handleFileSelect(e.target.files[0])}/>
 
+      {/* Dropzone */}
       {!file ? (
         <div
           onDragOver={e => { e.preventDefault(); setDragging(true); }}
@@ -307,94 +315,79 @@ const DocsPanel = ({ userId, onSetCreated }) => {
           onClick={() => fileInputRef.current?.click()}
           style={{
             border: `2px dashed ${dragging ? '#6366f1' : '#cbd5e1'}`,
-            borderRadius: 16,
-            padding: '48px 32px',
-            textAlign: 'center',
-            background: dragging ? '#eef2ff' : 'white',
-            cursor: 'pointer',
-            transition: 'all 0.15s',
+            borderRadius: 16, padding: '44px 32px', textAlign: 'center',
+            background: dragging ? '#eef2ff' : 'white', cursor: 'pointer', transition: 'all 0.15s',
           }}
         >
-          <div style={{ width: 64, height: 64, borderRadius: 14, background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-            <Icons.Upload size={28}/>
+          <div style={{ width: 60, height: 60, borderRadius: 14, background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
+            <Icons.Upload size={26}/>
           </div>
-          <div style={{ fontFamily: 'Instrument Sans', fontSize: 17, fontWeight: 600, color: '#0f172a' }}>
-            Datei hochladen
-          </div>
-          <div style={{ fontSize: 13, color: '#64748b', marginTop: 5 }}>
-            oder <span style={{ color: '#4f46e5', fontWeight: 500 }}>durchsuchen</span>
-          </div>
-          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 14, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {['Bilder (JPG/PNG/WEBP)', 'PDF', 'TXT/Markdown'].map(t => (
-              <span key={t} style={{ padding: '3px 8px', background: '#f1f5f9', borderRadius: 5 }}>{t}</span>
-            ))}
-          </div>
+          <div style={{ fontFamily: 'Instrument Sans', fontSize: 17, fontWeight: 600, color: '#0f172a' }}>Datei hierher ziehen</div>
+          <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>oder <span style={{ color: '#4f46e5', fontWeight: 500 }}>durchsuchen</span></div>
+          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 14 }}>PDF · DOCX · MD · TXT · Bilder · max. 50 MB</div>
         </div>
       ) : (
         <div style={{ background: 'white', borderRadius: 16, padding: 20, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 2px 8px rgba(15,23,42,0.04)' }}>
-          {/* File info */}
+          {/* File row */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 44, height: 52, background: isImage ? '#fdf4ff' : '#eef2ff', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isImage ? '#a21caf' : '#6366f1', flexShrink: 0, fontSize: 22 }}>
-              {isImage ? '🖼️' : <Icons.Doc size={22}/>}
+            <div style={{ width: 44, height: 52, background: isImage ? '#fdf4ff' : '#eef2ff', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isImage ? '#a21caf' : '#6366f1', flexShrink: 0 }}>
+              {isImage ? <span style={{ fontSize: 22 }}>🖼️</span> : <Icons.Doc size={22}/>}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
-              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>
-                {formatFileSize(file.size)}
-                {isImage && <span style={{ marginLeft: 8, color: '#a21caf', fontWeight: 500 }}>· Bildanalyse verfügbar</span>}
-                {isText && <span style={{ marginLeft: 8, color: '#059669', fontWeight: 500 }}>· Volltext-Analyse</span>}
-                {!isImage && !isText && <span style={{ marginLeft: 8, color: '#94a3b8' }}>· Upload & Metadaten-Analyse</span>}
-              </div>
+              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{formatFileSize(file.size)}</div>
             </div>
-            {step === 'idle' && (
-              <button onClick={() => { setFile(null); setResult(null); setError(''); setStep('idle'); }} style={{ background: 'none', border: 'none', padding: 6, color: '#94a3b8', cursor: 'pointer' }}>
+            {!isRunning && !result && (
+              <button onClick={() => { setFile(null); setError(''); }} style={{ background: 'none', border: 'none', padding: 6, color: '#94a3b8', cursor: 'pointer' }}>
                 <Icons.X size={16}/>
               </button>
             )}
           </div>
 
-          {/* Options */}
-          {(step === 'idle' || step === 'done') && !result && (
+          {/* Output options — shown before processing */}
+          {canProcess && (
             <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid rgba(15,23,42,0.06)' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Flow soll erstellen:</div>
-              <div style={{ display: 'flex', gap: 8 }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Was soll Flow erstellen?</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 {[
-                  { k: 'cards', label: '🃏 Karteikarten', sub: 'Für Spaced Repetition' },
-                  { k: 'summary', label: '📝 Zusammenfassung', sub: 'Strukturierter Überblick' },
+                  { key: 'summary', label: 'Zusammenfassung', sub: 'Kompakte Übersicht der Kernthemen', icon: <Icons.Doc size={15}/> },
+                  { key: 'quiz', label: 'Quizfragen', sub: '~8 Multiple-Choice-Fragen', icon: <Icons.Brain size={15}/> },
                 ].map(o => (
-                  <div key={o.k} onClick={() => setMode(o.k)} style={{
-                    flex: 1, padding: '10px 14px', borderRadius: 10,
-                    border: `2px solid ${mode === o.k ? '#6366f1' : 'rgba(15,23,42,0.06)'}`,
-                    background: mode === o.k ? '#eef2ff' : 'white',
-                    cursor: 'pointer', transition: 'all 0.15s',
-                  }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: mode === o.k ? '#4f46e5' : '#0f172a' }}>{o.label}</div>
-                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>{o.sub}</div>
-                  </div>
+                  <label key={o.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#fafaf7', borderRadius: 10, cursor: 'pointer', border: '1px solid rgba(15,23,42,0.04)' }}>
+                    <div style={{ color: '#6366f1' }}>{o.icon}</div>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontSize: 13.5, fontWeight: 500, color: '#0f172a' }}>{o.label}</div>
+                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>{o.sub}</div>
+                    </div>
+                    <Toggle on={output[o.key]} onChange={() => setOutput({ ...output, [o.key]: !output[o.key] })}/>
+                  </label>
                 ))}
-              </div>
-
-              {mode === 'cards' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 10, padding: '10px 14px', background: '#fafaf7', borderRadius: 10 }}>
-                  <Icons.Cards size={14} style={{ color: '#6366f1' }}/>
-                  <span style={{ fontSize: 13, color: '#475569', flex: 1 }}>Anzahl Karteikarten</span>
-                  <input type="number" value={cardCount} min={3} max={50} onChange={e => setCardCount(Math.max(3, Math.min(50, +e.target.value || 15)))}
-                    style={{ width: 60, padding: '5px 8px', border: '1px solid #e2e8f0', borderRadius: 7, fontSize: 13, textAlign: 'center', fontFamily: 'inherit' }}/>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#fafaf7', borderRadius: 10, border: '1px solid rgba(15,23,42,0.04)' }}>
+                  <div style={{ color: '#6366f1' }}><Icons.Cards size={15}/></div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13.5, fontWeight: 500, color: '#0f172a' }}>Karteikarten</div>
+                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>Frage-Antwort-Paare für Spaced Repetition</div>
+                  </div>
+                  <input type="number" value={output.cards} min={0} max={50}
+                    onChange={e => setOutput({ ...output, cards: Math.max(0, Math.min(50, +e.target.value || 0)) })}
+                    style={{ width: 58, padding: '5px 8px', border: '1px solid #e2e8f0', borderRadius: 7, fontSize: 13, textAlign: 'center', fontFamily: 'inherit' }}/>
+                  <span style={{ fontSize: 12, color: '#64748b' }}>Karten</span>
                 </div>
-              )}
+              </div>
             </div>
           )}
 
           {/* Error */}
           {error && (
-            <div style={{ marginTop: 14, background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#991b1b' }}>
-              {error}
+            <div style={{ marginTop: 14, background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#991b1b', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
+              <span>{error}</span>
+              <button onClick={() => setError('')} style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', padding: 0 }}><Icons.X size={14}/></button>
             </div>
           )}
 
           {/* Progress */}
-          {(step === 'uploading' || step === 'thinking') && (
-            <div style={{ marginTop: 18, padding: 16, background: '#fafaf7', borderRadius: 12, border: '1px solid rgba(15,23,42,0.04)' }}>
+          {isRunning && (
+            <div style={{ marginTop: 18, padding: 16, background: '#fafaf7', borderRadius: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 <div className="float" style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #6366f1, #818cf8)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                   <Icons.Sparkles size={13}/>
@@ -402,65 +395,93 @@ const DocsPanel = ({ userId, onSetCreated }) => {
                 <div style={{ fontSize: 13, color: '#0f172a', fontWeight: 500 }}>{progress}</div>
               </div>
               <div style={{ height: 4, background: '#e2e8f0', borderRadius: 999, marginTop: 14, overflow: 'hidden' }}>
-                <div style={{ width: step === 'uploading' ? '30%' : '75%', height: '100%', background: 'linear-gradient(90deg, #6366f1, #818cf8)', transition: 'width 0.8s ease', borderRadius: 999 }}></div>
+                <div style={{ width: step === 'uploading' ? '25%' : '80%', height: '100%', background: 'linear-gradient(90deg, #6366f1, #818cf8)', transition: 'width 1s ease', borderRadius: 999 }}></div>
               </div>
-            </div>
-          )}
-
-          {/* Results: Cards */}
-          {result?.type === 'cards' && (
-            <div style={{ marginTop: 18 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>
-                  {result.data.length} Karteikarten erstellt ✨
-                </div>
-                {savedSetId ? (
-                  <a href={`lernset.html?id=${savedSetId}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: '#d1fae5', color: '#065f46', borderRadius: 8, fontSize: 12, fontWeight: 500, textDecoration: 'none' }}>
-                    <Icons.Check size={12}/> Gespeichert — Öffnen
-                  </a>
-                ) : (
-                  <button onClick={handleSaveAsSet} disabled={saving} className="btn-primary" style={{ padding: '6px 14px', fontSize: 12, opacity: saving ? 0.7 : 1 }}>
-                    {saving ? 'Speichert…' : <><Icons.Plus size={12}/> Als Lernset speichern</>}
-                  </button>
-                )}
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 340, overflowY: 'auto', paddingRight: 4 }}>
-                {result.data.map((c, i) => (
-                  <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, background: '#fafaf7', borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(15,23,42,0.04)' }}>
-                    <div style={{ padding: '10px 14px', borderRight: '1px solid rgba(15,23,42,0.06)' }}>
-                      <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>Frage</div>
-                      <div style={{ fontFamily: 'Caveat', fontSize: 16, color: '#0f172a', lineHeight: 1.3 }}>{c.front || c.question || c.q}</div>
-                    </div>
-                    <div style={{ padding: '10px 14px' }}>
-                      <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 4 }}>Antwort</div>
-                      <div style={{ fontSize: 12.5, color: '#334155', lineHeight: 1.4 }}>{c.back || c.answer || c.a}</div>
-                    </div>
-                  </div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8, fontSize: 11, color: '#94a3b8' }}>
+                {['Hochladen', 'Lesen', 'Analysieren', 'Erstellen'].map((s, i) => (
+                  <span key={s} style={{ color: (step === 'uploading' ? 0 : 2) >= i ? '#6366f1' : '#cbd5e1', fontWeight: 500 }}>{s}</span>
                 ))}
               </div>
-              <button onClick={() => { setFile(null); setResult(null); setStep('idle'); setSavedSetId(null); }} className="btn-ghost" style={{ marginTop: 12, width: '100%', justifyContent: 'center', padding: '9px 0', fontSize: 13 }}>
-                Weitere Datei hochladen
-              </button>
             </div>
           )}
 
-          {/* Results: Summary */}
-          {result?.type === 'summary' && (
-            <div style={{ marginTop: 18 }}>
-              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 12 }}>Zusammenfassung ✨</div>
-              <div style={{ background: '#fafaf7', borderRadius: 12, padding: '16px 18px', border: '1px solid rgba(15,23,42,0.04)', maxHeight: 380, overflowY: 'auto' }}>
-                {renderSummary(result.data)}
-              </div>
-              <button onClick={() => { setFile(null); setResult(null); setStep('idle'); }} className="btn-ghost" style={{ marginTop: 12, width: '100%', justifyContent: 'center', padding: '9px 0', fontSize: 13 }}>
+          {/* Results */}
+          {result && (
+            <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
+              {/* Cards result */}
+              {result.cards && result.cards.length > 0 && (
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>🃏 {result.cards.length} Karteikarten</div>
+                    {savedSetId ? (
+                      <a href={`lernset.html?id=${savedSetId}`} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: '#d1fae5', color: '#065f46', borderRadius: 8, fontSize: 12, fontWeight: 500, textDecoration: 'none' }}>
+                        <Icons.Check size={12}/> Gespeichert — Öffnen
+                      </a>
+                    ) : (
+                      <button onClick={handleSaveAsSet} disabled={saving} className="btn-primary" style={{ padding: '5px 12px', fontSize: 12, opacity: saving ? 0.7 : 1 }}>
+                        {saving ? 'Speichert…' : <><Icons.Plus size={12}/> Als Lernset</>}
+                      </button>
+                    )}
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 280, overflowY: 'auto', paddingRight: 4 }}>
+                    {result.cards.map((c, i) => (
+                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', background: '#fafaf7', borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(15,23,42,0.04)' }}>
+                        <div style={{ padding: '9px 13px', borderRight: '1px solid rgba(15,23,42,0.06)' }}>
+                          <div style={{ fontSize: 9.5, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 3 }}>Frage</div>
+                          <div style={{ fontFamily: 'Caveat', fontSize: 15, color: '#0f172a', lineHeight: 1.3 }}>{c.front || c.question || c.q}</div>
+                        </div>
+                        <div style={{ padding: '9px 13px' }}>
+                          <div style={{ fontSize: 9.5, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 3 }}>Antwort</div>
+                          <div style={{ fontSize: 12, color: '#334155', lineHeight: 1.4 }}>{c.back || c.answer || c.a}</div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Quiz result */}
+              {result.quiz && result.quiz.length > 0 && (
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 10 }}>🧠 {result.quiz.length} Quizfragen</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 240, overflowY: 'auto' }}>
+                    {result.quiz.map((q, i) => (
+                      <div key={i} style={{ background: '#fafaf7', borderRadius: 10, padding: '10px 14px', border: '1px solid rgba(15,23,42,0.04)' }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', marginBottom: 6 }}>{i+1}. {q.question}</div>
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                          {(q.options || []).map((opt, j) => (
+                            <div key={j} style={{ fontSize: 12, color: j === q.correct ? '#059669' : '#64748b', padding: '3px 8px', background: j === q.correct ? '#d1fae5' : 'white', borderRadius: 6, border: `1px solid ${j === q.correct ? '#6ee7b7' : '#e2e8f0'}` }}>
+                              {['A','B','C','D'][j]}. {opt}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Summary result */}
+              {result.summary && (
+                <div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>📝 Zusammenfassung</div>
+                  <div style={{ background: '#fafaf7', borderRadius: 12, padding: '14px 16px', border: '1px solid rgba(15,23,42,0.04)', maxHeight: 280, overflowY: 'auto' }}>
+                    {renderSummary(result.summary)}
+                  </div>
+                </div>
+              )}
+
+              <button onClick={() => { setFile(null); setResult(null); setStep('idle'); setSavedSetId(null); setError(''); }} className="btn-ghost" style={{ width: '100%', justifyContent: 'center', padding: '9px 0', fontSize: 13 }}>
                 Weitere Datei hochladen
               </button>
             </div>
           )}
 
           {/* Process button */}
-          {canProcess && !result && (
-            <button onClick={handleProcess} className="btn-primary" style={{ marginTop: 16, width: '100%', justifyContent: 'center', padding: '12px 0', background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}>
-              <Icons.Sparkles size={14}/> Verarbeiten mit Flow AI
+          {canProcess && (
+            <button onClick={handleProcess} className="btn-primary" style={{ marginTop: 18, width: '100%', justifyContent: 'center', padding: '13px 0', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', fontSize: 14 }}>
+              <Icons.Sparkles size={14}/> Mit Flow verarbeiten
+              <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.8 }}>~10 Sek</span>
             </button>
           )}
         </div>
