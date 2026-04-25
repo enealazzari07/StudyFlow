@@ -290,6 +290,7 @@ const Whiteboard = ({ elements, setElements, textItems, setTextItems, colChannel
   const [history, setHistory] = useState([]);
   const [cursors, setCursors] = useState({});
   const lastCursorBroadcast = useRef(0);
+  const lastPos = useRef({ x: 0, y: 0 });
 
   // Canvas setup
   useEffect(() => {
@@ -342,7 +343,7 @@ const Whiteboard = ({ elements, setElements, textItems, setTextItems, colChannel
     });
     colChannel.on('broadcast', { event: 'cursor' }, ({ payload }) => {
       if (payload.id === myId) return;
-      setCursors(prev => ({ ...prev, [payload.id]: { x: payload.x, y: payload.y, name: payload.name } }));
+      setCursors(prev => ({ ...prev, [payload.id]: { x: payload.x, y: payload.y, name: payload.name, ts: payload.ts || Date.now() } }));
     });
     colChannel.on('broadcast', { event: 'textItems' }, ({ payload }) => {
       if (payload.fromId === myId) return;
@@ -389,13 +390,29 @@ const Whiteboard = ({ elements, setElements, textItems, setTextItems, colChannel
     return canvasXY(canvas, e);
   };
 
+  // Heartbeat: re-broadcast cursor every 2s so remote users see freshness; clean up cursors not seen in 6s
+  useEffect(() => {
+    const tick = setInterval(() => {
+      if (colChannel) {
+        colChannel.send({ type: 'broadcast', event: 'cursor', payload: { id: myId, x: lastPos.current.x, y: lastPos.current.y, name: myName, ts: Date.now() } });
+      }
+      setCursors(prev => {
+        const now = Date.now();
+        const cleaned = Object.fromEntries(Object.entries(prev).filter(([, v]) => !v.ts || now - v.ts < 6000));
+        return Object.keys(cleaned).length === Object.keys(prev).length ? prev : cleaned;
+      });
+    }, 2000);
+    return () => clearInterval(tick);
+  }, [colChannel, myId, myName]);
+
   const broadcastCursor = (e) => {
     if (!colChannel) return;
     const now = Date.now();
-    if (now - lastCursorBroadcast.current < 40) return;
+    if (now - lastCursorBroadcast.current < 80) return;
     lastCursorBroadcast.current = now;
     const { x, y } = getPos(e);
-    colChannel.send({ type: 'broadcast', event: 'cursor', payload: { id: myId, x, y, name: myName } });
+    lastPos.current = { x, y };
+    colChannel.send({ type: 'broadcast', event: 'cursor', payload: { id: myId, x, y, name: myName, ts: now } });
   };
 
   const onPointerDown = (e) => {

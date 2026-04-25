@@ -882,12 +882,13 @@ const SetRow = ({ set, onDelete }) => {
 
 // ─── Stats ───────────────────────────────────────────────────
 const StatsRow = ({ stats }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10 }}>
     {[
       { label: 'Fällig heute', value: stats.dueToday || '0', sub: 'Karten' },
       { label: 'Diese Woche', value: stats.weekReviews || '0', sub: 'Karten geübt' },
       { label: 'Gemeistert', value: stats.masteryPct || '0%', sub: 'aller Karten' },
       { label: 'Lernsets', value: stats.totalSets || '0', sub: 'gesamt' },
+      { label: 'Streak 🔥', value: (stats.streak || 0) + ' T.', sub: 'Tage am Stück' },
     ].map(s => (
       <div key={s.label} style={{ background: 'white', borderRadius: 10, padding: '12px 14px', border: '1px solid rgba(15,23,42,0.05)' }}>
         <div style={{ fontSize: 11, color: '#64748b' }}>{s.label}</div>
@@ -951,19 +952,31 @@ const Dashboard = () => {
     const enriched = rawSets.map(s => ({
       ...s,
       total_cards: s.cards ? s.cards.length : 0,
-      mastered_cards: s.cards ? s.cards.filter(c => c.mastery_level === 'mastered').length : 0,
+      mastered_cards: s.cards ? s.cards.filter(c => c.mastery_level === 'mastered' || c.mastery_level === 'good').length : 0,
       due_cards: s.cards ? s.cards.filter(c => c.next_review && c.next_review <= now).length : 0,
     }));
     setSets(enriched);
 
     const allCards = enriched.flatMap(s => s.cards || []);
     const dueToday = allCards.filter(c => c.next_review && c.next_review <= now).length;
-    const mastered = allCards.filter(c => c.mastery_level === 'mastered').length;
+    const mastered = allCards.filter(c => c.mastery_level === 'mastered' || c.mastery_level === 'good').length;
     const masteryPct = allCards.length ? Math.round((mastered/allCards.length)*100)+'%' : '0%';
     const weekAgo = new Date(Date.now()-7*24*3600*1000).toISOString();
     const { count: weekReviews } = await window.sb.from('card_reviews')
       .select('id', { count: 'exact', head: true }).eq('user_id', userId).gte('reviewed_at', weekAgo);
-    setStats({ dueToday, weekReviews: weekReviews || 0, masteryPct, totalSets: enriched.length });
+
+    // Compute streak from card_reviews
+    const ninetyDaysAgo = new Date(Date.now()-90*24*3600*1000).toISOString();
+    const { data: reviewDates } = await window.sb.from('card_reviews')
+      .select('reviewed_at').eq('user_id', userId).gte('reviewed_at', ninetyDaysAgo);
+    const daySet = new Set((reviewDates||[]).map(r => r.reviewed_at.slice(0,10)));
+    let streak = 0;
+    for (let i = 0; i < 90; i++) {
+      const d = new Date(Date.now() - i*86400000).toISOString().slice(0,10);
+      if (daySet.has(d)) streak++;
+      else if (i > 0) break;
+    }
+    setStats({ dueToday, weekReviews: weekReviews || 0, masteryPct, totalSets: enriched.length, streak });
   };
 
   // Abmelden-Button wurde entfernt (Sidebar-UI)
