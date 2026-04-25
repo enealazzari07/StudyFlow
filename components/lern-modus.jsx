@@ -63,12 +63,42 @@ const ModeSwitcher = ({ mode, setMode }) => (
 // ─── Flashcard Mode ───────────────────────────────────────────
 const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
   const [flipped, setFlipped] = useState(false);
+  const [dragX, setDragX] = useState(0);
+  const dragRef = useRef({ active: false, startX: 0 });
+  const hasDragged = useRef(false);
   const idx = reviewed;
   const card = sessionCards[idx];
 
-  useEffect(() => { setFlipped(false); }, [idx]);
+  useEffect(() => {
+    setFlipped(false);
+    setDragX(0);
+    dragRef.current.active = false;
+  }, [idx]);
 
   if (!card) return null;
+
+  const handlePointerDown = (e) => {
+    hasDragged.current = false;
+    if (!flipped) return;
+    dragRef.current = { active: true, startX: e.clientX };
+    e.currentTarget.setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e) => {
+    if (!dragRef.current.active) return;
+    const diff = e.clientX - dragRef.current.startX;
+    setDragX(diff);
+    if (Math.abs(diff) > 5) hasDragged.current = true;
+  };
+
+  const handlePointerUp = (e) => {
+    if (!dragRef.current.active) return;
+    dragRef.current.active = false;
+    const diff = e.clientX - dragRef.current.startX;
+    if (diff > 120) onGrade(card, 3); // Gut / Richtig
+    else if (diff < -120) onGrade(card, 1); // Nochmal / Falsch
+    else setDragX(0); // Zurückfedern
+  };
 
   const grades = [
     { g: 1, label: 'Nochmal', color: '#ef4444', bg: '#fee2e2' },
@@ -82,13 +112,35 @@ const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
       <div style={{ width: 600, position: 'relative' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'white', borderRadius: 20, transform: 'rotate(-1.5deg) translateY(8px)', opacity: 0.6, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 2px 8px rgba(15,23,42,0.04)' }}></div>
         <div style={{ position: 'absolute', inset: 0, background: 'white', borderRadius: 20, transform: 'rotate(0.8deg) translateY(4px)', opacity: 0.85, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 2px 8px rgba(15,23,42,0.06)' }}></div>
-        <div style={{ position: 'relative' }}>
-          <Flashcard front={card.front} back={card.back} flipped={flipped} onFlip={() => setFlipped(!flipped)} w={600} h={360}/>
+        <div
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
+          style={{
+            position: 'relative',
+            transform: `translateX(${dragX}px) rotate(${dragX * 0.05}deg)`,
+            transition: dragRef.current.active ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
+            touchAction: flipped ? 'none' : 'auto',
+            cursor: flipped ? (dragRef.current.active ? 'grabbing' : 'grab') : 'pointer',
+            userSelect: dragRef.current.active ? 'none' : 'auto',
+          }}
+        >
+          <Flashcard front={card.front} back={card.back} flipped={flipped} onFlip={() => {
+            if (!hasDragged.current) setFlipped(!flipped);
+          }} w={600} h={360}/>
+          
+          {flipped && dragX > 20 && (
+            <div style={{ position: 'absolute', top: 30, left: 30, padding: '8px 20px', border: '4px solid #10b981', color: '#10b981', borderRadius: 12, fontSize: 32, fontWeight: 700, textTransform: 'uppercase', transform: 'rotate(-15deg)', opacity: Math.min(1, dragX / 100), zIndex: 10, pointerEvents: 'none', background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(4px)' }}>Richtig</div>
+          )}
+          {flipped && dragX < -20 && (
+            <div style={{ position: 'absolute', top: 30, right: 30, padding: '8px 20px', border: '4px solid #ef4444', color: '#ef4444', borderRadius: 12, fontSize: 32, fontWeight: 700, textTransform: 'uppercase', transform: 'rotate(15deg)', opacity: Math.min(1, -dragX / 100), zIndex: 10, pointerEvents: 'none', background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(4px)' }}>Falsch</div>
+          )}
         </div>
       </div>
 
       <div style={{ fontFamily: 'Caveat', fontSize: 20, color: '#64748b' }}>
-        Klick zum Umdrehen · <kbd style={{ padding: '1px 6px', background: '#f1f5f9', borderRadius: 4, fontSize: 11, fontFamily: 'JetBrains Mono', color: '#334155' }}>Space</kbd>
+        Klick zum Umdrehen · <kbd style={{ padding: '1px 6px', background: '#f1f5f9', borderRadius: 4, fontSize: 11, fontFamily: 'JetBrains Mono', color: '#334155' }}>Space</kbd> {flipped && '· Swipe für Richtig/Falsch'}
       </div>
 
       {flipped ? (
@@ -189,46 +241,6 @@ const QuizMode = ({ sessionCards, reviewed, onGrade }) => {
               </button>
             );
           })}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ─── Activity Heatmap ─────────────────────────────────────────
-const ActivityHeatmap = ({ streak }) => {
-  const cells = useMemo(() => Array.from({ length: 14 * 7 }).map((_, i) => {
-    const pseudo = (Math.sin(i * 12.9898) * 43758.5453) % 1;
-    const r = Math.abs(pseudo);
-    if (r < 0.35) return 0;
-    if (r < 0.6) return 0.2;
-    if (r < 0.78) return 0.4;
-    if (r < 0.92) return 0.65;
-    return 1;
-  }), []);
-
-  return (
-    <div style={{ background: 'white', border: '1px solid rgba(15,23,42,0.06)', borderRadius: 12, padding: '12px 14px', display: 'flex', alignItems: 'center', gap: 16, boxShadow: '0 1px 2px rgba(15,23,42,0.03)' }}>
-      <div>
-        <div style={{ fontSize: 10.5, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>Aktivität</div>
-        <div style={{ display: 'flex', alignItems: 'baseline', gap: 5, marginTop: 2 }}>
-          <span style={{ fontFamily: 'Caveat', fontSize: 24, fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>{streak}</span>
-          <span style={{ fontSize: 11, color: '#64748b' }}>Tage Streak</span>
-        </div>
-      </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: 2.5, flex: 1 }}>
-        {cells.map((intensity, i) => (
-          <div key={i} style={{ aspectRatio: 1, borderRadius: 2, background: intensity === 0 ? '#f1f5f9' : `rgba(99,102,241,${intensity})` }}></div>
-        ))}
-      </div>
-      <div style={{ fontSize: 10.5, color: '#94a3b8', display: 'flex', flexDirection: 'column', gap: 1, alignItems: 'flex-end' }}>
-        <span>letzte 14 Wochen</span>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 3, marginTop: 2 }}>
-          <span style={{ fontSize: 9 }}>weniger</span>
-          {[0, 0.2, 0.4, 0.65, 1].map(v => (
-            <div key={v} style={{ width: 8, height: 8, borderRadius: 2, background: v === 0 ? '#f1f5f9' : `rgba(99,102,241,${v})` }}></div>
-          ))}
-          <span style={{ fontSize: 9 }}>mehr</span>
         </div>
       </div>
     </div>
@@ -391,10 +403,6 @@ const LernModus = () => {
           )}
         </div>
       </header>
-
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '16px 32px 0' }}>
-        <ActivityHeatmap streak={streak}/>
-      </div>
 
       <div style={{ padding: '16px 32px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, fontSize: 12, color: '#64748b' }}>
