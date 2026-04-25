@@ -336,396 +336,230 @@ const SettingsPanel = ({ user, profile, onProfileUpdate }) => {
 };
 
 // ─── Docs Panel ──────────────────────────────────────────────
-const DocsPanel = ({ userId, profile, onSetCreated, targetSetId }) => {
-  const [file, setFile] = useState(null);
-  const [dragging, setDragging] = useState(false);
-  const [output, setOutput] = useState({ summary: true, quiz: true, cards: 20 });
-  const [step, setStep] = useState('idle');
-  const [progress, setProgress] = useState('');
-  const [result, setResult] = useState(null);
+const DocsPanel = ({ userId }) => {
+  const [items, setItems] = useState([]);
+  const [currentFolder, setCurrentFolder] = useState(null); // null = root
+  const [loading, setLoading] = useState(true);
+  const [showNewFolder, setShowNewFolder] = useState(false);
+  const [folderName, setFolderName] = useState('');
+  const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
-  const [recentDocs, setRecentDocs] = useState([]);
-  const [saving, setSaving] = useState(false);
-  const [savedSetId, setSavedSetId] = useState(null);
-  const [savedToTarget, setSavedToTarget] = useState(false);
-  const fileInputRef = useRef(null);
 
-  const isImage = file && file.type.startsWith('image/');
-  const isText = file && (file.type === 'text/plain' || file.name.endsWith('.md') || file.name.endsWith('.txt'));
-  const isPro = profile?.plan === 'pro';
+  useEffect(() => { if (userId) load(); }, [userId]);
 
-  useEffect(() => { if (userId) loadRecentDocs(); }, [userId]);
-
-  const loadRecentDocs = async () => {
-    const { data } = await window.sb.from('documents').select('*').eq('owner_id', userId)
-      .order('created_at', { ascending: false }).limit(8);
-    setRecentDocs(data || []);
+  const load = async () => {
+    setLoading(true);
+    const { data } = await window.sb.from('documents')
+      .select('*').eq('owner_id', userId)
+      .order('doc_type', { ascending: true })
+      .order('name', { ascending: true });
+    setItems(data || []);
+    setLoading(false);
   };
 
-  const handleFileSelect = (f) => {
-    if (!f) return;
-    if (isImage && !isPro) { setError('Bildanalyse ist ein Pro-Feature. Upgrade für Zugriff.'); return; }
-    setFile(f); setResult(null); setError(''); setSavedSetId(null); setSavedToTarget(false); setStep('idle');
+  const createFolder = async () => {
+    if (!folderName.trim()) return;
+    setCreating(true);
+    const { error: err } = await window.sb.from('documents').insert({
+      owner_id: userId, name: folderName.trim(),
+      doc_type: 'folder', file_path: '', file_size: 0,
+      mime_type: 'studyflow/folder',
+      folder_id: currentFolder,
+    });
+    setCreating(false);
+    if (err) { setError(err.message); return; }
+    setFolderName(''); setShowNewFolder(false);
+    load();
   };
 
-  const handleDrop = (e) => { e.preventDefault(); setDragging(false); handleFileSelect(e.dataTransfer.files[0]); };
-
-  const buildUserContent = async () => {
-    if (isImage) {
-      const b64 = await readFileAsBase64(file);
-      return [{ type: 'image_url', image_url: { url: b64 } }];
-    }
-    if (isText) {
-      const txt = await readFileAsText(file);
-      return txt.slice(0, 14000);
-    }
-    return `Dateiname: "${file.name}"`;
-  };
-
-  const handleProcess = async () => {
-    if (!file || !userId) return;
-    if (!output.summary && !output.quiz && output.cards === 0) { setError('Wähle mindestens eine Ausgabe aus.'); return; }
-    setError(''); setResult(null); setSavedSetId(null); setSavedToTarget(false);
-
-    try {
-      // Nur bei "Scan" (Bild oder PDF) die externe AI-API nutzen
-      const isPdf = file.type === 'application/pdf' || (file.name || '').toLowerCase().endsWith('.pdf');
-      const isScan = isImage || isPdf;
-      if (!isScan) {
-        setError('Flow AI greift nur bei gescannten Dokumenten (PDF/Bild) auf die API zu.');
-        return;
-      }
-
-      // Upload file
-      setStep('uploading'); setProgress('Lade Datei hoch…');
-      const safe = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `${userId}/${Date.now()}_${safe}`;
-      const { error: upErr } = await window.sb.storage.from('documents').upload(path, file, { contentType: file.type });
-      if (upErr) throw new Error(upErr.message);
-      const { data: doc } = await window.sb.from('documents').insert({
-        owner_id: userId, name: file.name, file_path: path, file_size: file.size, mime_type: file.type,
-      }).select().single();
-
-      setStep('thinking');
-      const content = await buildUserContent();
-      const results = {};
-
-      // Cards — ask for simple JSON array only
-      if (output.cards > 0) {
-        setProgress(`${output.cards} Karteikarten werden erstellt…`);
-        const prompt = `Erstelle genau ${output.cards} Lernkarteikarten auf Deutsch. Antworte NUR mit einem JSON-Array, kein anderer Text: [{"front":"Frage","back":"Antwort"}]`;
-        const msgs = isImage
-          ? [{ role: 'user', content: [...content, { type: 'text', text: prompt }] }]
-          : [{ role: 'system', content: 'Antworte ausschließlich mit dem angeforderten JSON. Kein Markdown, kein erklärender Text.' }, { role: 'user', content: `${prompt}\n\n${content}` }];
-        const raw = await callAI(msgs);
-        const parsed = extractJSON(raw);
-        if (Array.isArray(parsed) && parsed.length) results.cards = parsed;
-      }
-
-      // Summary — plain text, no JSON
-      if (output.summary) {
-        setProgress('Zusammenfassung wird erstellt…');
-        const prompt = 'Erstelle eine strukturierte Zusammenfassung auf Deutsch mit Überschriften (## ) und Aufzählungszeichen (-). Nur Text, kein JSON.';
-        const msgs = isImage
-          ? [{ role: 'user', content: [...content, { type: 'text', text: prompt }] }]
-          : [{ role: 'system', content: 'Du bist ein Lernassistent. Antworte nur mit der Zusammenfassung.' }, { role: 'user', content: `${prompt}\n\n${content}` }];
-        results.summary = await callAI(msgs);
-      }
-
-      // Quiz — simple JSON array
-      if (output.quiz) {
-        setProgress('Quizfragen werden erstellt…');
-        const n = Math.min(8, output.cards || 8);
-        const prompt = `Erstelle ${n} Multiple-Choice-Fragen auf Deutsch. NUR JSON-Array: [{"question":"...","options":["A","B","C","D"],"correct":0}]. correct ist der Index (0-3) der richtigen Antwort.`;
-        const msgs = isImage
-          ? [{ role: 'user', content: [...content, { type: 'text', text: prompt }] }]
-          : [{ role: 'system', content: 'Antworte ausschließlich mit dem JSON-Array.' }, { role: 'user', content: `${prompt}\n\n${content}` }];
-        const raw = await callAI(msgs);
-        const parsed = extractJSON(raw);
-        if (Array.isArray(parsed) && parsed.length) results.quiz = parsed;
-      }
-
-      if (doc) await window.sb.from('documents').update({ ai_processed: true }).eq('id', doc.id);
-      loadRecentDocs();
-      setResult(results);
-      setStep('done');
-    } catch (err) {
-      if (err.message === 'RATE_LIMIT') {
-        setError('API-Limit erreicht (429). Bitte 30 Sekunden warten und erneut versuchen.');
-      } else {
-        setError(err.message || 'Unbekannter Fehler');
-      }
-      setStep('idle');
-    }
-  };
-
-  const handleSaveAsSet = async () => {
-    if (!result?.cards || savedSetId) return;
-    setSaving(true);
-    const setName = file ? file.name.replace(/\.[^.]+$/, '') : 'Flow AI Set';
-    const { data: newSet, error: setErr } = await window.sb.from('study_sets').insert({
-      owner_id: userId, title: setName, emoji: null,
-      description: `Automatisch erstellt aus ${file?.name || 'Dokument'}`,
+  const createDoc = async () => {
+    const { data, error: err } = await window.sb.from('documents').insert({
+      owner_id: userId, name: 'Neues Dokument',
+      doc_type: 'doc', file_path: '', file_size: 0,
+      mime_type: 'application/studyflow-doc+json',
+      folder_id: currentFolder,
     }).select().single();
-    if (setErr) { setError(setErr.message); setSaving(false); return; }
-    await window.sb.from('cards').insert(result.cards.map(c => ({
-      set_id: newSet.id,
-      front: c.front || c.question || c.q || '',
-      back: c.back || c.answer || c.a || '',
-    })));
-    setSavedSetId(newSet.id);
-    setSaving(false);
-    if (onSetCreated) onSetCreated({ ...newSet, total_cards: result.cards.length, mastered_cards: 0, due_cards: 0, cards: [] });
+    if (err) { setError(err.message); return; }
+    window.location.href = `dokument.html?id=${data.id}`;
   };
 
-  const handleSaveIntoTargetSet = async () => {
-    if (!targetSetId || !result?.cards || savedToTarget) return;
-    setSaving(true);
-    setError('');
-    try {
-      await window.sb.from('cards').insert(result.cards.map(c => ({
-        set_id: targetSetId,
-        front: (c.front || c.question || c.q || '').toString(),
-        back: (c.back || c.answer || c.a || '').toString(),
-      })));
-      setSavedToTarget(true);
-      setSaving(false);
-      window.location.href = `lernset.html?id=${targetSetId}`;
-    } catch (e) {
-      setSaving(false);
-      setError(e?.message || 'Fehler beim Speichern ins Lernset');
-    }
+  const createWhiteboard = async () => {
+    const { data, error: err } = await window.sb.from('documents').insert({
+      owner_id: userId, name: 'Neues Whiteboard',
+      doc_type: 'whiteboard', file_path: '', file_size: 0,
+      mime_type: 'application/studyflow-whiteboard+json',
+      folder_id: currentFolder,
+    }).select().single();
+    if (err) { setError(err.message); return; }
+    window.location.href = `whiteboard.html?id=${data.id}`;
   };
 
-  const renderSummary = (text) => text.split('\n').map((line, i) => {
-    if (line.startsWith('## ')) return <div key={i} style={{ fontFamily: 'Instrument Sans', fontSize: 14, fontWeight: 600, color: '#0f172a', marginTop: 14, marginBottom: 3 }}>{line.slice(3)}</div>;
-    if (line.startsWith('# ')) return <div key={i} style={{ fontFamily: 'Instrument Sans', fontSize: 16, fontWeight: 700, color: '#0f172a', marginTop: 18, marginBottom: 5 }}>{line.slice(2)}</div>;
-    if (line.startsWith('- ') || line.startsWith('• ')) return <div key={i} style={{ fontSize: 13, color: '#334155', paddingLeft: 10, marginTop: 3, display: 'flex', gap: 6 }}><span style={{ color: '#6366f1' }}>·</span>{line.slice(2)}</div>;
-    if (line.trim() === '') return <div key={i} style={{ height: 5 }}/>;
-    return <div key={i} style={{ fontSize: 13, color: '#334155', lineHeight: 1.6, marginTop: 2 }}>{line}</div>;
-  });
+  const deleteItem = async (id, e) => {
+    e.stopPropagation();
+    if (!confirm('Wirklich löschen?')) return;
+    await window.sb.from('documents').delete().eq('id', id);
+    setItems(prev => prev.filter(i => i.id !== id));
+  };
 
-  const isRunning = step === 'uploading' || step === 'thinking';
-  const pct = step === 'uploading' ? 20 : step === 'thinking' ? 75 : 100;
+  const visibleItems = items.filter(i =>
+    currentFolder ? i.folder_id === currentFolder : !i.folder_id
+  );
+  const folders = visibleItems.filter(i => i.doc_type === 'folder');
+  const files = visibleItems.filter(i => i.doc_type !== 'folder');
+
+  const breadcrumb = currentFolder
+    ? items.find(i => i.id === currentFolder)?.name || 'Ordner'
+    : null;
+
+  const openItem = (item) => {
+    if (item.doc_type === 'folder') { setCurrentFolder(item.id); return; }
+    if (item.doc_type === 'whiteboard') { window.location.href = `whiteboard.html?id=${item.id}`; return; }
+    window.location.href = `dokument.html?id=${item.id}`;
+  };
+
+  const IconForType = ({ type }) => {
+    if (type === 'folder') return (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <path d="M2 5a2 2 0 012-2h3.586a1 1 0 01.707.293L9.707 4.707A1 1 0 0010.414 5H16a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V5z" fill="#f59e0b" opacity="0.9"/>
+      </svg>
+    );
+    if (type === 'whiteboard') return (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <rect x="2" y="2" width="16" height="16" rx="3" fill="#818cf8" opacity="0.15" stroke="#818cf8" strokeWidth="1.5"/>
+        <circle cx="6" cy="6" r="0.8" fill="#818cf8"/>
+        <circle cx="10" cy="6" r="0.8" fill="#818cf8"/>
+        <circle cx="14" cy="6" r="0.8" fill="#818cf8"/>
+        <circle cx="6" cy="10" r="0.8" fill="#818cf8"/>
+        <circle cx="10" cy="10" r="0.8" fill="#818cf8"/>
+        <circle cx="14" cy="10" r="0.8" fill="#818cf8"/>
+        <circle cx="6" cy="14" r="0.8" fill="#818cf8"/>
+        <circle cx="10" cy="14" r="0.8" fill="#818cf8"/>
+        <circle cx="14" cy="14" r="0.8" fill="#818cf8"/>
+      </svg>
+    );
+    return (
+      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
+        <rect x="3" y="1" width="11" height="18" rx="2" fill="#6366f1" opacity="0.12" stroke="#6366f1" strokeWidth="1.5"/>
+        <path d="M6 7h8M6 10h8M6 13h5" stroke="#6366f1" strokeWidth="1.2" strokeLinecap="round"/>
+        <path d="M14 1l3 3h-3V1z" fill="#6366f1" opacity="0.5"/>
+      </svg>
+    );
+  };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, flex: 1, minHeight: 0, overflowY: 'auto', paddingBottom: 80 }}>
-      <div>
-        <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>Dokumente & Flow AI</h1>
-        <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>
-          Lade ein Skript, Bild oder Textdatei hoch — Flow erstellt Karteikarten, Zusammenfassung und Quiz.
-          {!isPro && <span style={{ marginLeft: 6, color: '#6366f1', fontWeight: 500 }}>Bildanalyse nur im Pro-Plan.</span>}
-        </div>
-        <div style={{ display: 'flex', gap: 10, marginTop: 14 }}>
-          <a href="dokument.html" className="btn-ghost" style={{ padding: '7px 12px', fontSize: 12.5, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 7 }}>
-            <Icons.Plus size={13}/> Neues Dokument
-          </a>
-          {targetSetId && (
-            <div style={{ fontSize: 12.5, color: '#64748b', display: 'flex', alignItems: 'center', gap: 8 }}>
-              <span style={{ padding: '2px 8px', borderRadius: 999, background: '#eef2ff', color: '#4f46e5', border: '1px solid #c7d2fe', fontWeight: 600, fontSize: 11 }}>IMPORT</span>
-              Karten werden ins aktuelle Lernset gespeichert.
-            </div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1, minHeight: 0, overflowY: 'auto', paddingBottom: 80 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          {breadcrumb && (
+            <button onClick={() => setCurrentFolder(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 0', fontFamily: 'inherit' }}>
+              <Icons.ArrowLeft size={14}/> Dokumente
+            </button>
           )}
+          {breadcrumb && <span style={{ color: '#cbd5e1', fontSize: 13 }}>/</span>}
+          <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 20, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
+            {breadcrumb || 'Dokumente'}
+          </h1>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <button onClick={() => setShowNewFolder(true)} className="btn-ghost" style={{ padding: '7px 12px', fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Icons.Folder size={13}/> Ordner
+          </button>
+          <button onClick={createDoc} className="btn-ghost" style={{ padding: '7px 12px', fontSize: 12.5, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Icons.Doc size={13}/> Doc
+          </button>
+          <button onClick={createWhiteboard} className="btn-primary" style={{ padding: '7px 12px', fontSize: 12.5 }}>
+            <Icons.Edit size={13}/> Whiteboard
+          </button>
         </div>
       </div>
 
-      <input ref={fileInputRef} type="file" accept="image/*,.pdf,.txt,.md" style={{ display: 'none' }} onChange={e => handleFileSelect(e.target.files[0])}/>
-
-      {!file ? (
-        <div onDragOver={e => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-          style={{ border: `2px dashed ${dragging ? '#6366f1' : '#cbd5e1'}`, borderRadius: 16, padding: '44px 32px', textAlign: 'center', background: dragging ? '#eef2ff' : 'white', cursor: 'pointer', transition: 'all 0.15s' }}>
-          <div style={{ width: 60, height: 60, borderRadius: 14, background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 14px' }}>
-            <Icons.Upload size={26}/>
-          </div>
-          <div style={{ fontFamily: 'Instrument Sans', fontSize: 17, fontWeight: 600, color: '#0f172a' }}>Datei hierher ziehen</div>
-          <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>oder <span style={{ color: '#4f46e5', fontWeight: 500 }}>durchsuchen</span></div>
-          <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 14, display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap' }}>
-            {['TXT / Markdown', 'PDF', isPro ? 'Bilder (Pro)' : 'Bilder (Pro)'].map(t => (
-              <span key={t} style={{ padding: '3px 8px', background: '#f1f5f9', borderRadius: 5 }}>{t}</span>
-            ))}
-          </div>
-        </div>
-      ) : (
-        <div style={{ background: 'white', borderRadius: 16, padding: 20, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 2px 8px rgba(15,23,42,0.04)' }}>
-          {/* File row */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-            <div style={{ width: 44, height: 52, background: isImage ? '#fdf4ff' : '#eef2ff', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', color: isImage ? '#a21caf' : '#6366f1', flexShrink: 0 }}>
-              {isImage ? <Icons.Eye size={22}/> : <Icons.Doc size={22}/>}
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 14, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{file.name}</div>
-              <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{formatFileSize(file.size)}</div>
-            </div>
-            {!isRunning && !result && (
-              <button onClick={() => { setFile(null); setError(''); }} style={{ background: 'none', border: 'none', padding: 6, color: '#94a3b8', cursor: 'pointer' }}>
-                <Icons.X size={16}/>
-              </button>
-            )}
-          </div>
-
-          {/* Output options */}
-          {!isRunning && !result && (
-            <div style={{ marginTop: 18, paddingTop: 16, borderTop: '1px solid rgba(15,23,42,0.06)' }}>
-              <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Was soll Flow erstellen?</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {[
-                  { key: 'summary', label: 'Zusammenfassung', sub: 'Kompakte Übersicht der Kernthemen', icon: <Icons.Doc size={15}/> },
-                  { key: 'quiz', label: 'Quizfragen', sub: '~8 Multiple-Choice-Fragen', icon: <Icons.Brain size={15}/> },
-                ].map(o => (
-                  <label key={o.key} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#fafaf7', borderRadius: 10, cursor: 'pointer', border: '1px solid rgba(15,23,42,0.04)' }}>
-                    <div style={{ color: '#6366f1' }}>{o.icon}</div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 500, color: '#0f172a' }}>{o.label}</div>
-                      <div style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>{o.sub}</div>
-                    </div>
-                    <Toggle on={output[o.key]} onChange={() => setOutput({ ...output, [o.key]: !output[o.key] })}/>
-                  </label>
-                ))}
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#fafaf7', borderRadius: 10, border: '1px solid rgba(15,23,42,0.04)' }}>
-                  <div style={{ color: '#6366f1' }}><Icons.Cards size={15}/></div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13.5, fontWeight: 500, color: '#0f172a' }}>Karteikarten</div>
-                    <div style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>Frage-Antwort-Paare für Spaced Repetition</div>
-                  </div>
-                  <input type="number" value={output.cards} min={0} max={50} onChange={e => setOutput({ ...output, cards: Math.max(0, Math.min(50, +e.target.value || 0)) })}
-                    style={{ width: 56, padding: '5px 8px', border: '1px solid #e2e8f0', borderRadius: 7, fontSize: 13, textAlign: 'center', fontFamily: 'inherit' }}/>
-                  <span style={{ fontSize: 12, color: '#64748b' }}>Karten</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Error */}
-          {error && (
-            <div style={{ marginTop: 14, background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#991b1b', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-              <span>{error}</span>
-              <button onClick={() => setError('')} style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', padding: 0, flexShrink: 0 }}><Icons.X size={14}/></button>
-            </div>
-          )}
-
-          {/* Progress */}
-          {isRunning && (
-            <div style={{ marginTop: 18, padding: 16, background: '#fafaf7', borderRadius: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                <div className="float" style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #6366f1, #818cf8)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Icons.Sparkles size={13}/>
-                </div>
-                <div style={{ fontSize: 13, color: '#0f172a', fontWeight: 500 }}>{progress}</div>
-              </div>
-              <div style={{ height: 4, background: '#e2e8f0', borderRadius: 999, marginTop: 14, overflow: 'hidden' }}>
-                <div style={{ width: `${pct}%`, height: '100%', background: 'linear-gradient(90deg, #6366f1, #818cf8)', transition: 'width 1.2s ease', borderRadius: 999 }}></div>
-              </div>
-            </div>
-          )}
-
-          {/* Results */}
-          {result && (
-            <div style={{ marginTop: 18, display: 'flex', flexDirection: 'column', gap: 16 }}>
-              {result.cards && result.cards.length > 0 && (
-                <div>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', display: 'flex', alignItems: 'center', gap: 8 }}><Icons.Cards size={15}/> {result.cards.length} Karteikarten</div>
-                    {targetSetId ? (
-                      savedToTarget ? (
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: '#d1fae5', color: '#065f46', borderRadius: 8, fontSize: 12, fontWeight: 500 }}>
-                          <Icons.Check size={12}/> Gespeichert — Öffnen…
-                        </div>
-                      ) : (
-                        <button onClick={handleSaveIntoTargetSet} disabled={saving} className="btn-primary" style={{ padding: '5px 12px', fontSize: 12, opacity: saving ? 0.7 : 1 }}>
-                          {saving ? 'Speichert…' : <><Icons.Plus size={12}/> In Lernset</>}
-                        </button>
-                      )
-                    ) : savedSetId ? (
-                      <a href={`lernset.html?id=${savedSetId}`} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 12px', background: '#d1fae5', color: '#065f46', borderRadius: 8, fontSize: 12, fontWeight: 500, textDecoration: 'none' }}>
-                        <Icons.Check size={12}/> Gespeichert — Öffnen
-                      </a>
-                    ) : (
-                      <button onClick={handleSaveAsSet} disabled={saving} className="btn-primary" style={{ padding: '5px 12px', fontSize: 12, opacity: saving ? 0.7 : 1 }}>
-                        {saving ? 'Speichert…' : <><Icons.Plus size={12}/> Als Lernset</>}
-                      </button>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 260, overflowY: 'auto', paddingRight: 4 }}>
-                    {result.cards.map((c, i) => (
-                      <div key={i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', background: '#fafaf7', borderRadius: 10, overflow: 'hidden', border: '1px solid rgba(15,23,42,0.04)' }}>
-                        <div style={{ padding: '9px 13px', borderRight: '1px solid rgba(15,23,42,0.06)' }}>
-                          <div style={{ fontSize: 9.5, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 3 }}>Frage</div>
-                          <div style={{ fontFamily: 'Caveat', fontSize: 15, color: '#0f172a', lineHeight: 1.3 }}>{c.front || c.question || c.q}</div>
-                        </div>
-                        <div style={{ padding: '9px 13px' }}>
-                          <div style={{ fontSize: 9.5, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 3 }}>Antwort</div>
-                          <div style={{ fontSize: 12, color: '#334155', lineHeight: 1.4 }}>{c.back || c.answer || c.a}</div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {result.quiz && result.quiz.length > 0 && (
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8 }}><Icons.Brain size={15}/> {result.quiz.length} Quizfragen</div>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 220, overflowY: 'auto' }}>
-                    {result.quiz.map((q, i) => (
-                      <div key={i} style={{ background: '#fafaf7', borderRadius: 10, padding: '10px 14px', border: '1px solid rgba(15,23,42,0.04)' }}>
-                        <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', marginBottom: 6 }}>{i+1}. {q.question}</div>
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                          {(q.options || []).map((opt, j) => (
-                            <div key={j} style={{ fontSize: 12, color: j === q.correct ? '#059669' : '#64748b', padding: '3px 8px', background: j === q.correct ? '#d1fae5' : 'white', borderRadius: 6, border: `1px solid ${j === q.correct ? '#6ee7b7' : '#e2e8f0'}` }}>
-                              {['A','B','C','D'][j]}. {opt}
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {result.summary && (
-                <div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 8 }}><Icons.Doc size={15}/> Zusammenfassung</div>
-                  <div style={{ background: '#fafaf7', borderRadius: 12, padding: '14px 16px', border: '1px solid rgba(15,23,42,0.04)', maxHeight: 260, overflowY: 'auto' }}>
-                    {renderSummary(result.summary)}
-                  </div>
-                </div>
-              )}
-
-              <button onClick={() => { setFile(null); setResult(null); setStep('idle'); setSavedSetId(null); setError(''); }} className="btn-ghost" style={{ width: '100%', justifyContent: 'center', padding: '9px 0', fontSize: 13 }}>
-                Weitere Datei hochladen
-              </button>
-            </div>
-          )}
-
-          {!isRunning && !result && (
-            <button onClick={handleProcess} className="btn-primary" style={{ marginTop: 18, width: '100%', justifyContent: 'center', padding: '13px 0', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', fontSize: 14 }}>
-              <Icons.Sparkles size={14}/> Mit Flow verarbeiten
-              <span style={{ marginLeft: 6, fontSize: 11, opacity: 0.8 }}>~10–30 Sek</span>
-            </button>
-          )}
+      {error && (
+        <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#991b1b', display: 'flex', justifyContent: 'space-between' }}>
+          {error}<button onClick={() => setError('')} style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer' }}><Icons.X size={13}/></button>
         </div>
       )}
 
-      {recentDocs.length > 0 && (
-        <div>
-          <div style={{ fontSize: 11, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 10 }}>Zuletzt hochgeladen</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            {recentDocs.map(r => (
-              <div key={r.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 12px', background: 'white', borderRadius: 10, border: '1px solid rgba(15,23,42,0.05)' }}>
-                <Icons.Doc size={14}/>
-                <span style={{ fontSize: 13, color: '#0f172a', flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{r.name}</span>
-                {r.ai_processed && <span style={{ fontSize: 11, color: '#059669', background: '#d1fae5', padding: '2px 7px', borderRadius: 4, flexShrink: 0 }}>KI</span>}
-                {(r.mime_type === 'application/studyflow-doc+json' || (r.name || '').endsWith('.studyflow.json')) && (
-                  <a href={`dokument.html?id=${r.id}`} style={{ fontSize: 12, color: '#4f46e5', fontWeight: 600, textDecoration: 'none', flexShrink: 0 }}>
-                    Öffnen
-                  </a>
-                )}
-                <span style={{ fontSize: 12, color: '#64748b', flexShrink: 0 }}>{formatFileSize(r.file_size || 0)}</span>
-                <span style={{ fontSize: 12, color: '#94a3b8', flexShrink: 0 }}>{relativeTime(r.created_at)}</span>
-              </div>
-            ))}
+      {/* New Folder inline */}
+      {showNewFolder && (
+        <div style={{ background: 'white', borderRadius: 12, padding: '14px 16px', border: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', gap: 10 }}>
+          <Icons.Folder size={16}/>
+          <input autoFocus value={folderName} onChange={e => setFolderName(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') createFolder(); if (e.key === 'Escape') { setShowNewFolder(false); setFolderName(''); } }}
+            placeholder="Ordnername…" className="input-paper" style={{ flex: 1, fontSize: 13 }}/>
+          <button onClick={createFolder} disabled={creating || !folderName.trim()} className="btn-primary" style={{ padding: '6px 14px', fontSize: 12.5 }}>Erstellen</button>
+          <button onClick={() => { setShowNewFolder(false); setFolderName(''); }} className="btn-ghost" style={{ padding: '6px 10px', fontSize: 12.5 }}>Abbrechen</button>
+        </div>
+      )}
+
+      {loading ? (
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}>Lädt…</div>
+      ) : (folders.length === 0 && files.length === 0) ? (
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, color: '#94a3b8', padding: 48 }}>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #c7d2fe' }}>
+            <Icons.Doc size={24}/>
           </div>
+          <div style={{ fontFamily: 'Caveat', fontSize: 22, color: '#64748b' }}>Noch leer</div>
+          <div style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', maxWidth: 260 }}>Erstelle ein Doc zum Schreiben oder ein Whiteboard zum Zeichnen.</div>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button onClick={createDoc} className="btn-ghost" style={{ padding: '8px 16px', fontSize: 13 }}><Icons.Doc size={13}/> Neues Doc</button>
+            <button onClick={createWhiteboard} className="btn-primary" style={{ padding: '8px 16px', fontSize: 13 }}><Icons.Edit size={13}/> Neues Whiteboard</button>
+          </div>
+        </div>
+      ) : (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
+          {/* Folders */}
+          {folders.map(item => (
+            <div key={item.id} onClick={() => openItem(item)}
+              style={{ background: 'white', borderRadius: 12, padding: '16px 14px', border: '1px solid rgba(15,23,42,0.06)', cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor='#fcd34d'; e.currentTarget.style.boxShadow='0 4px 16px rgba(245,158,11,0.1)'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(15,23,42,0.06)'; e.currentTarget.style.boxShadow='none'; }}>
+              <IconForType type="folder"/>
+              <div style={{ fontSize: 13.5, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+              <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                {items.filter(i => i.folder_id === item.id).length} Elemente
+              </div>
+              <button onClick={e => deleteItem(item.id, e)} style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 4, borderRadius: 4, display: 'flex' }}
+                onMouseEnter={e => e.currentTarget.style.color='#ef4444'} onMouseLeave={e => e.currentTarget.style.color='#cbd5e1'}>
+                <Icons.X size={12}/>
+              </button>
+            </div>
+          ))}
+          {/* Docs & Whiteboards */}
+          {files.map(item => (
+            <div key={item.id} onClick={() => openItem(item)}
+              style={{ background: 'white', borderRadius: 12, border: '1px solid rgba(15,23,42,0.06)', cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}
+              onMouseEnter={e => {
+                e.currentTarget.style.borderColor = item.doc_type === 'whiteboard' ? '#a5b4fc' : '#c7d2fe';
+                e.currentTarget.style.boxShadow = '0 4px 16px rgba(99,102,241,0.08)';
+              }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(15,23,42,0.06)'; e.currentTarget.style.boxShadow='none'; }}>
+              {/* Preview area */}
+              <div style={{
+                height: 110,
+                background: item.doc_type === 'whiteboard'
+                  ? 'radial-gradient(circle, #cbd5e1 1px, transparent 1px) 0 0 / 18px 18px, white'
+                  : 'linear-gradient(180deg, #fafaf7 0%, white 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid rgba(15,23,42,0.05)',
+              }}>
+                <div style={{ opacity: 0.35 }}><IconForType type={item.doc_type}/></div>
+              </div>
+              {/* Footer */}
+              <div style={{ padding: '10px 12px' }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ padding: '1px 5px', background: item.doc_type === 'whiteboard' ? '#eef2ff' : '#f8fafc', borderRadius: 4, fontSize: 10, fontWeight: 600, color: item.doc_type === 'whiteboard' ? '#6366f1' : '#64748b' }}>
+                    {item.doc_type === 'whiteboard' ? 'Whiteboard' : 'Doc'}
+                  </span>
+                  <span>{relativeTime(item.updated_at || item.created_at)}</span>
+                </div>
+              </div>
+              <button onClick={e => deleteItem(item.id, e)} style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(255,255,255,0.85)', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 4, borderRadius: 5, display: 'flex' }}
+                onMouseEnter={e => e.currentTarget.style.color='#ef4444'} onMouseLeave={e => e.currentTarget.style.color='#cbd5e1'}>
+                <Icons.X size={12}/>
+              </button>
+            </div>
+          ))}
         </div>
       )}
     </div>
@@ -1027,7 +861,7 @@ const Dashboard = () => {
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '18px 22px 14px', minWidth: 0, gap: 16, overflow: 'hidden' }}>
         <TopBar search={search} onSearch={setSearch} streak={streak}/>
 
-        {showDocs && <DocsPanel userId={user?.id} profile={profile} onSetCreated={handleSetCreated} targetSetId={targetSetId}/>}
+        {showDocs && <DocsPanel userId={user?.id}/>}
         {showSettings && <SettingsPanel user={user} profile={profile} onProfileUpdate={setProfile}/>}
 
         {showSets && (
