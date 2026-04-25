@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>StudyFlow — Alle Screens</title>
+  <link rel="stylesheet" href="styles/globals.css"/>
+</head>
+<body class="dot-paper" style="min-height: 100vh; padding: 48px 32px;">
+  <div style="max-width: 1200px; margin: 0 auto;">
+    <div style="display: flex; align-items: center; gap: 14px; margin-bottom: 8px;">
+      <svg width="36" height="36" viewBox="0 0 40 40" fill="none">
+        <rect x="4" y="4" width="28" height="32" rx="3" fill="#fafaf7" stroke="#1e293b" stroke-width="2"/>
+        <rect x="8" y="4" width="24" height="32" rx="3" fill="#fff" stroke="#1e293b" stroke-width="2"/>
+        <path d="M12 14h14M12 19h14M12 24h9" stroke="#cbd5e1" stroke-width="1.5" stroke-linecap="round"/>
+        <circle cx="30" cy="11" r="5" fill="#6366f1"/>
+        <path d="M27.5 11l2 2 3-3" stroke="white" stroke-width="1.8" stroke-linecap="round"/>
+      </svg>
+      <div style="font-family: 'Caveat', cursive; font-size: 44px; font-weight: 600; color: #0f172a;">StudyFlow</div>
+    </div>
+    <p style="font-size: 16px; color: #64748b; max-width: 640px; margin: 0 0 40px;">
+      Hi-fi Design-Prototyp — 7 Screens für eine Lernplattform im Notebook-Look. Klick dich durch.
+    </p>
+
+    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px;">
+      <!-- Screens -->
+      <a href="Landing.html" class="screen-card" style="grid-column: span 2;">
+        <div class="tag">01 · Marketing</div>
+        <div class="title">Landing Page</div>
+        <div class="desc">Bento-Grid Features, AI-Spotlight, Sticky-Note-Akzente</div>
+      </a>
+
+      <a href="login.html" class="screen-card">
+        <div class="tag">02 · Auth</div>
+        <div class="title">Login / Magic Link</div>
+        <div class="desc">Google + E-Mail Auth</div>
+      </a>
+
+      <a href="dashboard.html" class="screen-card" style="grid-column: span 2;">
+        <div class="tag">03 · App</div>
+        <div class="title">Dashboard</div>
+        <div class="desc">Bento-Grid Lernsets, Dock, Sidebar, Live-Cursors, Stats</div>
+      </a>
+
+      <a href="lernset.html" class="screen-card">
+        <div class="tag">04 · App</div>
+        <div class="title">Lernset-Detail</div>
+        <div class="desc">Karten-Liste mit AI-Vorschlägen</div>
+      </a>
+
+      <a href="lern-modus.html" class="screen-card">
+        <div class="tag">05 · App</div>
+        <div class="title">Lern-Modus</div>
+        <div class="desc">Flashcard-Flip + Quiz mit SRS-Bewertung</div>
+      </a>
+
+      <a href="ai-upload.html" class="screen-card">
+        <div class="tag">06 · AI</div>
+        <div class="title">AI-Upload</div>
+        <div class="desc">Drag-Drop → Pipeline → Karten generieren</div>
+      </a>
+
+      <a href="collab.html" class="screen-card">
+        <div class="tag">07 · Realtime</div>
+        <div class="title">Kollaboration</div>
+        <div class="desc">Live-Edit mit Locks, Cursors, Chat</div>
+      </a>
+    </div>
+  </div>
+
+  <style>
+    .screen-card {
+      display: block;
+      background: white;
+      border-radius: 16px;
+      padding: 24px;
+      border: 1px solid rgba(15,23,42,0.06);
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+      transition: transform 0.2s, box-shadow 0.2s;
+      min-height: 140px;
+      position: relative;
+    }
+    .screen-card:hover {
+      transform: translateY(-3px);
+      box-shadow: 0 4px 16px rgba(15,23,42,0.08);
+    }
+    .tag {
+      display: inline-block;
+      font-size: 11px;
+      color: #4f46e5;
+      background: #eef2ff;
+      padding: 3px 9px;
+      border-radius: 999px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+    .title {
+      font-family: 'Instrument Sans', sans-serif;
+      font-size: 22px;
+      font-weight: 600;
+      color: #0f172a;
+      margin-top: 12px;
+      letter-spacing: -0.01em;
+    }
+    .desc {
+      font-size: 13.5px;
+      color: #64748b;
+      margin-top: 6px;
+      line-height: 1.5;
+    }
+  </style>
+</body>
+</html>
