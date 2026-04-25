@@ -852,19 +852,24 @@ const SetRow = ({ set, onDelete }) => {
           {!isDraft && pct === 100 && <span style={{ fontSize: 10, color: '#059669', background: '#d1fae5', padding: '1px 6px', borderRadius: 4, fontWeight: 500, flexShrink: 0 }}>Fertig</span>}
           {isDraft && <span style={{ fontSize: 10, color: '#64748b', background: '#f1f5f9', padding: '1px 6px', borderRadius: 4, fontWeight: 500, flexShrink: 0 }}>Entwurf</span>}
         </div>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
           {set.total_cards} Karten <span style={{ color: '#cbd5e1' }}>·</span> {lastStudy}
-          {!isDraft && set.total_cards > 0 && (
-            <><span style={{ color: '#cbd5e1' }}>·</span><span style={{ fontWeight: 600, color: pct >= 80 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#6366f1' }}>{pct}%</span></>
-          )}
         </div>
       </div>
-      <div>{!isDraft ? (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginBottom: 3 }}><span>{pct}%</span><span>{set.mastered_cards}/{set.total_cards}</span></div>
-          <div style={{ height: 4, background: '#f1f5f9', borderRadius: 999, overflow: 'hidden' }}><div style={{ width: `${pct}%`, height: '100%', background: '#0f172a', borderRadius: 999 }}></div></div>
-        </div>
-      ) : <div style={{ fontSize: 11.5, color: '#94a3b8' }}>—</div>}</div>
+      <div>{!isDraft ? (() => {
+        const barColor = pct >= 80 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#6366f1';
+        return (
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginBottom: 3 }}>
+              <span style={{ fontWeight: 600, color: barColor }}>{pct}%</span>
+              <span>{set.mastered_cards}/{set.total_cards}</span>
+            </div>
+            <div style={{ height: 4, background: '#f1f5f9', borderRadius: 999, overflow: 'hidden' }}>
+              <div style={{ width: `${pct}%`, height: '100%', background: barColor, borderRadius: 999 }}/>
+            </div>
+          </div>
+        );
+      })() : <div style={{ fontSize: 11.5, color: '#94a3b8' }}>—</div>}</div>
       <div style={{ fontSize: 12, color: '#64748b' }}>{set.due_cards > 0 ? <span style={{ color: '#dc2626', fontWeight: 500 }}>{set.due_cards} fällig</span> : <span style={{ color: '#94a3b8' }}>keine fällig</span>}</div>
       <div><div style={{ fontSize: 11.5, color: '#cbd5e1' }}>Nur ich</div></div>
       <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>

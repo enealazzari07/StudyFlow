@@ -61,7 +61,6 @@ function monthLabels(cells) {
 
 // ─── Heatmap Block ────────────────────────────────────────────
 const HeatmapBlock = ({ cells, streak }) => {
-  const [hovered, setHovered] = useState(null);
   const mLabels = useMemo(() => monthLabels(cells), [cells]);
   const totalActive = cells.filter(c => c.count > 0).length;
 
@@ -104,31 +103,25 @@ const HeatmapBlock = ({ cells, streak }) => {
       {/* Grid */}
       <div style={{ display: 'flex', gap: 4 }}>
         {/* Weekday labels */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 3, marginRight: 4, justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 2, marginRight: 4, justifyContent: 'space-between' }}>
           {[0,1,2,3,4,5,6].map(i => (
-            <div key={i} style={{ height: 13, fontSize: 10, color: '#94a3b8', lineHeight: '13px', fontWeight: 500 }}>
+            <div key={i} style={{ height: 11, fontSize: 9, color: '#94a3b8', lineHeight: '11px', fontWeight: 500 }}>
               {weekdayLabel(i)}
             </div>
           ))}
         </div>
 
         {/* Cells */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: 3, flex: 1 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: 2, flex: 1 }}>
           {cols.map((week, col) =>
             week.map((cell, row) => (
               <div
                 key={`${col}-${row}`}
-                onMouseEnter={() => setHovered(cell)}
-                onMouseLeave={() => setHovered(null)}
-                title={`${cell.date.toLocaleDateString('de-DE', { day:'numeric', month:'short' })}: ${cell.count} Karten`}
+                title={`${cell.date.toLocaleDateString('de-DE', { day:'numeric', month:'short' })}: ${cell.count === 0 ? 'kein Lernen' : cell.count + ' Karten'}`}
                 style={{
                   aspectRatio: 1,
-                  borderRadius: 3,
+                  borderRadius: 2,
                   background: cell.intensity === 0 ? '#f1f5f9' : `rgba(99,102,241,${cell.intensity})`,
-                  cursor: 'default',
-                  transition: 'transform 0.1s',
-                  transform: hovered?.key === cell.key ? 'scale(1.3)' : 'scale(1)',
-                  outline: hovered?.key === cell.key ? '1.5px solid rgba(99,102,241,0.5)' : 'none',
                 }}
               />
             ))
@@ -136,20 +129,8 @@ const HeatmapBlock = ({ cells, streak }) => {
         </div>
       </div>
 
-      {/* Tooltip */}
-      {hovered && (
-        <div style={{ marginTop: 12, fontSize: 12, color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>
-          <div style={{ width: 10, height: 10, borderRadius: 2, background: hovered.intensity === 0 ? '#f1f5f9' : `rgba(99,102,241,${hovered.intensity})`, flexShrink: 0 }}/>
-          <span style={{ fontWeight: 500, color: '#0f172a' }}>
-            {hovered.date.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long' })}
-          </span>
-          <span>—</span>
-          <span>{hovered.count === 0 ? 'Kein Lernen' : `${hovered.count} Karten gelernt`}</span>
-        </div>
-      )}
-
       {/* Legend */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: hovered ? 0 : 16, justifyContent: 'flex-end' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 12, justifyContent: 'flex-end' }}>
         <span style={{ fontSize: 10, color: '#94a3b8' }}>weniger</span>
         {[0, 0.15, 0.3, 0.55, 0.8, 1].map(v => (
           <div key={v} style={{ width: 10, height: 10, borderRadius: 2, background: v === 0 ? '#f1f5f9' : `rgba(99,102,241,${v})` }}/>

@@ -489,6 +489,14 @@ const Whiteboard = ({ elements, setElements, textItems, setTextItems, colChannel
     if (tool === 'pen' || tool === 'marker' || tool === 'eraser') {
       s.points.push({ x, y });
       setElements(prev => prev.map(el => el.id === s.id ? { ...el, points: [...s.points] } : el));
+      if (tool === 'eraser') {
+        const eraserRadius = Math.max(16, size * 4);
+        setTextItems(prev => {
+          const filtered = prev.filter(item => Math.hypot(x - item.x, y - item.y) >= eraserRadius);
+          if (filtered.length !== prev.length) broadcastTextItems(filtered);
+          return filtered;
+        });
+      }
       return;
     }
 
@@ -666,7 +674,7 @@ const Whiteboard = ({ elements, setElements, textItems, setTextItems, colChannel
             {textItems.map(item => (
               <div key={item.id} style={{ position:'absolute', left:item.x, top:item.y, pointerEvents:'auto', zIndex:10 }}>
                 {item.type === 'formula' ? (
-                  <div style={{ padding:'4px 8px', background:'white', borderRadius:8, border:'1px solid rgba(15,23,42,0.08)', cursor:'move', minWidth:40 }}
+                  <div style={{ padding:'4px 8px', cursor:'move', minWidth:40 }}
                     dangerouslySetInnerHTML={{ __html: renderFormula(item.text) }}
                     onDoubleClick={() => {
                       const newLatex = prompt('Formel bearbeiten (LaTeX):', item.text);
@@ -699,8 +707,8 @@ const Whiteboard = ({ elements, setElements, textItems, setTextItems, colChannel
                     {item.text}
                   </div>
                 ) : (
-                  <div style={{ padding:'2px 4px', borderRadius:6, fontSize:item.fontSize||18, color:item.color||'#0f172a', fontFamily:'Caveat',
-                               cursor:'text', whiteSpace:'nowrap', border:'1.5px solid transparent' }}
+                  <div style={{ fontSize:item.fontSize||18, color:item.color||'#0f172a', fontFamily:'Caveat',
+                               cursor:'text', whiteSpace:'nowrap' }}
                     onClick={() => setEditingText(item.id)}
                     onDoubleClick={() => {
                       saveHistory();
@@ -807,10 +815,10 @@ const DokumentEditor = () => {
     })();
   }, [docId]);
 
-  // Setup realtime collab channel when docId known
+  // Setup realtime collab channel — only when document has a real saved ID
   useEffect(() => {
-    const id = docId || myId; // use myId as channel until saved
-    const ch = window.sb.channel(`note-${id}`, { config: { broadcast: { self: false } } });
+    if (!docRow?.id) return;
+    const ch = window.sb.channel(`note-${docRow.id}`, { config: { broadcast: { self: false } } });
     ch.on('presence', { event: 'sync' }, () => {
       const state = ch.presenceState();
       setOnlineCount(Object.keys(state).length);
@@ -821,8 +829,8 @@ const DokumentEditor = () => {
       }
     });
     setColChannel(ch);
-    return () => { ch.unsubscribe(); };
-  }, [docId, myName]);
+    return () => { ch.unsubscribe(); setColChannel(null); };
+  }, [docRow?.id, myName]);
 
   // Auto-save every 90s
   useEffect(() => {

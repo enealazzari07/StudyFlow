@@ -514,10 +514,6 @@ const LernModus = () => {
         </div>
       </header>
 
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '16px 32px 0' }}>
-        <ActivityHeatmap streak={streak}/>
-      </div>
-
       <div style={{ padding: '16px 32px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, fontSize: 12, color: '#64748b' }}>
           <span>Fortschritt · {reviewed} / {sessionCards.length}</span>
