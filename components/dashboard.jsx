@@ -880,7 +880,7 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
   const totalCards = sets?.reduce((acc, s) => acc + (s.total_cards || 0), 0) || 0;
   const totalMastered = sets?.reduce((acc, s) => acc + (s.mastered_cards || 0), 0) || 0;
   const masteredPct = totalCards ? Math.round((totalMastered / totalCards) * 100) : 0;
-  const activeSets = sets?.filter(s => s.mastered_cards > 0).length || 0;
+  const activeSets = (sets || []).filter(s => s.mastered_cards > 0).length;
 
   const radius = 18;
   const circumference = 2 * Math.PI * radius;
@@ -1091,12 +1091,17 @@ const Dashboard = () => {
     const weekAgo = new Date(Date.now()-7*24*3600*1000).toISOString();
     const { count: weekReviews } = await window.sb.from('card_reviews')
       .select('id', { count: 'exact', head: true }).eq('user_id', userId).gte('reviewed_at', weekAgo);
-    setStats({ dueToday, weekReviews: weekReviews || 0, masteryPct, totalSets: enriched.length });
 
     // Streak: consecutive days (incl. today) with at least one review
     const { data: reviewDates } = await window.sb.from('card_reviews')
       .select('reviewed_at').eq('user_id', userId).order('reviewed_at', { ascending: false }).limit(365);
+      
+    const reviewCounts = {};
     if (reviewDates && reviewDates.length > 0) {
+      reviewDates.forEach(r => {
+        const date = r.reviewed_at.slice(0, 10);
+        reviewCounts[date] = (reviewCounts[date] || 0) + 1;
+      });
       const daySet = new Set(reviewDates.map(r => r.reviewed_at.slice(0, 10)));
       const todayStr = new Date().toISOString().slice(0, 10);
       let s = 0, check = new Date();
@@ -1109,7 +1114,11 @@ const Dashboard = () => {
         check.setDate(check.getDate() - 1);
       }
       setStreak(s);
+    } else {
+      setStreak(0);
     }
+    
+    setStats({ dueToday, weekReviews: weekReviews || 0, masteryPct, totalSets: enriched.length, reviewCounts });
   };
 
   // Abmelden-Button wurde entfernt (Sidebar-UI)

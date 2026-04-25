@@ -1,5 +1,5 @@
 // StudyFlow — Lern-Modus (Flashcards + Quiz) mit echtem SRS
-const { useState, useEffect, useMemo } = React;
+const { useState, useEffect, useMemo, useRef } = React;
 
 const setId = new URLSearchParams(window.location.search).get('id');
 
