@@ -73,17 +73,27 @@ async function analyzeImageWithVision(base64DataUrl) {
           {
             type: 'text',
             text:
-              'Du bist ein Lernassistent. Analysiere dieses Bild genau und erstelle Lern-Karteikarten.\n\n' +
-              'WICHTIGE REGELN:\n' +
-              '1. Wenn das Bild zwei Sprachen zeigt (z.B. Spanisch-Deutsch, Englisch-Deutsch, Vokabelliste), ' +
-              'nutze Sprache A als "front" und Sprache B als "back". Vermische NICHT beide Sprachen auf einer Seite.\n' +
-              '2. Wenn es eine Vokabelliste ist (z.B. Wort + Artikel wie "das Brot"), ' +
-              'setze die Frage auf "front" (z.B. "Welchen Artikel hat Brot?") und die Antwort auf "back" (z.B. "das Brot").\n' +
-              '3. Die Vorder- und Rückseite müssen sich INHALTLICH unterscheiden und ergänzen — niemals fast dasselbe auf beiden Seiten.\n' +
-              '4. Bei Definitionen: Begriff → Erklärung. Bei Formeln: Formelname → Formel. Bei Fakten: Frage → Antwort.\n' +
-              '5. Schreibe in der Sprache des Bildinhalts.\n\n' +
-              'Gib NUR ein JSON-Array zurück, kein anderer Text:\n' +
-              '[{"front":"Frage oder Begriff","back":"Antwort oder Erklärung"},...]',
+              'You are a flashcard generator. Look at this image carefully and extract all content as flashcards.\n\n' +
+              'STEP 1 — Identify what type of content this is:\n' +
+              '  A) BILINGUAL VOCABULARY LIST: two languages visible (e.g. French + German, Spanish + English, etc.)\n' +
+              '  B) MONOLINGUAL NOTES / TEXT: only one language, with definitions, facts, or explanations\n' +
+              '  C) FORMULAS / MATH: equations, physics, chemistry formulas\n\n' +
+              'STEP 2 — Create cards based on type:\n' +
+              '  A) BILINGUAL LIST → front = word in language 1, back = word in language 2.\n' +
+              '     Example: image shows "Wein = le vin" → {"front":"Wein","back":"le vin"}\n' +
+              '     Example: image shows "chat = Katze" → {"front":"chat","back":"Katze"}\n' +
+              '     NEVER put both translations in one side. NEVER ask "Welchen Artikel hat X?".\n' +
+              '     If you see a list of foreign words (French, Spanish, Italian, etc.) with German translations,\n' +
+              '     put the FOREIGN word on front and GERMAN translation on back.\n' +
+              '  B) MONOLINGUAL NOTES → front = question or term, back = answer or definition.\n' +
+              '     Example: notes explain "Photosynthese" → {"front":"Was ist Photosynthese?","back":"Prozess, bei dem Pflanzen..."}\n' +
+              '  C) FORMULAS → front = formula name, back = the formula itself.\n\n' +
+              'CRITICAL RULES:\n' +
+              '  - The front and back must contain DIFFERENT information — never nearly the same text on both sides.\n' +
+              '  - Do NOT generate article-questions like "Welchen Artikel hat X?" unless the image is ONLY about German grammar.\n' +
+              '  - Extract ALL vocabulary pairs or facts visible in the image.\n' +
+              '  - Respond ONLY with a valid JSON array, no other text:\n' +
+              '[{"front":"...","back":"..."},...]',
           },
         ],
       }],
