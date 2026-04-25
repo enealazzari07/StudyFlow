@@ -31,6 +31,7 @@
       const [email, setEmail] = useState('');
       const [password, setPassword] = useState('');
       const [name, setName] = useState('');
+      const [refCode, setRefCode] = useState('');
       const [showPw, setShowPw] = useState(false);
       const [loading, setLoading] = useState(false);
       const [error, setError] = useState('');
@@ -38,6 +39,13 @@
       const [checking, setChecking] = useState(true);
 
       useEffect(() => {
+        const urlParams = new URLSearchParams(window.location.search);
+        const code = urlParams.get('ref');
+        if (code) {
+          setRefCode(code.toUpperCase());
+          setMode('signup');
+        }
+
         window.sb.auth.getSession().then(({ data: { session } }) => {
           if (session) window.location.href = 'dashboard.html';
           else setChecking(false);
@@ -72,7 +80,7 @@
             email,
             password,
             options: {
-              data: { full_name: name.trim() || email.split('@')[0] },
+              data: { full_name: name.trim() || email.split('@')[0], referred_by: refCode.trim() },
               emailRedirectTo: window.getBaseUrl() + 'dashboard.html',
             },
           });
@@ -80,6 +88,7 @@
           if (err) {
             setError(err.message);
           } else if (data.session) {
+            localStorage.setItem('studyflow_welcome', 'true');
             // Auto-confirmed (email confirmation disabled)
             window.location.href = 'dashboard.html';
           } else {
@@ -188,6 +197,32 @@
                       placeholder="Max Mustermann"
                       autoFocus
                     />
+                  </div>
+                )}
+
+                {/* Referral Code field — only on signup */}
+                {mode === 'signup' && (
+                  <div style={{ padding: '12px 14px', background: '#f8fafc', borderRadius: 12, border: '1px dashed #cbd5e1' }}>
+                    <label style={{ fontSize: 12, fontWeight: 600, color: '#475569', display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
+                      <span>Empfehlungscode</span>
+                      <span style={{ color: '#94a3b8', fontWeight: 400 }}>Optional</span>
+                    </label>
+                    <div style={{ position: 'relative' }}>
+                      <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#6366f1' }}>
+                        <Icons.Sparkles size={15}/>
+                      </div>
+                      <input
+                        className="input-paper"
+                        type="text"
+                        value={refCode}
+                        onChange={e => setRefCode(e.target.value.toUpperCase())}
+                        placeholder="z.B. A1B2C"
+                        style={{ paddingLeft: 34, fontFamily: 'JetBrains Mono', fontSize: 13, background: 'white' }}
+                      />
+                    </div>
+                    <div style={{ fontSize: 11, color: '#64748b', marginTop: 8, lineHeight: 1.4 }}>
+                      Gib hier einen Code ein und erhalte <strong style={{color: '#0f172a'}}>4,00 € Guthaben</strong> beim Upgrade auf den Pro Plan!
+                    </div>
                   </div>
                 )}
 

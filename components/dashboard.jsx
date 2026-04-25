@@ -110,6 +110,13 @@ const Toggle = ({ on, onChange }) => (
   </div>
 );
 
+// ─── Toggle ──────────────────────────────────────────────────
+const Toggle = ({ on, onChange }) => (
+  <div onClick={onChange} style={{ width: 40, height: 22, borderRadius: 999, background: on ? '#6366f1' : 'var(--border-focus)', position: 'relative', cursor: 'pointer', transition: 'background 0.2s', flexShrink: 0 }}>
+    <div style={{ position: 'absolute', top: 3, left: on ? 21 : 3, width: 16, height: 16, borderRadius: '50%', background: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(15,23,42,0.2)' }}/>
+  </div>
+);
+
 // ─── Create Set Modal ────────────────────────────────────────
 const CreateSetModal = ({ onClose, onCreated, userId }) => {
   const [title, setTitle] = useState('');
@@ -133,22 +140,22 @@ const CreateSetModal = ({ onClose, onCreated, userId }) => {
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: 20, padding: 32, width: 480, boxShadow: '0 20px 60px rgba(15,23,42,0.2)' }} onClick={e => e.stopPropagation()}>
-        <div style={{ fontFamily: 'Instrument Sans', fontSize: 20, fontWeight: 600, color: '#0f172a', marginBottom: 24 }}>Neues Lernset erstellen</div>
+      <div style={{ background: 'var(--bg-panel)', borderRadius: 20, padding: 32, width: 480, boxShadow: '0 20px 60px rgba(15,23,42,0.2)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ fontFamily: 'Instrument Sans', fontSize: 20, fontWeight: 600, color: 'var(--text-main)', marginBottom: 24 }}>Neues Lernset erstellen</div>
         {error && <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#991b1b', marginBottom: 16 }}>{error}</div>}
         <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div style={{ display: 'flex', gap: 10 }}>
             <div style={{ flex: 1 }}>
-              <label style={{ fontSize: 12, fontWeight: 500, color: '#475569', display: 'block', marginBottom: 6 }}>Titel *</label>
+              <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>Titel *</label>
               <input value={title} onChange={e => setTitle(e.target.value)} className="input-paper" placeholder="z.B. Mikroökonomie II" required autoFocus/>
             </div>
           </div>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 500, color: '#475569', display: 'block', marginBottom: 6 }}>Beschreibung (optional)</label>
+            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>Beschreibung (optional)</label>
             <input value={description} onChange={e => setDescription(e.target.value)} className="input-paper" placeholder="Kurze Beschreibung…"/>
           </div>
           <div>
-            <label style={{ fontSize: 12, fontWeight: 500, color: '#475569', display: 'block', marginBottom: 6 }}>Ordner (optional)</label>
+            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>Ordner (optional)</label>
             <input value={folder} onChange={e => setFolder(e.target.value)} className="input-paper" placeholder="z.B. Sommersemester 26"/>
           </div>
           <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
@@ -164,7 +171,7 @@ const CreateSetModal = ({ onClose, onCreated, userId }) => {
 };
 
 // ─── Settings Panel ──────────────────────────────────────────
-const SettingsPanel = ({ user, profile, onProfileUpdate }) => {
+const SettingsPanel = ({ user, profile, onProfileUpdate, darkMode, setDarkMode }) => {
   const [name, setName] = useState(profile?.display_name || '');
   const [university, setUniversity] = useState(profile?.university || '');
   const [weeklyGoal, setWeeklyGoal] = useState(profile?.weekly_goal || 20);
@@ -176,6 +183,7 @@ const SettingsPanel = ({ user, profile, onProfileUpdate }) => {
 
   const isPro = profile?.plan === 'pro';
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Nutzer';
+  const refCode = profile?.referral_code || user?.id?.split('-')[0].toUpperCase() || 'DEMO';
 
   const handleSave = async () => {
     setSaving(true);
@@ -216,9 +224,16 @@ const SettingsPanel = ({ user, profile, onProfileUpdate }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, flex: 1, minHeight: 0, overflowY: 'auto', paddingBottom: 80 }}>
-      <div>
-        <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>Einstellungen</h1>
-        <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>Profil, Lernziele und Abo verwalten.</div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div>
+          <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: 'var(--text-main)', letterSpacing: '-0.02em', margin: 0 }}>Einstellungen</h1>
+          <div style={{ fontSize: 13, color: 'var(--text-light)', marginTop: 4 }}>Profil, Lernziele und Abo verwalten.</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg-panel)', padding: '6px 12px', borderRadius: 999, border: '1px solid var(--border-light)' }}>
+          <Icons.Eye size={14} color="var(--text-muted)"/>
+          <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-main)' }}>Dark Mode</span>
+          <Toggle on={darkMode} onChange={() => setDarkMode(!darkMode)}/>
+        </div>
       </div>
 
       {/* Plan banner */}
@@ -239,12 +254,12 @@ const SettingsPanel = ({ user, profile, onProfileUpdate }) => {
             }}>
               {isPro ? <Icons.Bolt size={14}/> : <Icons.Bookmark size={14}/>}
             </div>
-            <div style={{ fontFamily: 'Instrument Sans', fontSize: 16, fontWeight: 700, color: isPro ? 'white' : '#0f172a' }}>
+            <div style={{ fontFamily: 'Instrument Sans', fontSize: 16, fontWeight: 700, color: isPro ? 'white' : 'var(--text-main)' }}>
               {isPro ? 'Pro Plan' : 'Free Plan'}
             </div>
             {isPro && <span style={{ fontSize: 10, background: '#818cf8', color: 'white', padding: '2px 8px', borderRadius: 999, fontWeight: 600 }}>AKTIV</span>}
           </div>
-          <div style={{ fontSize: 12.5, color: isPro ? '#a5b4fc' : '#64748b' }}>
+          <div style={{ fontSize: 12.5, color: isPro ? '#a5b4fc' : 'var(--text-light)' }}>
             {isPro ? 'Voller Zugriff auf alle Features — vielen Dank!' : 'Upgrade für unbegrenzte AI, Bildanalyse & mehr.'}
           </div>
         </div>
@@ -303,45 +318,45 @@ const SettingsPanel = ({ user, profile, onProfileUpdate }) => {
       </div>
 
       {/* Referral System */}
-      <div style={{ background: 'white', borderRadius: 16, padding: 24, border: '1px solid rgba(15,23,42,0.06)' }}>
+      <div style={{ background: 'var(--bg-panel)', borderRadius: 16, padding: 24, border: '1px solid var(--border-light)' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
           <div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>Freunde einladen</div>
-            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Empfiehl StudyFlow und sichere dir Guthaben.</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>Freunde einladen</div>
+            <div style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 2 }}>Empfiehl StudyFlow und sichere dir Guthaben.</div>
           </div>
           <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', padding: '6px 12px', borderRadius: 999, fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
             <span>Guthaben:</span> {Number(profile?.balance || 0).toFixed(2).replace('.', ',')} €
           </div>
         </div>
-        <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.5, marginBottom: 16 }}>
-          Wenn sich jemand über deinen Link registriert und ein Pro-Abo abschließt, erhaltet ihr beide <strong style={{ color: '#0f172a' }}>4,00 €</strong> auf euer Konto gutgeschrieben. Das Guthaben wird automatisch bei deiner nächsten Zahlung verrechnet.
+        <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.5, marginBottom: 16 }}>
+          Teile deinen Code. Wenn sich jemand mit deinem Code registriert und ein Pro-Abo abschließt, erhaltet ihr beide <strong style={{ color: 'var(--text-main)' }}>4,00 €</strong> auf euer Konto gutgeschrieben. Das Guthaben wird automatisch verrechnet.
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
-          <input readOnly value={`https://studyflow.de/login.html?ref=${user?.id || 'demo'}`} className="input-paper" style={{ flex: 1, color: '#475569', background: '#f8fafc' }} />
-          <button onClick={() => { navigator.clipboard.writeText(`https://studyflow.de/login.html?ref=${user?.id || 'demo'}`); alert('Link kopiert!'); }} className="btn-ghost" style={{ padding: '0 16px' }}>
-            Link kopieren
+          <input readOnly value={refCode} className="input-paper" style={{ flex: 1, color: 'var(--text-main)', background: 'var(--bg-hover)', fontFamily: 'JetBrains Mono', fontSize: 16, letterSpacing: '0.1em', textAlign: 'center', fontWeight: 600 }} />
+          <button onClick={() => { navigator.clipboard.writeText(refCode); alert('Code kopiert!'); }} className="btn-ghost" style={{ padding: '0 16px' }}>
+            Code kopieren
           </button>
         </div>
       </div>
 
       {/* Feature comparison */}
-      <div style={{ background: 'white', borderRadius: 16, padding: 24, border: '1px solid rgba(15,23,42,0.06)' }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 16 }}>Free vs. Pro</div>
+      <div style={{ background: 'var(--bg-panel)', borderRadius: 16, padding: 24, border: '1px solid var(--border-light)' }}>
+        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)', marginBottom: 16 }}>Free vs. Pro</div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 80px 80px', gap: 0 }}>
           <div/><div style={{ fontSize: 11, fontWeight: 700, color: '#64748b', textAlign: 'center', padding: '6px 0' }}>FREE</div>
           <div style={{ fontSize: 11, fontWeight: 700, color: '#6366f1', textAlign: 'center', padding: '6px 0' }}>PRO</div>
           {PRO_FEATURES.map((f, i) => (
             <React.Fragment key={i}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0', borderTop: '1px solid rgba(15,23,42,0.04)', fontSize: 13, color: '#334155' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '10px 0', borderTop: '1px solid var(--border-light)', fontSize: 13, color: 'var(--text-muted)' }}>
                 <span style={{ color: '#6366f1', display: 'flex' }}>{f.icon}</span>{f.label}
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid rgba(15,23,42,0.04)', fontSize: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid var(--border-light)', fontSize: 12 }}>
                 {f.free === false
                   ? <span style={{ color: '#cbd5e1', display: 'flex' }}><Icons.X size={14}/></span>
                   : <span style={{ color: '#64748b', display: 'flex', alignItems: 'center', gap: 6 }}>{f.free === true ? <Icons.Check size={14}/> : f.free}</span>
                 }
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid rgba(15,23,42,0.04)', fontSize: 12, color: '#6366f1', fontWeight: 500 }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', borderTop: '1px solid var(--border-light)', fontSize: 12, color: '#6366f1', fontWeight: 500 }}>
                 {f.pro === false
                   ? <span style={{ color: '#cbd5e1', display: 'flex' }}><Icons.X size={14}/></span>
                   : (f.pro === true ? <span style={{ display: 'flex' }}><Icons.Check size={14}/></span> : f.pro)
@@ -358,12 +373,12 @@ const SettingsPanel = ({ user, profile, onProfileUpdate }) => {
       </div>
 
       {/* Danger zone */}
-      <div style={{ background: 'white', borderRadius: 16, padding: 24, border: '1px solid #fecaca' }}>
+      <div style={{ background: 'var(--bg-panel)', borderRadius: 16, padding: 24, border: '1px solid #fecaca' }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#991b1b', marginBottom: 12 }}>Gefahrenzone</div>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <div>
-            <div style={{ fontSize: 13, color: '#0f172a', fontWeight: 500 }}>Konto löschen</div>
-            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>Alle Daten werden unwiderruflich gelöscht.</div>
+            <div style={{ fontSize: 13, color: 'var(--text-main)', fontWeight: 500 }}>Konto löschen</div>
+            <div style={{ fontSize: 12, color: 'var(--text-lighter)', marginTop: 2 }}>Alle Daten werden unwiderruflich gelöscht.</div>
           </div>
           <button onClick={() => alert('Bitte wende dich an den Support.')} style={{ padding: '7px 14px', background: 'none', border: '1px solid #fca5a5', borderRadius: 8, fontSize: 12, color: '#dc2626', cursor: 'pointer', fontFamily: 'inherit' }}>
             Konto löschen
@@ -532,14 +547,14 @@ const DocsPanel = ({ userId }) => {
           {breadcrumb && (
             <button onClick={() => setCurrentFolder(null)}
               onDragOver={e => { e.preventDefault(); e.currentTarget.style.color = '#6366f1'; }}
-              onDragLeave={e => { e.currentTarget.style.color = '#64748b'; }}
-              onDrop={e => { e.currentTarget.style.color = '#64748b'; handleDrop(e.dataTransfer.getData('text/plain'), null); }}
-              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 0', fontFamily: 'inherit', transition: 'color 0.15s' }}>
+              onDragLeave={e => { e.currentTarget.style.color = 'var(--text-light)'; }}
+              onDrop={e => { e.currentTarget.style.color = 'var(--text-light)'; handleDrop(e.dataTransfer.getData('text/plain'), null); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-light)', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 0', fontFamily: 'inherit', transition: 'color 0.15s' }}>
               <Icons.ArrowLeft size={14}/> Dokumente
             </button>
           )}
-          {breadcrumb && <span style={{ color: '#cbd5e1', fontSize: 13 }}>/</span>}
-          <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 20, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
+          {breadcrumb && <span style={{ color: 'var(--text-lighter)', fontSize: 13 }}>/</span>}
+          <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 20, fontWeight: 600, color: 'var(--text-main)', letterSpacing: '-0.02em', margin: 0 }}>
             {breadcrumb || 'Dokumente'}
           </h1>
         </div>
@@ -564,7 +579,7 @@ const DocsPanel = ({ userId }) => {
 
       {/* New Folder inline */}
       {showNewFolder && (
-        <div style={{ background: 'white', borderRadius: 12, padding: '14px 16px', border: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={{ background: 'var(--bg-panel)', borderRadius: 12, padding: '14px 16px', border: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', gap: 10 }}>
           <Icons.Folder size={16}/>
           <input autoFocus value={folderName} onChange={e => setFolderName(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter') createFolder(); if (e.key === 'Escape') { setShowNewFolder(false); setFolderName(''); } }}
@@ -575,14 +590,14 @@ const DocsPanel = ({ userId }) => {
       )}
 
       {loading ? (
-        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', fontSize: 13 }}>Lädt…</div>
+        <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-lighter)', fontSize: 13 }}>Lädt…</div>
       ) : (folders.length === 0 && files.length === 0) ? (
-        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, color: '#94a3b8', padding: 48 }}>
+        <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, color: 'var(--text-lighter)', padding: 48 }}>
           <div style={{ width: 56, height: 56, borderRadius: 16, background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #c7d2fe' }}>
             <Icons.Doc size={24}/>
           </div>
-          <div style={{ fontFamily: 'Caveat', fontSize: 22, color: '#64748b' }}>Noch leer</div>
-          <div style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', maxWidth: 260 }}>Erstelle ein Doc zum Schreiben oder ein Whiteboard zum Zeichnen.</div>
+          <div style={{ fontFamily: 'Caveat', fontSize: 22, color: 'var(--text-light)' }}>Noch leer</div>
+          <div style={{ fontSize: 13, color: 'var(--text-lighter)', textAlign: 'center', maxWidth: 260 }}>Erstelle ein Doc zum Schreiben oder ein Whiteboard zum Zeichnen.</div>
           <div style={{ display: 'flex', gap: 8 }}>
             <button onClick={createDoc} className="btn-ghost" style={{ padding: '8px 16px', fontSize: 13 }}><Icons.Doc size={13}/> Neues Doc</button>
             <button onClick={createWhiteboard} className="btn-primary" style={{ padding: '8px 16px', fontSize: 13 }}><Icons.Edit size={13}/> Neues Whiteboard</button>
@@ -597,11 +612,11 @@ const DocsPanel = ({ userId }) => {
             return (
               <div key={item.id} onClick={() => openItem(item)}
                 onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor='#6366f1'; e.currentTarget.style.background='#eef2ff'; }}
-                onDragLeave={e => { e.currentTarget.style.borderColor='rgba(15,23,42,0.06)'; e.currentTarget.style.background='white'; }}
-                onDrop={e => { e.currentTarget.style.borderColor='rgba(15,23,42,0.06)'; e.currentTarget.style.background='white'; handleDrop(e.dataTransfer.getData('text/plain'), item.id); }}
-                style={{ background: 'white', borderRadius: 14, padding: '14px 14px 12px', border: '1px solid rgba(15,23,42,0.06)', cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}
+                onDragLeave={e => { e.currentTarget.style.borderColor='var(--border-light)'; e.currentTarget.style.background='var(--bg-panel)'; }}
+                onDrop={e => { e.currentTarget.style.borderColor='var(--border-light)'; e.currentTarget.style.background='var(--bg-panel)'; handleDrop(e.dataTransfer.getData('text/plain'), item.id); }}
+                style={{ background: 'var(--bg-panel)', borderRadius: 14, padding: '14px 14px 12px', border: '1px solid var(--border-light)', cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor='#fcd34d'; e.currentTarget.style.boxShadow='0 4px 16px rgba(245,158,11,0.1)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(15,23,42,0.06)'; e.currentTarget.style.boxShadow='none'; e.currentTarget.style.background='white'; }}>
+                onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border-light)'; e.currentTarget.style.boxShadow='none'; e.currentTarget.style.background='var(--bg-panel)'; }}>
                 <div style={{ height: 84, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', overflow: 'hidden' }}>
                   <img
                     src={folderArt}
@@ -609,11 +624,11 @@ const DocsPanel = ({ userId }) => {
                     style={{ width: 74, height: 74, objectFit: 'contain', display: 'block', filter: childCount > 0 ? 'drop-shadow(0 10px 18px rgba(37, 99, 235, 0.16))' : 'drop-shadow(0 8px 14px rgba(37, 99, 235, 0.12))' }}
                   />
                 </div>
-                <div style={{ fontSize: 13.5, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
-                <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-lighter)' }}>
                   {childCount} {childCount === 1 ? 'Element' : 'Elemente'}
                 </div>
-                <button onClick={e => deleteItem(item.id, e)} style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 4, borderRadius: 4, display: 'flex' }}
+                <button onClick={e => deleteItem(item.id, e)} style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', color: 'var(--text-lighter)', cursor: 'pointer', padding: 4, borderRadius: 4, display: 'flex' }}
                   onMouseEnter={e => e.currentTarget.style.color='#ef4444'} onMouseLeave={e => e.currentTarget.style.color='#cbd5e1'}>
                   <Icons.X size={12}/>
                 </button>
@@ -625,34 +640,34 @@ const DocsPanel = ({ userId }) => {
             <div key={item.id} onClick={() => openItem(item)}
               draggable
               onDragStart={e => { e.dataTransfer.setData('text/plain', item.id); e.dataTransfer.effectAllowed = 'move'; }}
-              style={{ background: 'white', borderRadius: 12, border: '1px solid rgba(15,23,42,0.06)', cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}
+              style={{ background: 'var(--bg-panel)', borderRadius: 12, border: '1px solid var(--border-light)', cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}
               onMouseEnter={e => {
                 e.currentTarget.style.borderColor = item.doc_type === 'whiteboard' ? '#a5b4fc' : '#c7d2fe';
                 e.currentTarget.style.boxShadow = '0 4px 16px rgba(99,102,241,0.08)';
               }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(15,23,42,0.06)'; e.currentTarget.style.boxShadow='none'; }}>
+              onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border-light)'; e.currentTarget.style.boxShadow='none'; }}>
               {/* Preview area */}
               <div style={{
                 height: 110,
                 background: item.doc_type === 'whiteboard'
-                  ? 'radial-gradient(circle, #cbd5e1 1px, transparent 1px) 0 0 / 18px 18px, white'
-                  : 'linear-gradient(180deg, #fafaf7 0%, white 100%)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid rgba(15,23,42,0.05)',
+                  ? 'radial-gradient(circle, var(--text-lighter) 1px, transparent 1px) 0 0 / 18px 18px, var(--bg-panel)'
+                  : 'linear-gradient(180deg, var(--bg-main) 0%, var(--bg-panel) 100%)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--border-light)',
               }}>
                 <div style={{ opacity: 0.35 }}><IconForType type={item.doc_type}/></div>
               </div>
               {/* Footer */}
               <div style={{ padding: '10px 12px' }}>
-                <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
-                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
-                  <span style={{ padding: '1px 5px', background: item.doc_type === 'whiteboard' ? '#eef2ff' : '#f8fafc', borderRadius: 4, fontSize: 10, fontWeight: 600, color: item.doc_type === 'whiteboard' ? '#6366f1' : '#64748b' }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+                <div style={{ fontSize: 11, color: 'var(--text-lighter)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <span style={{ padding: '1px 5px', background: item.doc_type === 'whiteboard' ? '#eef2ff' : 'var(--bg-hover)', borderRadius: 4, fontSize: 10, fontWeight: 600, color: item.doc_type === 'whiteboard' ? '#6366f1' : 'var(--text-light)' }}>
                     {item.doc_type === 'whiteboard' ? 'Whiteboard' : 'Doc'}
                   </span>
                   <span>{relativeTime(item.updated_at || item.created_at)}</span>
                 </div>
               </div>
-              <button onClick={e => deleteItem(item.id, e)} style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(255,255,255,0.85)', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 4, borderRadius: 5, display: 'flex' }}
-                onMouseEnter={e => e.currentTarget.style.color='#ef4444'} onMouseLeave={e => e.currentTarget.style.color='#cbd5e1'}>
+              <button onClick={e => deleteItem(item.id, e)} style={{ position: 'absolute', top: 6, right: 6, background: 'var(--bg-panel)', border: 'none', color: 'var(--text-lighter)', cursor: 'pointer', padding: 4, borderRadius: 5, display: 'flex', opacity: 0.8 }}
+                onMouseEnter={e => e.currentTarget.style.color='#ef4444'} onMouseLeave={e => e.currentTarget.style.color='var(--text-lighter)'}>
                 <Icons.X size={12}/>
               </button>
             </div>
@@ -678,10 +693,10 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
   ];
 
   return (
-    <aside style={{ width: 240, flexShrink: 0, margin: '14px 0 14px 14px', background: 'white', borderRadius: 18, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.04)', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 20, height: 'calc(100vh - 28px)' }}>
+    <aside style={{ width: 240, flexShrink: 0, margin: '14px 0 14px 14px', background: 'var(--bg-panel)', borderRadius: 18, border: '1px solid var(--border-light)', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.04)', padding: '20px 16px', display: 'flex', flexDirection: 'column', gap: 20, height: 'calc(100vh - 28px)' }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '0 4px' }}>
         <Icons.Logo size={26}/>
-        <div style={{ fontFamily: 'Caveat', fontSize: 24, fontWeight: 600, color: '#0f172a' }}>StudyFlow</div>
+        <div style={{ fontFamily: 'Caveat', fontSize: 24, fontWeight: 600, color: 'var(--text-main)' }}>StudyFlow</div>
         {isPro && <span style={{ fontSize: 9, background: 'linear-gradient(135deg,#6366f1,#818cf8)', color: 'white', padding: '2px 6px', borderRadius: 999, fontWeight: 700, letterSpacing: '0.06em' }}>PRO</span>}
       </div>
 
@@ -690,14 +705,14 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
       </button>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-        <div style={{ fontSize: 10.5, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6, padding: '0 8px' }}>Bibliothek</div>
+        <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-lighter)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6, padding: '0 8px' }}>Bibliothek</div>
         {navItems.map(item => {
           const isActive = active === item.id || (active === 'cards' && item.id === 'home');
           return (
-            <div key={item.id} onClick={() => onNav(item.id)} onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#f8fafc'; }} onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 8, background: isActive ? '#f1f5f9' : 'transparent', color: isActive ? '#0f172a' : '#475569', fontSize: 13, fontWeight: isActive ? 500 : 400, cursor: 'pointer', transition: 'background 0.1s' }}>
+            <div key={item.id} onClick={() => onNav(item.id)} onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--bg-hover)'; }} onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 8, background: isActive ? 'var(--bg-active)' : 'transparent', color: isActive ? 'var(--text-main)' : 'var(--text-muted)', fontSize: 13, fontWeight: isActive ? 500 : 400, cursor: 'pointer', transition: 'background 0.1s' }}>
               {item.icon}
               <span style={{ flex: 1 }}>{item.label}</span>
-              {item.count !== null && <span style={{ fontSize: 11, color: '#94a3b8' }}>{item.count}</span>}
+              {item.count !== null && <span style={{ fontSize: 11, color: 'var(--text-lighter)' }}>{item.count}</span>}
             </div>
           );
         })}
@@ -705,9 +720,9 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
 
       {folders.length > 0 && (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <div style={{ fontSize: 10.5, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6, padding: '0 8px' }}>Ordner</div>
+          <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-lighter)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6, padding: '0 8px' }}>Ordner</div>
           {folders.map(f => (
-            <div key={f} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', fontSize: 13, color: '#475569', cursor: 'pointer', borderRadius: 8, transition: 'background 0.1s' }}>
+            <div key={f} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', fontSize: 13, color: 'var(--text-muted)', cursor: 'pointer', borderRadius: 8, transition: 'background 0.1s' }}>
               <Icons.Folder size={15}/>
               <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f}</span>
             </div>
@@ -715,12 +730,12 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
         </div>
       )}
 
-      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid rgba(15,23,42,0.06)', paddingTop: 14 }}>
+      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--border-light)', paddingTop: 14 }}>
         <div
           onClick={() => onNav('settings')}
-          onMouseEnter={e => { if (active !== 'settings') e.currentTarget.style.background = '#f8fafc'; }}
+          onMouseEnter={e => { if (active !== 'settings') e.currentTarget.style.background = 'var(--bg-hover)'; }}
           onMouseLeave={e => { if (active !== 'settings') e.currentTarget.style.background = 'transparent'; }}
-          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', transition: 'background 0.1s', color: active === 'settings' ? '#0f172a' : '#475569', background: active === 'settings' ? '#f1f5f9' : 'transparent', fontWeight: active === 'settings' ? 500 : 400, fontSize: 13 }}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', transition: 'background 0.1s', color: active === 'settings' ? 'var(--text-main)' : 'var(--text-muted)', background: active === 'settings' ? 'var(--bg-active)' : 'transparent', fontWeight: active === 'settings' ? 500 : 400, fontSize: 13 }}
         >
           <Icons.Settings size={15}/>
           <span style={{ flex: 1 }}>Einstellungen</span>
@@ -728,8 +743,8 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
 
         <div style={{ position: 'relative' }}>
           {showUserMenu && (
-            <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: 8, background: 'white', borderRadius: 12, border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 4px 20px rgba(15,23,42,0.08)', padding: 6, zIndex: 100 }}>
-              <div onClick={() => { setShowUserMenu(false); onNav('settings'); }} onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} style={{ padding: '8px 10px', fontSize: 13, color: '#0f172a', cursor: 'pointer', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.1s' }}>
+            <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: 8, background: 'var(--bg-panel)', borderRadius: 12, border: '1px solid var(--border-light)', boxShadow: '0 4px 20px rgba(15,23,42,0.08)', padding: 6, zIndex: 100 }}>
+              <div onClick={() => { setShowUserMenu(false); onNav('settings'); }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-active)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} style={{ padding: '8px 10px', fontSize: 13, color: 'var(--text-main)', cursor: 'pointer', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.1s' }}>
                 <Icons.Settings size={14}/> Profil verwalten
               </div>
               <div style={{ height: 1, background: '#e2e8f0', margin: '4px 0' }}></div>
@@ -745,14 +760,14 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
           )}
           <div
             onClick={() => setShowUserMenu(!showUserMenu)}
-            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
             onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px', borderRadius: 10, cursor: 'pointer', transition: 'background 0.1s' }}
           >
             <Avatar name={displayName} color="#6366f1" size={30}/>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
-              <div style={{ fontSize: 11, color: isPro ? '#6366f1' : '#94a3b8', fontWeight: isPro ? 600 : 400, display: 'flex', alignItems: 'center', gap: 6 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
+              <div style={{ fontSize: 11, color: isPro ? '#6366f1' : 'var(--text-lighter)', fontWeight: isPro ? 600 : 400, display: 'flex', alignItems: 'center', gap: 6 }}>
                 {isPro ? <Icons.Bolt size={12}/> : <Icons.Bookmark size={12}/>}
                 {isPro ? 'Pro Plan' : 'Free Plan'}
               </div>
@@ -768,14 +783,14 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
 const TopBar = ({ search, onSearch, streak }) => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
     <div style={{ flex: 1, maxWidth: 380, position: 'relative' }}>
-      <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}><Icons.Search size={15}/></div>
-      <input className="input-paper" placeholder="Suchen…" value={search} onChange={e => onSearch(e.target.value)} style={{ paddingLeft: 36, background: 'white', padding: '8px 12px 8px 36px', fontSize: 13 }}/>
+      <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-lighter)' }}><Icons.Search size={15}/></div>
+      <input className="input-paper" placeholder="Suchen…" value={search} onChange={e => onSearch(e.target.value)} style={{ paddingLeft: 36, background: 'var(--bg-panel)', padding: '8px 12px 8px 36px', fontSize: 13 }}/>
     </div>
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <div title={`${streak || 0} Tage Streak`} style={{ background: 'white', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: 8, color: streak > 0 ? '#f59e0b' : '#94a3b8', display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, fontWeight: 600, fontFamily: 'inherit', userSelect: 'none' }}>
+      <div title={`${streak || 0} Tage Streak`} style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-focus)', padding: '6px 10px', borderRadius: 8, color: streak > 0 ? '#f59e0b' : 'var(--text-lighter)', display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, fontWeight: 600, fontFamily: 'inherit', userSelect: 'none' }}>
         <Icons.Bolt size={14}/> {streak || 0}
       </div>
-      <button style={{ background: 'white', border: '1px solid #e2e8f0', padding: 7, borderRadius: 8, cursor: 'pointer', color: '#475569', display: 'flex' }}><Icons.Bell size={15}/></button>
+      <button style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-focus)', padding: 7, borderRadius: 8, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}><Icons.Bell size={15}/></button>
     </div>
   </div>
 );
@@ -799,9 +814,9 @@ const SetCard = ({ set, onDelete }) => {
   };
 
   return (
-    <a href={`lernset.html?id=${set.id}`} style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '18px 20px', background: 'white', borderRadius: 14, border: '1px solid rgba(15,23,42,0.06)', transition: 'border-color 0.15s, box-shadow 0.15s', textDecoration: 'none', boxShadow: '0 1px 3px rgba(15,23,42,0.04)' }}
+    <a href={`lernset.html?id=${set.id}`} style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '18px 20px', background: 'var(--bg-panel)', borderRadius: 14, border: '1px solid var(--border-light)', transition: 'border-color 0.15s, box-shadow 0.15s', textDecoration: 'none', boxShadow: '0 1px 3px rgba(15,23,42,0.04)' }}
       onMouseEnter={e => { e.currentTarget.style.borderColor='#c7d2fe'; e.currentTarget.style.boxShadow='0 4px 16px rgba(99,102,241,0.08)'; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(15,23,42,0.06)'; e.currentTarget.style.boxShadow='0 1px 3px rgba(15,23,42,0.04)'; }}>
+      onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border-light)'; e.currentTarget.style.boxShadow='0 1px 3px rgba(15,23,42,0.04)'; }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -809,13 +824,13 @@ const SetCard = ({ set, onDelete }) => {
             <Icons.Cards size={16}/>
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'Instrument Sans' }}>{set.title}</div>
-            <div style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 1 }}>{set.total_cards} Karten · {lastStudy}</div>
+            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'Instrument Sans' }}>{set.title}</div>
+            <div style={{ fontSize: 11.5, color: 'var(--text-lighter)', marginTop: 1 }}>{set.total_cards} Karten · {lastStudy}</div>
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
           {!isDraft && pct === 100 && <span style={{ fontSize: 10, color: '#059669', background: '#d1fae5', padding: '2px 7px', borderRadius: 4, fontWeight: 600 }}>Fertig</span>}
-          {isDraft && <span style={{ fontSize: 10, color: '#64748b', background: '#f1f5f9', padding: '2px 7px', borderRadius: 4, fontWeight: 600 }}>Entwurf</span>}
+          {isDraft && <span style={{ fontSize: 10, color: 'var(--text-light)', background: 'var(--bg-active)', padding: '2px 7px', borderRadius: 4, fontWeight: 600 }}>Entwurf</span>}
           {set.due_cards > 0 && <span style={{ fontSize: 10, color: '#dc2626', background: '#fee2e2', padding: '2px 7px', borderRadius: 4, fontWeight: 600 }}>{set.due_cards} fällig</span>}
           <button onClick={handleDelete} style={{ padding: 4, background: 'none', border: 'none', borderRadius: 5, cursor: 'pointer', color: '#cbd5e1', display: 'flex' }}><Icons.MoreH size={14}/></button>
         </div>
@@ -823,22 +838,22 @@ const SetCard = ({ set, onDelete }) => {
 
       {/* Progress bar */}
       <div>
-        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 5 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-lighter)', marginBottom: 5 }}>
           <span>Fortschritt</span>
-          <span style={{ fontWeight: 500, color: '#475569' }}>{isDraft ? '—' : `${pct}%`}</span>
+          <span style={{ fontWeight: 500, color: 'var(--text-muted)' }}>{isDraft ? '—' : `${pct}%`}</span>
         </div>
-        <div style={{ height: 5, background: '#f1f5f9', borderRadius: 999, overflow: 'hidden' }}>
+        <div style={{ height: 5, background: 'var(--bg-active)', borderRadius: 999, overflow: 'hidden' }}>
           <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#059669' : 'linear-gradient(90deg, #6366f1, #818cf8)', borderRadius: 999, transition: 'width 0.3s' }}/>
         </div>
       </div>
 
       {/* Footer */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
-        <div style={{ fontSize: 11.5, color: '#94a3b8' }}>
+        <div style={{ fontSize: 11.5, color: 'var(--text-lighter)' }}>
           {!isDraft ? <span>{set.mastered_cards} / {set.total_cards} gemeistert</span> : <span>Noch leer</span>}
         </div>
         <a href={`lern-modus.html?id=${set.id}`} onClick={e => e.stopPropagation()}
-          style={{ padding: '6px 14px', background: '#0f172a', color: 'white', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
+          style={{ padding: '6px 14px', background: 'var(--text-main)', color: 'var(--bg-panel)', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
           <Icons.Brain size={12}/> Lernen
         </a>
       </div>
@@ -847,7 +862,7 @@ const SetCard = ({ set, onDelete }) => {
 };
 
 // ─── Stats ───────────────────────────────────────────────────
-const StatsRow = ({ stats, streak }) => {
+const StatsRow = ({ stats, streak, profile, sets }) => {
   const cells = React.useMemo(() => {
     const arr = [];
     for (let i = 0; i < 35; i++) {
@@ -865,31 +880,76 @@ const StatsRow = ({ stats, streak }) => {
     return arr;
   }, [stats.reviewCounts]);
 
+  const weeklyGoal = profile?.weekly_goal || 20;
+  const weekReviews = stats?.weekReviews || 0;
+  const goalPct = Math.min(100, Math.round((weekReviews / weeklyGoal) * 100));
+
+  const totalCards = sets?.reduce((acc, s) => acc + (s.total_cards || 0), 0) || 0;
+  const totalMastered = sets?.reduce((acc, s) => acc + (s.mastered_cards || 0), 0) || 0;
+  const masteredPct = totalCards ? Math.round((totalMastered / totalCards) * 100) : 0;
+
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10 }}>
-      {[
-        { label: 'Fällig heute', value: stats.dueToday || '0', sub: 'Karten' },
-        { label: 'Diese Woche', value: stats.weekReviews || '0', sub: 'Karten geübt' },
-        { label: 'Gemeistert', value: stats.masteryPct || '0%', sub: 'aller Karten' },
-        { label: 'Lernsets', value: stats.totalSets || '0', sub: 'gesamt' },
-      ].map(s => (
-        <div key={s.label} style={{ background: 'white', borderRadius: 10, padding: '12px 14px', border: '1px solid rgba(15,23,42,0.05)' }}>
-          <div style={{ fontSize: 11, color: '#64748b' }}>{s.label}</div>
-          <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: '#0f172a', marginTop: 2, letterSpacing: '-0.02em', lineHeight: 1 }}>{s.value}</div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>{s.sub}</div>
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+      {/* Obere Reihe: 4 kleine Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+        {[
+          { label: 'Fällig heute', value: stats.dueToday || '0', sub: 'Karten' },
+          { label: 'Diese Woche', value: stats.weekReviews || '0', sub: 'Karten geübt' },
+          { label: 'Gemeistert', value: stats.masteryPct || '0%', sub: 'aller Karten' },
+          { label: 'Lernsets', value: stats.totalSets || '0', sub: 'gesamt' },
+        ].map(s => (
+          <div key={s.label} style={{ background: 'var(--bg-panel)', borderRadius: 10, padding: '12px 14px', border: '1px solid var(--border-light)' }}>
+            <div style={{ fontSize: 11, color: 'var(--text-light)' }}>{s.label}</div>
+            <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: 'var(--text-main)', marginTop: 2, letterSpacing: '-0.02em', lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontSize: 11, color: 'var(--text-lighter)', marginTop: 3 }}>{s.sub}</div>
+          </div>
+        ))}
+      </div>
+
+      {/* Untere Reihe: 3 große Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
+        {/* Block 1: Aktivität Heatmap */}
+        <div style={{ background: 'var(--bg-panel)', borderRadius: 12, padding: '16px 18px', border: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div>
+            <div style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Aktivität</div>
+            <div style={{ fontFamily: 'Instrument Sans', fontSize: 26, fontWeight: 600, color: 'var(--text-main)', marginTop: 2, letterSpacing: '-0.02em', lineHeight: 1 }}>{streak || 0} <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-lighter)', letterSpacing: 'normal' }}>Tage Streak</span></div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+            {cells.map((v, i) => (
+              <div key={i} style={{ width: '100%', aspectRatio: '1', borderRadius: 3, background: v === 0 ? 'var(--bg-active)' : `rgba(99,102,241,${v})` }} />
+            ))}
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-lighter)', textAlign: 'right', marginTop: -4 }}>letzte 35 Tage</div>
         </div>
-      ))}
-      {/* Activity Heatmap Block */}
-      <div style={{ background: 'white', borderRadius: 10, padding: '12px 14px', border: '1px solid rgba(15,23,42,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-        <div>
-          <div style={{ fontSize: 11, color: '#64748b' }}>Aktivität</div>
-          <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: '#0f172a', marginTop: 2, letterSpacing: '-0.02em', lineHeight: 1 }}>{streak || 0} <span style={{ fontSize: 12, fontWeight: 500, color: '#94a3b8', letterSpacing: 'normal' }}>Tage</span></div>
-          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>letzte 35 Tage</div>
+
+        {/* Block 2: Wochenziel */}
+        <div style={{ background: 'var(--bg-panel)', borderRadius: 12, padding: '16px 18px', border: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Wochenziel</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <div style={{ fontFamily: 'Instrument Sans', fontSize: 26, fontWeight: 600, color: 'var(--text-main)', letterSpacing: '-0.02em', lineHeight: 1 }}>{weekReviews}</div>
+            <div style={{ fontSize: 13, color: 'var(--text-lighter)', fontWeight: 500 }}>/ {weeklyGoal} Karten</div>
+          </div>
+          <div style={{ height: 6, background: 'var(--bg-active)', borderRadius: 999, overflow: 'hidden', marginTop: 'auto' }}>
+            <div style={{ width: `${goalPct}%`, height: '100%', background: goalPct >= 100 ? '#10b981' : '#6366f1', borderRadius: 999 }} />
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-lighter)' }}>
+            {goalPct >= 100 ? 'Ziel erreicht! 🎉' : `Noch ${Math.max(0, weeklyGoal - weekReviews)} Karten zu lernen`}
+          </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 }}>
-          {cells.map((v, i) => (
-            <div key={i} style={{ width: 9, height: 9, borderRadius: 2, background: v === 0 ? '#f1f5f9' : `rgba(99,102,241,${v})` }} />
-          ))}
+
+        {/* Block 3: Gesamt-Fortschritt */}
+        <div style={{ background: 'var(--bg-panel)', borderRadius: 12, padding: '16px 18px', border: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Gesamt-Fortschritt</div>
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
+            <div style={{ fontFamily: 'Instrument Sans', fontSize: 26, fontWeight: 600, color: 'var(--text-main)', letterSpacing: '-0.02em', lineHeight: 1 }}>{totalCards}</div>
+            <div style={{ fontSize: 13, color: 'var(--text-lighter)', fontWeight: 500 }}>Karten insgesamt</div>
+          </div>
+          <div style={{ height: 6, background: 'var(--bg-active)', borderRadius: 999, overflow: 'hidden', marginTop: 'auto', display: 'flex' }}>
+            <div style={{ width: `${masteredPct}%`, height: '100%', background: '#10b981' }} />
+          </div>
+          <div style={{ fontSize: 11, color: 'var(--text-lighter)' }}>
+            <span style={{ color: '#10b981', fontWeight: 600 }}>{totalMastered}</span> gemeistert ({masteredPct}%)
+          </div>
         </div>
       </div>
     </div>
@@ -898,15 +958,64 @@ const StatsRow = ({ stats, streak }) => {
 
 // ─── Empty State ─────────────────────────────────────────────
 const EmptyState = ({ onNewSet }) => (
-  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 16, color: '#94a3b8', padding: 40 }}>
+  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 16, color: 'var(--text-lighter)', padding: 40 }}>
     <div style={{ width: 64, height: 64, borderRadius: 18, background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #c7d2fe' }}>
       <Icons.Cards size={28}/>
     </div>
-    <div style={{ fontFamily: 'Caveat', fontSize: 24, color: '#64748b' }}>Noch keine Lernsets</div>
-    <div style={{ fontSize: 14, color: '#94a3b8', textAlign: 'center', maxWidth: 300 }}>Erstelle dein erstes Lernset oder lade ein Dokument hoch, um loszulegen.</div>
+    <div style={{ fontFamily: 'Caveat', fontSize: 24, color: 'var(--text-light)' }}>Noch keine Lernsets</div>
+    <div style={{ fontSize: 14, color: 'var(--text-lighter)', textAlign: 'center', maxWidth: 300 }}>Erstelle dein erstes Lernset oder lade ein Dokument hoch, um loszulegen.</div>
     <button onClick={onNewSet} className="btn-primary" style={{ padding: '10px 20px' }}><Icons.Plus size={14}/> Erstes Lernset erstellen</button>
   </div>
 );
+
+// ─── Welcome Modal ───────────────────────────────────────────
+const WelcomeModal = ({ onClose }) => {
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
+      <div style={{ background: 'var(--bg-panel)', borderRadius: 24, padding: 40, width: 480, maxWidth: '100%', boxShadow: '0 30px 80px rgba(15,23,42,0.2)', position: 'relative', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+        <div style={{ position: 'absolute', top: -20, right: -20, opacity: 0.05, pointerEvents: 'none' }}>
+          <Icons.Sparkles size={160} />
+        </div>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
+          <div style={{ width: 56, height: 56, borderRadius: 16, background: 'linear-gradient(135deg, #6366f1, #818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', boxShadow: '0 8px 16px rgba(99,102,241,0.25)', flexShrink: 0 }}>
+            <Icons.Logo size={32} />
+          </div>
+          <div>
+            <h2 style={{ fontFamily: 'Instrument Sans', fontSize: 24, fontWeight: 700, color: 'var(--text-main)', margin: 0, letterSpacing: '-0.02em' }}>Willkommen bei StudyFlow! 🎉</h2>
+            <div style={{ fontFamily: 'Caveat', fontSize: 18, color: '#6366f1', fontWeight: 600 }}>Schön, dass du da bist.</div>
+          </div>
+        </div>
+        
+        <div style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 32 }}>
+          Bevor du loslegst, hier ein kurzer Überblick, wie du das meiste aus deinem neuen Lern-Workspace herausholst:
+        </div>
+        
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginBottom: 36 }}>
+          {[
+            { icon: <Icons.Sparkles size={16}/>, color: '#8b5cf6', bg: '#f3e8ff', title: 'Flow AI', desc: 'Lade PDFs oder Skripte hoch. Flow erstellt dir in Sekunden Zusammenfassungen und Karteikarten.' },
+            { icon: <Icons.Cards size={16}/>, color: '#10b981', bg: '#d1fae5', title: 'Spaced Repetition', desc: 'Lerne smarter, nicht härter. Der Algorithmus zeigt dir Karten genau dann, wenn du sie vergessen würdest.' },
+            { icon: <Icons.Users size={16}/>, color: '#f59e0b', bg: '#fef3c7', title: 'Zusammen lernen', desc: 'Teile deine Ordner mit Freunden und bearbeitet Lernsets gemeinsam in Echtzeit.' }
+          ].map((f, i) => (
+            <div key={i} style={{ display: 'flex', gap: 14 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 10, background: f.bg, color: f.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                {f.icon}
+              </div>
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)' }}>{f.title}</div>
+                <div style={{ fontSize: 13, color: 'var(--text-light)', marginTop: 2, lineHeight: 1.4 }}>{f.desc}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+        
+        <button onClick={onClose} className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '14px 0', fontSize: 15, background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}>
+          Alles klar, los geht's! <Icons.ArrowRight size={16} />
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // ─── Dashboard ───────────────────────────────────────────────
 const Dashboard = () => {
@@ -924,7 +1033,21 @@ const Dashboard = () => {
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [showWelcome, setShowWelcome] = useState(() => localStorage.getItem('studyflow_welcome') === 'true');
   const [streak, setStreak] = useState(0);
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
+
+  useEffect(() => {
+    if (darkMode) document.body.classList.add('dark-theme');
+    else document.body.classList.remove('dark-theme');
+    localStorage.setItem('theme', darkMode ? 'dark' : 'light');
+  }, [darkMode]);
+
+  useEffect(() => {
+    if (showWelcome) {
+      localStorage.removeItem('studyflow_welcome');
+    }
+  }, [showWelcome]);
 
   useEffect(() => {
     (async () => {
@@ -1011,38 +1134,69 @@ const Dashboard = () => {
 
   return (
     <div className="dot-paper" style={{ height: '100vh', overflow: 'hidden', display: 'flex' }}>
+      <style>{`
+        :root {
+          --bg-main: #fafaf7;
+          --bg-panel: white;
+          --bg-active: #f1f5f9;
+          --bg-hover: #f8fafc;
+          --text-main: #0f172a;
+          --text-muted: #475569;
+          --text-light: #64748b;
+          --text-lighter: #94a3b8;
+          --border-light: rgba(15,23,42,0.06);
+          --border-focus: #e2e8f0;
+        }
+        .dark-theme {
+          --bg-main: #0f172a;
+          --bg-panel: #1e293b;
+          --bg-active: #334155;
+          --bg-hover: #334155;
+          --text-main: #f8fafc;
+          --text-muted: #cbd5e1;
+          --text-light: #94a3b8;
+          --text-lighter: #64748b;
+          --border-light: rgba(255,255,255,0.1);
+          --border-focus: rgba(255,255,255,0.15);
+        }
+        body.dark-theme { background-color: var(--bg-main); color: var(--text-main); }
+        body.dark-theme .dot-paper { background-color: var(--bg-main) !important; }
+        body.dark-theme .input-paper { background-color: var(--bg-panel); color: var(--text-main); border-color: var(--border-focus); }
+        body.dark-theme .btn-ghost { background-color: var(--bg-panel); color: var(--text-main); border-color: var(--border-light); }
+        body.dark-theme .btn-ghost:hover { background-color: var(--bg-hover); }
+      `}</style>
       <Sidebar user={user} profile={profile} sets={sets} active={active} onNav={setActive} onNewSet={() => setShowModal(true)}/>
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '18px 22px 14px', minWidth: 0, gap: 16, overflow: 'hidden' }}>
         <TopBar search={search} onSearch={setSearch} streak={streak}/>
 
         {showDocs && <DocsPanel userId={user?.id}/>}
-        {showSettings && <SettingsPanel user={user} profile={profile} onProfileUpdate={setProfile}/>}
+        {showSettings && <SettingsPanel user={user} profile={profile} onProfileUpdate={setProfile} darkMode={darkMode} setDarkMode={setDarkMode}/>}
 
         {showSets && (
           <>
             <div>
               <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
-                <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 24, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>
+                <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 24, fontWeight: 600, color: 'var(--text-main)', letterSpacing: '-0.02em', margin: 0 }}>
                   Servus, {displayName.split(' ')[0]}.
                 </h1>
                 {stats.dueToday > 0 && (
-                  <span style={{ fontSize: 13, color: '#64748b' }}>
-                    <span style={{ color: '#0f172a', fontWeight: 500 }}>{stats.dueToday} Karten</span> fällig
+                  <span style={{ fontSize: 13, color: 'var(--text-light)' }}>
+                    <span style={{ color: 'var(--text-main)', fontWeight: 500 }}>{stats.dueToday} Karten</span> fällig
                   </span>
                 )}
               </div>
             </div>
 
-            <StatsRow stats={stats} streak={streak}/>
+            <StatsRow stats={stats} streak={streak} profile={profile} sets={sets}/>
 
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
-                  <h2 style={{ fontFamily: 'Instrument Sans', fontSize: 15, fontWeight: 600, color: '#0f172a', margin: 0 }}>Alle Lernsets</h2>
-                  <div style={{ display: 'flex', gap: 2, background: '#f1f5f9', padding: 2, borderRadius: 7 }}>
+                  <h2 style={{ fontFamily: 'Instrument Sans', fontSize: 15, fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>Alle Lernsets</h2>
+                  <div style={{ display: 'flex', gap: 2, background: 'var(--bg-active)', padding: 2, borderRadius: 7 }}>
                     {[{ k:'all', l:'Alle' }, { k:'due', l:'Fällig' }].map(t => (
-                      <button key={t.k} onClick={() => setFilter(t.k)} style={{ padding: '4px 10px', background: filter===t.k ? 'white' : 'transparent', border: 'none', borderRadius: 5, fontSize: 11.5, color: filter===t.k ? '#0f172a' : '#64748b', fontWeight: filter===t.k ? 500 : 400, cursor: 'pointer', fontFamily: 'inherit', boxShadow: filter===t.k ? '0 1px 2px rgba(15,23,42,0.08)' : 'none' }}>{t.l}</button>
+                      <button key={t.k} onClick={() => setFilter(t.k)} style={{ padding: '4px 10px', background: filter===t.k ? 'var(--bg-panel)' : 'transparent', border: 'none', borderRadius: 5, fontSize: 11.5, color: filter===t.k ? 'var(--text-main)' : 'var(--text-light)', fontWeight: filter===t.k ? 500 : 400, cursor: 'pointer', fontFamily: 'inherit', boxShadow: filter===t.k ? '0 1px 2px rgba(15,23,42,0.08)' : 'none' }}>{t.l}</button>
                     ))}
                   </div>
                 </div>
@@ -1073,6 +1227,7 @@ const Dashboard = () => {
       {showModal && (
         <CreateSetModal userId={user?.id} onClose={() => setShowModal(false)} onCreated={handleSetCreated}/>
       )}
+      {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
     </div>
   );
 };
