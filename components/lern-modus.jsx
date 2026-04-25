@@ -45,6 +45,7 @@ const ModeSwitcher = ({ mode, setMode }) => (
     {[
       { id: 'flashcards', label: 'Karten', icon: <Icons.Cards size={14}/> },
       { id: 'quiz', label: 'Quiz', icon: <Icons.Brain size={14}/> },
+      { id: 'typing', label: 'Tippen', icon: <Icons.Edit size={14}/> },
     ].map(m => (
       <button key={m.id} onClick={() => setMode(m.id)} style={{
         padding: '8px 14px', fontSize: 13,
@@ -109,6 +110,24 @@ const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32, padding: '32px 0' }}>
+      {/* Screen Edge Blurs für Swipe-Feedback */}
+      <div style={{
+        position: 'fixed', top: 0, right: 0, bottom: 0, width: '40vw',
+        background: 'radial-gradient(circle at right center, rgba(16,185,129,0.35) 0%, transparent 70%)',
+        opacity: flipped && dragX > 0 ? Math.min(1, dragX / 150) : 0,
+        pointerEvents: 'none',
+        transition: dragRef.current.active ? 'none' : 'opacity 0.3s ease-out',
+        zIndex: 100,
+      }} />
+      <div style={{
+        position: 'fixed', top: 0, left: 0, bottom: 0, width: '40vw',
+        background: 'radial-gradient(circle at left center, rgba(239,68,68,0.35) 0%, transparent 70%)',
+        opacity: flipped && dragX < 0 ? Math.min(1, Math.abs(dragX) / 150) : 0,
+        pointerEvents: 'none',
+        transition: dragRef.current.active ? 'none' : 'opacity 0.3s ease-out',
+        zIndex: 100,
+      }} />
+
       <div style={{ width: 600, position: 'relative' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'white', borderRadius: 20, transform: 'rotate(-1.5deg) translateY(8px)', opacity: 0.6, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 2px 8px rgba(15,23,42,0.04)' }}></div>
         <div style={{ position: 'absolute', inset: 0, background: 'white', borderRadius: 20, transform: 'rotate(0.8deg) translateY(4px)', opacity: 0.85, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 2px 8px rgba(15,23,42,0.06)' }}></div>
@@ -130,18 +149,6 @@ const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
             if (!hasDragged.current) setFlipped(!flipped);
           }} w={600} h={360}/>
           
-          {/* Overlay für Richtig/Falsch Swipe */}
-          {flipped && dragX !== 0 && (
-            <div style={{
-              position: 'absolute',
-              inset: 0,
-              borderRadius: 20,
-              background: dragX > 0 ? '#10b981' : '#ef4444',
-              opacity: Math.min(0.5, Math.abs(dragX) / 150),
-              pointerEvents: 'none',
-              zIndex: 10,
-            }}></div>
-          )}
         </div>
       </div>
 
@@ -248,6 +255,71 @@ const QuizMode = ({ sessionCards, reviewed, onGrade }) => {
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Typing Mode ───────────────────────────────────────────────
+const TypingMode = ({ sessionCards, reviewed, onGrade }) => {
+  const [input, setInput] = useState('');
+  const [checked, setChecked] = useState(false);
+  const [isCorrect, setIsCorrect] = useState(false);
+  const card = sessionCards[reviewed];
+
+  useEffect(() => {
+    setInput('');
+    setChecked(false);
+    setIsCorrect(false);
+  }, [reviewed]);
+
+  if (!card) return null;
+
+  const handleCheck = (e) => {
+    e?.preventDefault();
+    if (checked || !input.trim()) return;
+
+    // Einfacher Vergleich (ignoriert Groß-/Kleinschreibung und Leerzeichen)
+    const correct = input.trim().toLowerCase() === card.back.trim().toLowerCase();
+    setIsCorrect(correct);
+    setChecked(true);
+
+    setTimeout(() => {
+      onGrade(card, correct ? 3 : 1);
+    }, 2500); // 2.5s warten, damit man das Ergebnis sehen kann
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: '32px 0' }}>
+      <div style={{ width: 640, background: 'white', borderRadius: 20, padding: 36, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
+        <div style={{ fontSize: 11, color: '#6366f1', fontWeight: 600, letterSpacing: '0.08em' }}>FRAGE {reviewed + 1} / {sessionCards.length}</div>
+        <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 500, color: '#0f172a', marginTop: 10, lineHeight: 1.2 }}>
+          {card.front}
+        </div>
+
+        <form onSubmit={handleCheck} style={{ marginTop: 28, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <textarea
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            disabled={checked}
+            placeholder="Tippe deine Antwort hier…"
+            style={{ width: '100%', minHeight: 120, padding: 16, background: checked ? (isCorrect ? '#d1fae5' : '#fee2e2') : '#fafaf7', border: `2px solid ${checked ? (isCorrect ? '#10b981' : '#ef4444') : '#e2e8f0'}`, borderRadius: 12, fontSize: 15, fontFamily: 'inherit', color: checked ? (isCorrect ? '#065f46' : '#991b1b') : '#0f172a', resize: 'vertical', outline: 'none', transition: 'all 0.2s' }}
+            autoFocus
+          />
+
+          {checked && !isCorrect && (
+            <div style={{ padding: 16, background: '#eef2ff', borderRadius: 12, border: '1px solid #c7d2fe' }}>
+              <div style={{ fontSize: 11, fontWeight: 600, color: '#4f46e5', letterSpacing: '0.05em', marginBottom: 6 }}>RICHTIGE ANTWORT</div>
+              <div style={{ fontSize: 14, color: '#1e293b', lineHeight: 1.5 }}>{card.back}</div>
+            </div>
+          )}
+
+          {!checked && (
+            <button type="submit" disabled={!input.trim()} className="btn-primary" style={{ padding: '14px', justifyContent: 'center', fontSize: 15, opacity: input.trim() ? 1 : 0.5 }}>
+              Antwort prüfen
+            </button>
+          )}
+        </form>
       </div>
     </div>
   );
@@ -447,6 +519,13 @@ const LernModus = () => {
               <div style={{ textAlign: 'center', padding: '80px 0', color: '#64748b', fontFamily: 'Caveat', fontSize: 22 }}>
                 Mindestens 4 Karten für Quiz benötigt
               </div>
+            ) : null}
+            {mode === 'typing' && (
+              <TypingMode
+                sessionCards={sessionCards}
+                reviewed={reviewed}
+                onGrade={handleGrade}
+              />
             ) : null}
           </>
         )}
