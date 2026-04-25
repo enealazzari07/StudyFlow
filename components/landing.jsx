@@ -46,7 +46,7 @@ const LANDING_FEATURES = [
   },
 ];
 
-const BentoVisual = ({ kind }) => {
+const BentoVisual = ({ kind, inFlow }) => {
   if (kind === 'ai') return (
     <div style={{ position: 'absolute', right: -10, bottom: -10, width: '80%', height: '75%' }}>
       <div style={{ position: 'absolute', right: 20, bottom: 90, background: 'white', borderRadius: 12, padding: '10px 14px', boxShadow: '0 4px 20px rgba(15,23,42,0.1)', border: '1px solid rgba(15,23,42,0.06)', transform: 'rotate(-1deg)', width: 220 }}>
@@ -101,70 +101,87 @@ const BentoVisual = ({ kind }) => {
       </div>
     </div>
   );
-  if (kind === 'quiz') return (
-    <div style={{ position: 'absolute', right: 14, bottom: 14, display: 'flex', flexDirection: 'column', gap: 6, width: 150 }}>
-      {['Flashcards', 'Quiz', 'Tippen', 'Match'].map((m, i) => (
-        <div key={m} style={{
-          padding: '7px 10px', fontSize: 11, fontWeight: 500,
-          background: i === 1 ? '#1e293b' : 'white',
-          color: i === 1 ? 'white' : '#475569',
-          border: '1px solid rgba(15,23,42,0.08)',
-          borderRadius: 7,
-          display: 'flex', alignItems: 'center', gap: 6,
-        }}>
-          {i === 1 && <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981' }}></span>}
-          {m}
-        </div>
-      ))}
-    </div>
-  );
-  if (kind === 'stats') return (
-    <div style={{ position: 'absolute', right: 16, bottom: 16, left: 16 }}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: 3 }}>
-        {Array.from({length: 42}).map((_, i) => {
-          const intensity = [0, 0.15, 0.3, 0.5, 0.75, 1][Math.floor(Math.random() * 6)];
-          return <div key={i} style={{
-            aspectRatio: 1,
-            borderRadius: 2,
-            background: intensity === 0 ? '#f1f5f9' : `rgba(99,102,241,${intensity})`,
-          }}></div>;
-        })}
-      </div>
-      <div style={{ marginTop: 10, display: 'flex', alignItems: 'baseline', gap: 6 }}>
-        <span style={{ fontFamily: 'Caveat', fontSize: 28, fontWeight: 600, color: '#0f172a' }}>47</span>
-        <span style={{ fontSize: 11, color: '#64748b' }}>Tage Streak</span>
-      </div>
-    </div>
-  );
-  if (kind === 'docs') return (
-    <div style={{ position: 'absolute', right: 14, bottom: 14, display: 'flex', flexDirection: 'column', gap: 5, width: 160 }}>
-      {['Mikroökonomie.pdf', 'Statistik II.pdf', 'Marketing.md'].map((d, i) => (
-        <div key={d} style={{
-          display: 'flex', alignItems: 'center', gap: 8,
-          padding: '7px 9px',
-          background: 'white',
-          border: '1px solid rgba(15,23,42,0.06)',
-          borderRadius: 7,
-          fontSize: 11,
-          color: '#334155',
-        }}>
-          <div style={{ width: 20, height: 24, background: '#eef2ff', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366f1', flexShrink: 0 }}>
-            <Icons.Doc size={12}/>
+  if (kind === 'quiz') {
+    const wrap = inFlow
+      ? { position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', gap: 7, justifyContent: 'center', padding: '0 8px' }
+      : { position: 'absolute', right: 14, bottom: 14, display: 'flex', flexDirection: 'column', gap: 6, width: 150 };
+    return (
+      <div style={wrap}>
+        {['Flashcards', 'Quiz', 'Tippen', 'Match'].map((m, i) => (
+          <div key={m} style={{
+            padding: '9px 12px', fontSize: 12, fontWeight: 500,
+            background: i === 1 ? '#1e293b' : 'white',
+            color: i === 1 ? 'white' : '#475569',
+            border: '1px solid rgba(15,23,42,0.08)',
+            borderRadius: 8,
+            display: 'flex', alignItems: 'center', gap: 7,
+          }}>
+            {i === 1 && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }}></span>}
+            {m}
           </div>
-          <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d}</span>
+        ))}
+      </div>
+    );
+  }
+  if (kind === 'stats') {
+    const wrap = inFlow
+      ? { position: 'absolute', inset: 0, padding: '4px 0' }
+      : { position: 'absolute', right: 16, bottom: 16, left: 16 };
+    return (
+      <div style={wrap}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: 3 }}>
+          {Array.from({length: 42}).map((_, i) => {
+            const intensity = [0, 0.15, 0.3, 0.5, 0.75, 1][Math.floor(Math.random() * 6)];
+            return <div key={i} style={{
+              aspectRatio: 1,
+              borderRadius: 2,
+              background: intensity === 0 ? '#f1f5f9' : `rgba(99,102,241,${intensity})`,
+            }}></div>;
+          })}
         </div>
-      ))}
-    </div>
-  );
+        <div style={{ marginTop: 12, display: 'flex', alignItems: 'baseline', gap: 6 }}>
+          <span style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 600, color: '#0f172a' }}>47</span>
+          <span style={{ fontSize: 12, color: '#64748b' }}>Tage Streak</span>
+        </div>
+      </div>
+    );
+  }
+  if (kind === 'docs') {
+    const wrap = inFlow
+      ? { position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', gap: 6, justifyContent: 'center' }
+      : { position: 'absolute', right: 14, bottom: 14, display: 'flex', flexDirection: 'column', gap: 5, width: 160 };
+    return (
+      <div style={wrap}>
+        {['Mikroökonomie.pdf', 'Statistik II.pdf', 'Marketing.md'].map((d) => (
+          <div key={d} style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '8px 10px',
+            background: 'white',
+            border: '1px solid rgba(15,23,42,0.06)',
+            borderRadius: 8,
+            fontSize: 12,
+            color: '#334155',
+            boxShadow: '0 1px 3px rgba(15,23,42,0.04)',
+          }}>
+            <div style={{ width: 22, height: 26, background: '#eef2ff', borderRadius: 3, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366f1', flexShrink: 0 }}>
+              <Icons.Doc size={13}/>
+            </div>
+            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{d}</span>
+          </div>
+        ))}
+      </div>
+    );
+  }
   return null;
 };
 
 const BentoCard = ({ feature }) => {
   const sizeMap = {
-    lg: { gridColumn: 'span 2', gridRow: 'span 2', minHeight: 320 },
-    md: { gridColumn: 'span 2', gridRow: 'span 1', minHeight: 260 },
-    sm: { gridColumn: 'span 1', gridRow: 'span 1', minHeight: 230 },
+    lg: { gridColumn: 'span 2', gridRow: 'span 2', minHeight: 340 },
+    md: { gridColumn: 'span 2', gridRow: 'span 1', minHeight: 280 },
+    sm: { gridColumn: 'span 1', gridRow: 'span 1', minHeight: 320 },
   };
+  const isSm = feature.size === 'sm';
   return (
     <div style={{
       ...sizeMap[feature.size],
@@ -177,6 +194,8 @@ const BentoCard = ({ feature }) => {
       overflow: 'hidden',
       transition: 'transform 0.25s ease, box-shadow 0.25s ease',
       cursor: 'default',
+      display: 'flex',
+      flexDirection: 'column',
     }}
     onMouseEnter={e => {
       e.currentTarget.style.transform = 'translateY(-3px)';
@@ -187,7 +206,8 @@ const BentoCard = ({ feature }) => {
       e.currentTarget.style.boxShadow = '0 1px 2px rgba(15,23,42,0.04), 0 2px 10px rgba(15,23,42,0.04)';
     }}
     >
-      <div style={{ position: 'relative', zIndex: 2, maxWidth: feature.size === 'lg' ? '50%' : '90%' }}>
+      {/* Text content — always on top, never overlapped */}
+      <div style={{ position: 'relative', zIndex: 2, maxWidth: feature.size === 'lg' ? '50%' : '100%', flexShrink: 0 }}>
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
           padding: '4px 10px', borderRadius: 999,
@@ -200,16 +220,16 @@ const BentoCard = ({ feature }) => {
         </div>
         <div style={{
           fontFamily: 'Caveat', fontWeight: 600,
-          fontSize: feature.size === 'lg' ? 42 : 32,
+          fontSize: feature.size === 'lg' ? 42 : isSm ? 30 : 32,
           color: '#0f172a',
-          lineHeight: 1.05,
+          lineHeight: 1.1,
           marginTop: 12,
           letterSpacing: '-0.01em',
         }}>
           {feature.title}
         </div>
         <div style={{
-          fontSize: feature.size === 'lg' ? 15 : 13.5,
+          fontSize: feature.size === 'lg' ? 15 : 13,
           color: '#64748b',
           marginTop: 8,
           lineHeight: 1.5,
@@ -218,7 +238,15 @@ const BentoCard = ({ feature }) => {
           {feature.subtitle}
         </div>
       </div>
-      <BentoVisual kind={feature.visual}/>
+
+      {/* Visual area — sits below text for sm, absolute for lg/md */}
+      {isSm ? (
+        <div style={{ flex: 1, position: 'relative', marginTop: 16, minHeight: 160 }}>
+          <BentoVisual kind={feature.visual} inFlow/>
+        </div>
+      ) : (
+        <BentoVisual kind={feature.visual}/>
+      )}
     </div>
   );
 };
