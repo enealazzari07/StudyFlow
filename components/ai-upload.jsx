@@ -139,45 +139,16 @@ const AIUpload = () => {
   const start = async () => {
     if (!file || !userId) return;
     setError('');
+    const isImage = file.type.startsWith('image/');
 
     try {
-      // Stage 1: Upload
-      setStage('uploading');
-      const safeFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      const path = `${userId}/${Date.now()}_${safeFilename}`;
-
-      const { error: uploadErr } = await window.sb.storage
-        .from('documents')
-        .upload(path, file, { contentType: file.type });
-
-      if (uploadErr) throw new Error(uploadErr.message);
-
-      // Save document record
-      const { data: doc } = await window.sb.from('documents').insert({
-        owner_id: userId,
-        name: file.name,
-        file_path: path,
-        file_size: file.size,
-        mime_type: file.type,
-      }).select().single();
-
-      if (doc) setUploadedDoc(doc);
-
-      // Simulate AI processing stages
-      setStage('reading');
-      await new Promise(r => setTimeout(r, 1400));
-      setStage('analyzing');
-      await new Promise(r => setTimeout(r, 1600));
-      setStage('generating');
-      await new Promise(r => setTimeout(r, 1500));
-
-      // Mark as AI processed
-      if (doc) {
-        await window.sb.from('documents').update({ ai_processed: true }).eq('id', doc.id);
-      }
-
-      // If uploaded file is an image, use AI vision to extract content and generate cards
-      if (file && file.type && file.type.startsWith('image/')) {
+      if (isImage) {
+        // Images: process locally with AI — no storage, no document record
+        setStage('uploading');
+        await new Promise(r => setTimeout(r, 400));
+        setStage('reading');
+        await new Promise(r => setTimeout(r, 600));
+        setStage('analyzing');
         try {
           const aiText = await scanImageWithAI(file);
           if (aiText) {
@@ -187,15 +158,44 @@ const AIUpload = () => {
           }
         } catch (scanErr) {
           console.warn('Bildscan fehlgeschlagen', scanErr);
+          setError('Bildscan fehlgeschlagen — bitte ein klareres Bild hochladen.');
+          setStage('idle');
+          return;
         }
-      }
+        setStage('generating');
+        await new Promise(r => setTimeout(r, 400));
+        setStage('done');
+      } else {
+        // Documents (PDF, DOCX, etc.): upload to storage + save record
+        setStage('uploading');
+        const safeFilename = file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+        const path = `${userId}/${Date.now()}_${safeFilename}`;
 
-      setStage('done');
-      loadRecentDocs(userId);
-      // If opened from a Lernset (targetSetId) and we don't have parsed cards, create placeholders as fallback
-      if (paramTargetSetId && generatedCards.length === 0 && !rawAIOutput) {
-        // Platzhalter entfernen, damit das Textfeld für die Eingabe bereit ist
-        setGeneratedCards([]);
+        const { error: uploadErr } = await window.sb.storage
+          .from('documents')
+          .upload(path, file, { contentType: file.type });
+        if (uploadErr) throw new Error(uploadErr.message);
+
+        const { data: doc } = await window.sb.from('documents').insert({
+          owner_id: userId,
+          name: file.name,
+          file_path: path,
+          file_size: file.size,
+          mime_type: file.type,
+        }).select().single();
+        if (doc) setUploadedDoc(doc);
+
+        setStage('reading');
+        await new Promise(r => setTimeout(r, 1400));
+        setStage('analyzing');
+        await new Promise(r => setTimeout(r, 1600));
+        setStage('generating');
+        await new Promise(r => setTimeout(r, 1500));
+
+        if (doc) await window.sb.from('documents').update({ ai_processed: true }).eq('id', doc.id);
+
+        setStage('done');
+        loadRecentDocs(userId);
       }
     } catch (err) {
       setError(err.message || 'Fehler beim Upload');
@@ -208,17 +208,20 @@ const AIUpload = () => {
 
   return (
     <div className="dot-paper" style={{ minHeight: '100vh' }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 32px', background: 'white', borderBottom: '1px solid rgba(15,23,42,0.06)' }}>
-        <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b', fontSize: 13 }}>
-          <Icons.ArrowLeft size={14}/> Dashboard
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', margin: '14px 16px 0', background: window.dm('white', '#161b22'), borderRadius: 18, border: `1px solid ${window.dm('rgba(15,23,42,0.06)', 'rgba(255,255,255,0.07)')}`, boxShadow: window.dm('0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.04)', '0 1px 2px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3)') }}>
+        <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+          <Icons.Logo size={28}/>
+          <span style={{ fontFamily: 'Instrument Sans', fontSize: 15, fontWeight: 600, color: window.dm('#0f172a', '#e6edf3'), letterSpacing: '-0.01em' }}>StudyFlow</span>
         </a>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 500, color: '#0f172a' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 500, color: window.dm('#0f172a', '#e6edf3') }}>
           <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #6366f1, #818cf8)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Icons.Sparkles size={14}/>
           </div>
           Flow AI
         </div>
-        <div style={{ fontSize: 12, color: '#64748b' }}>{recentDocs.length} Dokumente</div>
+        <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: window.dm('#64748b', '#8b949e') }}>
+          <Icons.ArrowLeft size={13}/> Dashboard
+        </a>
       </header>
 
       <div style={{ maxWidth: 780, margin: '0 auto', padding: '48px 32px 80px', position: 'relative' }}>

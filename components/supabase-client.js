@@ -24,4 +24,11 @@
     }
     return session;
   };
+
+  // Dark mode — apply saved theme on every page load
+  window.isDarkMode = localStorage.getItem('theme') === 'dark';
+  if (window.isDarkMode) document.body.classList.add('dark-theme');
+
+  // dm(lightValue, darkValue) — pick the right value based on current theme
+  window.dm = function(light, dark) { return window.isDarkMode ? dark : light; };
 })();

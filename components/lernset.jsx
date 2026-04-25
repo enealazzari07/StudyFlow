@@ -379,26 +379,26 @@ const LernsetDetail = () => {
   return (
     <div className="dot-paper" style={{ minHeight: '100vh' }}>
       {/* Header */}
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 32px', background: 'white', borderBottom: '1px solid rgba(15,23,42,0.06)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b', fontSize: 13 }}>
-            <Icons.ArrowLeft size={14}/> Dashboard
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', margin: '14px 16px 0', background: window.dm('white', '#161b22'), borderRadius: 18, border: `1px solid ${window.dm('rgba(15,23,42,0.06)', 'rgba(255,255,255,0.07)')}`, boxShadow: window.dm('0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.04)', '0 1px 2px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3)') }}>
+        <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+          <Icons.Logo size={28}/>
+          <span style={{ fontFamily: 'Instrument Sans', fontSize: 15, fontWeight: 600, color: window.dm('#0f172a', '#e6edf3'), letterSpacing: '-0.01em' }}>StudyFlow</span>
+        </a>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: window.dm('#64748b', '#8b949e') }}>
+          <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 4, color: window.dm('#64748b', '#8b949e'), fontSize: 13 }}>
+            <Icons.ArrowLeft size={13}/> Dashboard
           </a>
-          <div style={{ height: 20, width: 1, background: '#e2e8f0' }}></div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
-            {studySet.folder && <><Icons.Folder size={14}/> {studySet.folder} <Icons.Chevron size={11}/></>}
-            <span style={{ color: '#0f172a', fontWeight: 500 }}>{studySet.title}</span>
-          </div>
+          <span style={{ color: window.dm('#cbd5e1', 'rgba(255,255,255,0.15)') }}>·</span>
+          {studySet.folder && <><span style={{ color: window.dm('#64748b', '#8b949e') }}>{studySet.folder}</span><Icons.Chevron size={11}/></>}
+          <span style={{ color: window.dm('#0f172a', '#e6edf3'), fontWeight: 500 }}>{studySet.title}</span>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button className="btn-ghost" style={{ padding: '7px 12px', fontSize: 13 }}>
-            <Icons.Share size={13}/> Teilen
-          </button>
-        </div>
+        <button className="btn-ghost" style={{ padding: '7px 12px', fontSize: 13 }}>
+          <Icons.Share size={13}/> Teilen
+        </button>
       </header>
 
       {/* Hero */}
-      <section style={{ padding: '36px 32px 24px', position: 'relative' }}>
+      <section style={{ padding: '36px 32px 24px', position: 'relative', color: window.dm('#0f172a', '#e6edf3') }}>
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
           <div style={{ maxWidth: 560 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
@@ -441,7 +441,7 @@ const LernsetDetail = () => {
         </div>
 
         {/* Progress card */}
-        <div style={{ marginTop: 28, background: 'white', border: '1px solid rgba(15,23,42,0.06)', borderRadius: 14, padding: 20, display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: 24, alignItems: 'center' }}>
+        <div style={{ marginTop: 28, background: window.dm('white', '#161b22'), border: `1px solid ${window.dm('rgba(15,23,42,0.06)', 'rgba(255,255,255,0.07)')}`, borderRadius: 14, padding: 20, display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: 24, alignItems: 'center' }}>
           <div>
             <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>Fortschritt</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>

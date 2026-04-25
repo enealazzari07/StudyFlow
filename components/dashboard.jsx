@@ -1150,43 +1150,10 @@ const Dashboard = () => {
   return (
     <div className="dot-paper" style={{ height: '100vh', overflow: 'hidden', display: 'flex' }}>
       <style>{`
-        :root {
-          --bg-main: #fafaf7;
-          --bg-panel: white;
-          --bg-active: #f1f5f9;
-          --bg-hover: #f8fafc;
-          --text-main: #0f172a;
-          --text-muted: #475569;
-          --text-light: #64748b;
-          --text-lighter: #94a3b8;
-          --border-light: rgba(15,23,42,0.06);
-          --border-focus: #e2e8f0;
-        }
-        .dark-theme {
-          --bg-main: #0f172a;
-          --bg-panel: #1e293b;
-          --bg-active: #334155;
-          --bg-hover: #334155;
-          --text-main: #f8fafc;
-          --text-muted: #cbd5e1;
-          --text-light: #94a3b8;
-          --text-lighter: #64748b;
-          --border-light: rgba(255,255,255,0.1);
-          --border-focus: rgba(255,255,255,0.15);
-          --dot-color: rgba(255,255,255,0.05);
-        }
-        body.dark-theme { background-color: var(--bg-main); color: var(--text-main); }
-        body.dark-theme .dot-paper { background-color: var(--bg-main) !important; }
-        body.dark-theme .input-paper { background-color: var(--bg-panel); color: var(--text-main); border-color: var(--border-focus); }
-        body.dark-theme .btn-ghost { background-color: var(--bg-panel); color: var(--text-main); border-color: var(--border-light); }
-        body.dark-theme .btn-ghost:hover { background-color: var(--bg-hover); }
-
         .custom-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: white; border: 2px solid #6366f1; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.1s, box-shadow 0.1s; }
         .custom-slider::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: white; border: 2px solid #6366f1; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.1s, box-shadow 0.1s; }
         .custom-slider:focus::-webkit-slider-thumb, .custom-slider:hover::-webkit-slider-thumb { transform: scale(1.1); box-shadow: 0 0 0 4px rgba(99,102,241,0.15); }
         .custom-slider:focus::-moz-range-thumb, .custom-slider:hover::-moz-range-thumb { transform: scale(1.1); box-shadow: 0 0 0 4px rgba(99,102,241,0.15); }
-        body.dark-theme .custom-slider::-webkit-slider-thumb { background: var(--bg-panel); }
-        body.dark-theme .custom-slider::-moz-range-thumb { background: var(--bg-panel); }
       `}</style>
       <Sidebar user={user} profile={profile} sets={sets} active={active} onNav={setActive} onNewSet={() => setShowModal(true)}/>
 
