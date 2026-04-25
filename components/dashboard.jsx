@@ -302,6 +302,28 @@ const SettingsPanel = ({ user, profile, onProfileUpdate }) => {
         </button>
       </div>
 
+      {/* Referral System */}
+      <div style={{ background: 'white', borderRadius: 16, padding: 24, border: '1px solid rgba(15,23,42,0.06)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+          <div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>Freunde einladen</div>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>Empfiehl StudyFlow und sichere dir Guthaben.</div>
+          </div>
+          <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', color: '#166534', padding: '6px 12px', borderRadius: 999, fontSize: 13, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>Guthaben:</span> {Number(profile?.balance || 0).toFixed(2).replace('.', ',')} €
+          </div>
+        </div>
+        <div style={{ fontSize: 13, color: '#334155', lineHeight: 1.5, marginBottom: 16 }}>
+          Wenn sich jemand über deinen Link registriert und ein Pro-Abo abschließt, erhaltet ihr beide <strong style={{ color: '#0f172a' }}>4,00 €</strong> auf euer Konto gutgeschrieben. Das Guthaben wird automatisch bei deiner nächsten Zahlung verrechnet.
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <input readOnly value={`https://studyflow.de/login.html?ref=${user?.id || 'demo'}`} className="input-paper" style={{ flex: 1, color: '#475569', background: '#f8fafc' }} />
+          <button onClick={() => { navigator.clipboard.writeText(`https://studyflow.de/login.html?ref=${user?.id || 'demo'}`); alert('Link kopiert!'); }} className="btn-ghost" style={{ padding: '0 16px' }}>
+            Link kopieren
+          </button>
+        </div>
+      </div>
+
       {/* Feature comparison */}
       <div style={{ background: 'white', borderRadius: 16, padding: 24, border: '1px solid rgba(15,23,42,0.06)' }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 16 }}>Free vs. Pro</div>
@@ -643,6 +665,7 @@ const DocsPanel = ({ userId }) => {
 
 // ─── Sidebar ─────────────────────────────────────────────────
 const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
+  const [showUserMenu, setShowUserMenu] = useState(false);
   const folders = [...new Set((sets || []).map(s => s.folder).filter(Boolean))];
   const displayName = profile?.display_name || user?.email?.split('@')[0] || 'Nutzer';
   const isPro = profile?.plan === 'pro';
@@ -692,36 +715,49 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
         </div>
       )}
 
-      <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(15,23,42,0.06)', paddingTop: 14 }}>
+      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid rgba(15,23,42,0.06)', paddingTop: 14 }}>
         <div
-          onClick={async () => {
-            if (confirm('Möchtest du dich abmelden?')) {
-              await window.sb.auth.signOut();
-              window.location.href = 'login.html';
-            }
-          }}
-          onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px', borderRadius: 10, cursor: 'pointer', transition: 'background 0.1s' }}
-          title="Klicken zum Abmelden"
+          onClick={() => onNav('settings')}
+          onMouseEnter={e => { if (active !== 'settings') e.currentTarget.style.background = '#f8fafc'; }}
+          onMouseLeave={e => { if (active !== 'settings') e.currentTarget.style.background = 'transparent'; }}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', transition: 'background 0.1s', color: active === 'settings' ? '#0f172a' : '#475569', background: active === 'settings' ? '#f1f5f9' : 'transparent', fontWeight: active === 'settings' ? 500 : 400, fontSize: 13 }}
         >
-          <Avatar name={displayName} color="#6366f1" size={30}/>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
-            <div style={{ fontSize: 11, color: isPro ? '#6366f1' : '#94a3b8', fontWeight: isPro ? 600 : 400, display: 'flex', alignItems: 'center', gap: 6 }}>
-              {isPro ? <Icons.Bolt size={12}/> : <Icons.Bookmark size={12}/>}
-              {isPro ? 'Pro Plan' : 'Free Plan'}
+          <Icons.Settings size={15}/>
+          <span style={{ flex: 1 }}>Einstellungen</span>
+        </div>
+
+        <div style={{ position: 'relative' }}>
+          {showUserMenu && (
+            <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: 8, background: 'white', borderRadius: 12, border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 4px 20px rgba(15,23,42,0.08)', padding: 6, zIndex: 100 }}>
+              <div onClick={() => { setShowUserMenu(false); onNav('settings'); }} onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} style={{ padding: '8px 10px', fontSize: 13, color: '#0f172a', cursor: 'pointer', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.1s' }}>
+                <Icons.Settings size={14}/> Profil verwalten
+              </div>
+              <div style={{ height: 1, background: '#e2e8f0', margin: '4px 0' }}></div>
+              <div onClick={async () => {
+                if (confirm('Möchtest du dich abmelden?')) {
+                  await window.sb.auth.signOut();
+                  window.location.href = 'login.html';
+                }
+              }} onMouseEnter={e => e.currentTarget.style.background = '#fee2e2'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} style={{ padding: '8px 10px', fontSize: 13, color: '#ef4444', cursor: 'pointer', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.1s' }}>
+                <Icons.ArrowLeft size={14}/> Abmelden
+              </div>
+            </div>
+          )}
+          <div
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px', borderRadius: 10, cursor: 'pointer', transition: 'background 0.1s' }}
+          >
+            <Avatar name={displayName} color="#6366f1" size={30}/>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
+              <div style={{ fontSize: 11, color: isPro ? '#6366f1' : '#94a3b8', fontWeight: isPro ? 600 : 400, display: 'flex', alignItems: 'center', gap: 6 }}>
+                {isPro ? <Icons.Bolt size={12}/> : <Icons.Bookmark size={12}/>}
+                {isPro ? 'Pro Plan' : 'Free Plan'}
+              </div>
             </div>
           </div>
-          <button
-            onClick={(e) => { e.stopPropagation(); onNav('settings'); }}
-            title="Einstellungen"
-            onMouseEnter={e => e.currentTarget.style.background = '#e2e8f0'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            style={{ background: 'none', border: 'none', padding: 6, borderRadius: 8, cursor: 'pointer', color: '#475569', display: 'flex', transition: 'background 0.1s' }}
-          >
-            <Icons.Settings size={16}/>
-          </button>
         </div>
       </div>
     </aside>
