@@ -346,50 +346,40 @@ const AIUpload = () => {
                   <button onClick={() => { setFile(null); setStage('idle'); setUploadedDoc(null); }} className="btn-ghost" style={{ padding: '10px 16px' }}>Weiteres hochladen</button>
                 </div>
 
-                  {/* If targetSetId provided, show editable generated cards and option to save into Lernset */}
+                  {/* If targetSetId provided, show generated cards table and save button */}
                   {paramTargetSetId && (
                     <div style={{ marginTop: 18, background: 'white', padding: 14, borderRadius: 10, border: '1px solid rgba(15,23,42,0.04)' }}>
-                      <div style={{ fontSize: 13.5, fontWeight: 600, color: '#0f172a', marginBottom: 10 }}>Vorschau: Karteikarten für Lernset speichern</div>
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
+                        <div style={{ fontSize: 13.5, fontWeight: 600, color: '#0f172a' }}>
+                          {generatedCards.length} Karteikarte{generatedCards.length !== 1 ? 'n' : ''} erkannt
+                        </div>
+                        {generatedCards.length > 0 && (
+                          <span style={{ fontSize: 12, color: '#64748b' }}>Karten können bearbeitet werden</span>
+                        )}
+                      </div>
 
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 }}>
-                                <div style={{ fontSize: 13, color: '#64748b', paddingRight: 10 }}>
-                                  Füge hier die KI-Ausgabe ein. <strong>Tipp:</strong> Tabellen (<code>| Frage | Antwort |</code>) oder <code>Frage: ... Antwort: ...</code> werden perfekt erkannt!
-                                </div>
-                                <button onClick={() => {
-                                  navigator.clipboard.writeText('Erstelle Karteikarten aus dem folgenden Text. Gib sie ausschließlich als Markdown-Tabelle mit den Spalten "Frage" und "Antwort" aus:\n\n');
-                                  alert('KI-Prompt kopiert!');
-                                }} className="btn-ghost" style={{ padding: '6px 10px', fontSize: 11, flexShrink: 0 }}>
-                                  Prompt kopieren
-                                </button>
-                              </div>
-                              <textarea value={rawAIOutput || generatedCards.map((g)=>`Frage: ${g.front}\nAntwort: ${g.back}`).join('\n\n')} onChange={e=>setRawAIOutput(e.target.value)} placeholder="| Frage | Antwort |&#10;|---|---|&#10;| Was ist das BIP? | Das Bruttoinlandsprodukt... |" style={{ width: '100%', minHeight: 140, padding: 12, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 10, fontFamily: 'inherit', fontSize: 13, resize: 'vertical' }} />
-
-                              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
-                                <button onClick={() => {
-                                  const parsed = parseRawToCards(rawAIOutput || generatedCards.map((g)=>`Frage: ${g.front}\nAntwort: ${g.back}`).join('\n\n'));
-                                  if (parsed.length === 0) return alert('Keine Karten gefunden — bitte Format prüfen.');
-                                  setGeneratedCards(parsed);
-                                }} className="btn-primary" style={{ padding: '8px 12px' }}>Analysieren & in Karten umwandeln</button>
-                                <button onClick={() => { setRawAIOutput(''); setGeneratedCards([]); }} className="btn-ghost" style={{ padding: '8px 12px' }}>Zurücksetzen</button>
-                              </div>
-
-                              {generatedCards.length === 0 ? (
-                                <div style={{ fontSize: 13, color: '#64748b' }}>Keine generierten Karten verfügbar. Nutze den Analyzer oben.</div>
-                              ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {generatedCards.length === 0 ? (
+                        <div style={{ fontSize: 13, color: '#94a3b8', textAlign: 'center', padding: '20px 0' }}>
+                          Keine Karten erkannt — bitte ein Bild mit Text hochladen.
+                        </div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, padding: '0 0 4px' }}>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Frage</div>
+                            <div style={{ fontSize: 10, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase' }}>Antwort</div>
+                            <div/>
+                          </div>
                           {generatedCards.map((g, idx) => (
                             <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'start' }}>
                               <textarea value={g.front} onChange={e => {
                                 const copy = [...generatedCards]; copy[idx] = { ...copy[idx], front: e.target.value }; setGeneratedCards(copy);
-                              }} style={{ padding: 8, borderRadius: 8, border: '1px solid #e2e8f0', minHeight: 56 }} />
+                              }} style={{ padding: 8, borderRadius: 8, border: '1px solid #e2e8f0', minHeight: 52, fontFamily: 'Caveat', fontSize: 17, resize: 'vertical' }} />
                               <textarea value={g.back} onChange={e => {
                                 const copy = [...generatedCards]; copy[idx] = { ...copy[idx], back: e.target.value }; setGeneratedCards(copy);
-                              }} style={{ padding: 8, borderRadius: 8, border: '1px solid #e2e8f0', minHeight: 56 }} />
-                              <div>
-                                <button onClick={() => {
-                                  const copy = generatedCards.filter((_, i) => i !== idx); setGeneratedCards(copy);
-                                }} className="btn-ghost" style={{ padding: '8px 10px' }} title="Entfernen">Entfernen</button>
-                              </div>
+                              }} style={{ padding: 8, borderRadius: 8, border: '1px solid #e2e8f0', minHeight: 52, fontSize: 13, resize: 'vertical', fontFamily: 'inherit' }} />
+                              <button onClick={() => setGeneratedCards(generatedCards.filter((_, i) => i !== idx))} style={{ background: 'none', border: 'none', padding: '8px 6px', color: '#94a3b8', cursor: 'pointer', marginTop: 6 }}>
+                                <Icons.X size={14}/>
+                              </button>
                             </div>
                           ))}
 
@@ -399,9 +389,8 @@ const AIUpload = () => {
                               setSaving(true);
                               try {
                                 const rows = generatedCards.map(c => ({ set_id: paramTargetSetId, front: c.front, back: c.back }));
-                                const { data, error: insertErr } = await window.sb.from('cards').insert(rows);
+                                const { error: insertErr } = await window.sb.from('cards').insert(rows);
                                 if (insertErr) throw new Error(insertErr.message || 'Fehler beim Speichern');
-                                // redirect back to the Lernset
                                 window.location.href = `lernset.html?id=${encodeURIComponent(paramTargetSetId)}`;
                               } catch (err) {
                                 alert(err.message || 'Fehler beim Speichern der Karten');
@@ -409,9 +398,9 @@ const AIUpload = () => {
                                 setSaving(false);
                               }
                             }} className="btn-primary" style={{ padding: '10px 14px' }} disabled={saving}>
-                              {saving ? 'Speichert…' : 'Karten in Lernset speichern'}
+                              {saving ? 'Speichert…' : `${generatedCards.length} Karten speichern`}
                             </button>
-                            <button onClick={() => { setGeneratedCards([]); }} className="btn-ghost" style={{ padding: '10px 14px' }}>Abbrechen</button>
+                            <button onClick={() => { setFile(null); setStage('idle'); setGeneratedCards([]); setRawAIOutput(''); }} className="btn-ghost" style={{ padding: '10px 14px' }}>Abbrechen</button>
                           </div>
                         </div>
                       )}
