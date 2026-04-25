@@ -2,6 +2,7 @@ const { useCallback, useEffect, useMemo, useRef, useState } = React;
 
 const WB_MIME = 'application/studyflow-whiteboard+json';
 const PALETTE = ['#0f172a', '#ef4444', '#f97316', '#f59e0b', '#eab308', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7'];
+const PASTELS = ['#fef3a0', '#bfdbfe', '#fbcfe8', '#bbf7d0', '#fed7aa'];
 const STICKY_THEMES = [
   { bg: '#fef3a0', border: '#eab308' },
   { bg: '#bfdbfe', border: '#3b82f6' },
@@ -16,15 +17,47 @@ const TEMPLATES = [
   { id: 'matrix', name: 'Eisenhower-Matrix', desc: 'Aufgaben nach Wichtigkeit sortieren', icon: '🗂️' },
   { id: 'cards', name: 'Lern-Karteikarten', desc: 'Karten gruppieren und verbinden', icon: '🃏' },
 ];
-const TOOL_ITEMS = [
-  'select', 'pan', 'pen', 'highlight', 'eraser', 'note', 'divider',
-  'rect', 'circle', 'text', 'image', 'frame', 'sticker', 'shapes', 'connector',
-  'divider', 'comment', 'more',
-];
+
+const DEFAULT_BOARD = () => ({
+  strokes: [],
+  shapes: [],
+  texts: [],
+  notes: [],
+  emojis: [],
+  frames: [],
+  comments: [],
+  images: [],
+});
 
 const randomId = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 const clone = (value) => JSON.parse(JSON.stringify(value));
-const defaultBoard = () => ({ strokes: [], shapes: [], texts: [], notes: [], emojis: [], frames: [], comments: [], images: [] });
+
+const ToolIcon = ({ children, size = 18 }) => (
+  <Icon size={size} stroke={1.9}>
+    {children}
+  </Icon>
+);
+
+const TOOL_DEFS = {
+  select: { label: 'Auswählen', icon: <ToolIcon><path d="M5 3l13 8-6 2-2 6z" fill="currentColor" stroke="none"/></ToolIcon> },
+  pan: { label: 'Verschieben', icon: <ToolIcon><path d="M9 11V5a2 2 0 0 1 4 0v6"/><path d="M9 11V8a2 2 0 0 0-4 0v6c0 4 3 7 7 7s7-3 7-7v-3a2 2 0 0 0-4 0v-1a2 2 0 0 0-4 0"/></ToolIcon> },
+  pen: { label: 'Stift', icon: <Icons.Edit size={18}/> },
+  highlight: { label: 'Marker', icon: <ToolIcon><path d="M4 15l7-7 5 5-7 7H4z"/><path d="M13 6l2-2 5 5-2 2"/></ToolIcon> },
+  eraser: { label: 'Radierer', icon: <ToolIcon><path d="M20 20H7l-4-4 9-9 8 8z"/><path d="M16 16l-7-7"/></ToolIcon> },
+  note: { label: 'Notiz', icon: <ToolIcon><path d="M4 4h16v16H4z" rx="3"/><path d="M9 9h6M9 13h4"/></ToolIcon> },
+  rect: { label: 'Rechteck', icon: <ToolIcon><rect x="4" y="6" width="16" height="12" rx="2"/></ToolIcon> },
+  circle: { label: 'Kreis', icon: <ToolIcon><circle cx="12" cy="12" r="7"/></ToolIcon> },
+  arrow: { label: 'Pfeil', icon: <Icons.ArrowRight size={18}/> },
+  text: { label: 'Text', icon: <ToolIcon><path d="M5 5h14"/><path d="M12 5v14"/></ToolIcon> },
+  image: { label: 'Bild', icon: <ToolIcon><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5L4 20"/></ToolIcon> },
+  frame: { label: 'Frame', icon: <ToolIcon><path d="M5 7H3M5 17H3M19 7h2M19 17h2M7 5V3M17 5V3M7 21v-2M17 21v-2"/><rect x="5" y="5" width="14" height="14" rx="1"/></ToolIcon> },
+  sticker: { label: 'Sticker', icon: <ToolIcon><path d="M15 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h9l6-6V6a3 3 0 0 0-3-3z"/><path d="M15 21v-4a2 2 0 0 1 2-2h4"/></ToolIcon> },
+  connector: { label: 'Verbinder', icon: <ToolIcon><circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 7l10 10"/></ToolIcon> },
+  comment: { label: 'Kommentar', icon: <ToolIcon><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></ToolIcon> },
+  more: { label: 'Mehr', icon: <Icons.Plus size={18}/> },
+};
+
+const TOOL_ROWS = ['select', 'pan', 'pen', 'highlight', 'eraser', 'note', 'divider', 'rect', 'circle', 'arrow', 'text', 'image', 'frame', 'sticker', 'connector', 'divider', 'comment', 'more'];
 
 function getWorldPoint(evt, canvas, pan, zoom) {
   const rect = canvas.getBoundingClientRect();
@@ -47,7 +80,6 @@ function drawBoard(ctx, board, pan, zoom) {
     if (!stroke.points?.length) continue;
     ctx.save();
     ctx.globalAlpha = stroke.alpha ?? 1;
-    ctx.globalCompositeOperation = stroke.tool === 'eraser_px' ? 'destination-out' : 'source-over';
     ctx.strokeStyle = stroke.color;
     ctx.lineWidth = stroke.width;
     ctx.lineCap = 'round';
@@ -64,6 +96,8 @@ function drawBoard(ctx, board, pan, zoom) {
     ctx.save();
     ctx.strokeStyle = shape.color;
     ctx.lineWidth = shape.width || 2.5;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.setLineDash(shape.type === 'connector' ? [6, 6] : []);
     ctx.beginPath();
     if (shape.type === 'rect') {
@@ -71,7 +105,7 @@ function drawBoard(ctx, board, pan, zoom) {
       const y = Math.min(shape.y1, shape.y2);
       const w = Math.abs(shape.x2 - shape.x1);
       const h = Math.abs(shape.y2 - shape.y1);
-      if (ctx.roundRect) ctx.roundRect(x, y, w, h, 8);
+      if (ctx.roundRect) ctx.roundRect(x, y, w, h, 10);
       else ctx.rect(x, y, w, h);
     } else if (shape.type === 'circle') {
       ctx.ellipse((shape.x1 + shape.x2) / 2, (shape.y1 + shape.y2) / 2, Math.abs(shape.x2 - shape.x1) / 2, Math.abs(shape.y2 - shape.y1) / 2, 0, 0, Math.PI * 2);
@@ -79,10 +113,10 @@ function drawBoard(ctx, board, pan, zoom) {
       const angle = Math.atan2(shape.y2 - shape.y1, shape.x2 - shape.x1);
       const head = 14;
       ctx.moveTo(shape.x1, shape.y1);
-      ctx.quadraticCurveTo((shape.x1 + shape.x2) / 2, shape.y1, shape.x2, shape.y2);
-      ctx.moveTo(shape.x2 - head * Math.cos(angle - 0.5), shape.y2 - head * Math.sin(angle - 0.5));
       ctx.lineTo(shape.x2, shape.y2);
-      ctx.lineTo(shape.x2 - head * Math.cos(angle + 0.5), shape.y2 - head * Math.sin(angle + 0.5));
+      ctx.moveTo(shape.x2 - head * Math.cos(angle - 0.45), shape.y2 - head * Math.sin(angle - 0.45));
+      ctx.lineTo(shape.x2, shape.y2);
+      ctx.lineTo(shape.x2 - head * Math.cos(angle + 0.45), shape.y2 - head * Math.sin(angle + 0.45));
     }
     ctx.stroke();
     ctx.restore();
@@ -90,30 +124,43 @@ function drawBoard(ctx, board, pan, zoom) {
   ctx.restore();
 }
 
-function isPointInBox(x, y, box, pad = 0) {
+function withinBox(x, y, box, pad = 0) {
   return x >= box.x - pad && x <= box.x + box.width + pad && y >= box.y - pad && y <= box.y + box.height + pad;
+}
+
+function findStroke(board, x, y, zoom) {
+  for (let i = board.strokes.length - 1; i >= 0; i -= 1) {
+    const stroke = board.strokes[i];
+    const radius = (stroke.width || 1) * 0.8 + 10 / zoom;
+    if (stroke.points.some((pt) => Math.hypot(pt.x - x, pt.y - y) <= radius)) return { index: i, item: stroke };
+  }
+  return null;
 }
 
 function findSelection(board, x, y, zoom) {
   for (let i = board.comments.length - 1; i >= 0; i -= 1) {
     const item = board.comments[i];
-    if (isPointInBox(x, y, item, 12 / zoom)) return { kind: 'comments', item };
+    if (withinBox(x, y, item, 12 / zoom)) return { kind: 'comments', item };
+  }
+  for (let i = board.images.length - 1; i >= 0; i -= 1) {
+    const item = board.images[i];
+    if (withinBox(x, y, item, 12 / zoom)) return { kind: 'images', item };
   }
   for (let i = board.frames.length - 1; i >= 0; i -= 1) {
     const item = board.frames[i];
-    if (isPointInBox(x, y, item, 12 / zoom)) return { kind: 'frames', item };
+    if (withinBox(x, y, item, 12 / zoom)) return { kind: 'frames', item };
   }
   for (let i = board.notes.length - 1; i >= 0; i -= 1) {
     const item = board.notes[i];
-    if (isPointInBox(x, y, item, 12 / zoom)) return { kind: 'notes', item };
+    if (withinBox(x, y, item, 12 / zoom)) return { kind: 'notes', item };
   }
   for (let i = board.texts.length - 1; i >= 0; i -= 1) {
     const item = board.texts[i];
-    if (isPointInBox(x, y, { x: item.x, y: item.y, width: item.width || 180, height: item.height || 40 }, 10 / zoom)) return { kind: 'texts', item };
+    if (withinBox(x, y, item, 12 / zoom)) return { kind: 'texts', item };
   }
   for (let i = board.emojis.length - 1; i >= 0; i -= 1) {
     const item = board.emojis[i];
-    if (isPointInBox(x, y, { x: item.x, y: item.y, width: 48, height: 48 }, 12 / zoom)) return { kind: 'emojis', item };
+    if (withinBox(x, y, { x: item.x, y: item.y, width: 48, height: 48 }, 12 / zoom)) return { kind: 'emojis', item };
   }
   for (let i = board.shapes.length - 1; i >= 0; i -= 1) {
     const item = board.shapes[i];
@@ -121,43 +168,21 @@ function findSelection(board, x, y, zoom) {
     const top = Math.min(item.y1, item.y2);
     const width = Math.abs(item.x2 - item.x1) || 24;
     const height = Math.abs(item.y2 - item.y1) || 24;
-    if (isPointInBox(x, y, { x: left, y: top, width, height }, 12 / zoom)) return { kind: 'shapes', item };
+    if (withinBox(x, y, { x: left, y: top, width, height }, 12 / zoom)) return { kind: 'shapes', item };
   }
   return null;
 }
-
-const IconButton = ({ active, title, onClick, children }) => (
-  <button
-    onClick={onClick}
-    title={title}
-    style={{
-      width: 34,
-      height: 34,
-      borderRadius: 8,
-      background: active ? '#0f172a' : 'transparent',
-      color: active ? 'white' : '#475569',
-      border: 'none',
-      cursor: 'pointer',
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      position: 'relative',
-    }}
-  >
-    {children}
-  </button>
-);
 
 function TemplatesPanel({ onClose, onInsert }) {
   return (
     <div style={{ position: 'absolute', right: 18, top: 70, bottom: 110, width: 320, background: 'white', borderRadius: 14, border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 8px 28px rgba(15,23,42,0.12), 0 1px 3px rgba(15,23,42,0.06)', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 30 }}>
       <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(15,23,42,0.06)' }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>Erstelle Vorlagen und Diagramme</div>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', color: '#94a3b8' }}>✕</button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', color: '#94a3b8', display: 'flex' }}><Icons.X size={14}/></button>
       </div>
       <div style={{ padding: 14 }}>
         <div style={{ background: '#fafbfc', border: '1px solid rgba(15,23,42,0.06)', borderRadius: 10, padding: '10px 12px', fontSize: 12.5, color: '#94a3b8', minHeight: 80 }}>
-          Erstellen wir eine…
+          Wähle eine Vorlage und füge sie direkt auf das Board ein.
         </div>
       </div>
       <div style={{ padding: '0 14px 14px', overflowY: 'auto', flex: 1 }}>
@@ -177,13 +202,11 @@ function StickersPanel({ onClose, onPick }) {
     <div style={{ position: 'absolute', bottom: 78, left: '50%', transform: 'translateX(-50%)', background: 'white', borderRadius: 14, border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 8px 28px rgba(15,23,42,0.12)', padding: 12, width: 280, zIndex: 30 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
         <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>Sticker</div>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', padding: 2, cursor: 'pointer', color: '#94a3b8' }}>✕</button>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', padding: 2, cursor: 'pointer', color: '#94a3b8', display: 'flex' }}><Icons.X size={12}/></button>
       </div>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 4 }}>
         {STICKERS.map((sticker) => (
-          <button key={sticker} onClick={() => onPick(sticker)} style={{ padding: 6, background: 'transparent', border: '1px solid transparent', borderRadius: 6, fontSize: 18, cursor: 'pointer' }}>
-            {sticker}
-          </button>
+          <button key={sticker} onClick={() => onPick(sticker)} style={{ padding: 6, background: 'transparent', border: '1px solid transparent', borderRadius: 6, fontSize: 18, cursor: 'pointer' }}>{sticker}</button>
         ))}
       </div>
     </div>
@@ -193,6 +216,17 @@ function StickersPanel({ onClose, onPick }) {
 const Whiteboard = () => {
   const docId = useMemo(() => new URLSearchParams(window.location.search).get('id'), []);
   const clientId = useMemo(() => randomId('client'), []);
+  const fileInputRef = useRef(null);
+  const canvasRef = useRef(null);
+  const autosaveRef = useRef(null);
+  const boardRef = useRef(DEFAULT_BOARD());
+  const panRef = useRef({ x: 0, y: 0 });
+  const zoomRef = useRef(1);
+  const drawRef = useRef({ active: false, stroke: null });
+  const shapeRef = useRef({ active: false, type: null, x1: 0, y1: 0, x2: 0, y2: 0 });
+  const moveRef = useRef({ active: false, kind: null, id: null, startX: 0, startY: 0, origin: null });
+  const dragPanRef = useRef({ active: false, startX: 0, startY: 0, originX: 0, originY: 0 });
+
   const [user, setUser] = useState(null);
   const [docRow, setDocRow] = useState(null);
   const [title, setTitle] = useState('Ohne Namen');
@@ -201,25 +235,16 @@ const Whiteboard = () => {
   const [savedAt, setSavedAt] = useState(null);
   const [tool, setTool] = useState('pen');
   const [color, setColor] = useState('#0f172a');
-  const [board, setBoard] = useState(defaultBoard);
+  const [board, setBoard] = useState(DEFAULT_BOARD);
   const [history, setHistory] = useState([]);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const [showTemplates, setShowTemplates] = useState(true);
   const [showStickers, setShowStickers] = useState(false);
+  const [showShapePicker, setShowShapePicker] = useState(false);
   const [selected, setSelected] = useState(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
-
-  const boardRef = useRef(defaultBoard());
-  const panRef = useRef({ x: 0, y: 0 });
-  const zoomRef = useRef(1);
-  const canvasRef = useRef(null);
-  const drawRef = useRef({ active: false, stroke: null });
-  const shapeRef = useRef({ active: false, type: null, x1: 0, y1: 0, x2: 0, y2: 0 });
-  const moveRef = useRef({ active: false, kind: null, id: null, startX: 0, startY: 0, origin: null });
-  const panRefDrag = useRef({ active: false, x: 0, y: 0, px: 0, py: 0 });
-  const autosaveRef = useRef(null);
 
   useEffect(() => { boardRef.current = board; }, [board]);
   useEffect(() => { panRef.current = pan; }, [pan]);
@@ -344,10 +369,16 @@ const Whiteboard = () => {
         event.preventDefault();
         save();
       }
+      if ((event.key === 'Delete' || event.key === 'Backspace') && selected) {
+        mutateBoard((draft) => {
+          draft[selected.kind] = draft[selected.kind].filter((item) => item.id !== selected.id);
+        });
+        setSelected(null);
+      }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [save]);
+  }, [mutateBoard, save, selected]);
 
   const insertTemplate = useCallback((templateId) => {
     const canvas = canvasRef.current;
@@ -356,27 +387,27 @@ const Whiteboard = () => {
     pushHistory();
     mutateBoard((draft) => {
       if (templateId === 'mindmap') {
-        draft.notes.push({ id: randomId('note'), x: cx - 200, y: cy - 90, width: 180, height: 120, text: 'Mikro-Klausur\nThema: Marktversagen', ...STICKY_THEMES[0] });
-        draft.notes.push({ id: randomId('note'), x: cx + 40, y: cy - 10, width: 160, height: 120, text: 'Externe Effekte\n(VL07, S. 12)', ...STICKY_THEMES[1] });
-        draft.texts.push({ id: randomId('text'), x: cx - 70, y: cy + 110, text: 'Hauptthema', color: '#4f46e5', width: 150, height: 40, bubble: true });
-        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx - 20, y1: cy + 110, x2: cx + 100, y2: cy + 10, color: '#94a3b8', width: 2 });
+        draft.notes.push({ id: randomId('note'), x: cx - 220, y: cy - 110, width: 180, height: 120, text: 'Mikro-Klausur\nThema: Marktversagen', ...STICKY_THEMES[0] });
+        draft.notes.push({ id: randomId('note'), x: cx + 40, y: cy - 20, width: 160, height: 120, text: 'Externe Effekte\n(VL07, S. 12)', ...STICKY_THEMES[1] });
+        draft.texts.push({ id: randomId('text'), x: cx - 60, y: cy + 110, width: 150, height: 38, text: 'Hauptthema', color: '#4f46e5', bubble: true });
+        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx - 10, y1: cy + 110, x2: cx + 100, y2: cy + 10, color: '#94a3b8', width: 2 });
       }
       if (templateId === 'flow') {
-        draft.frames.push({ id: randomId('frame'), x: cx - 250, y: cy - 120, width: 520, height: 260, title: 'Ablauf' });
-        draft.texts.push({ id: randomId('text'), x: cx - 170, y: cy - 20, text: 'Start', color: '#0f172a', width: 120, height: 36, bubble: true });
-        draft.texts.push({ id: randomId('text'), x: cx + 50, y: cy - 20, text: 'Ende', color: '#0f172a', width: 120, height: 36, bubble: true });
-        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx - 40, y1: cy - 2, x2: cx + 55, y2: cy - 2, color: '#6366f1', width: 2.5 });
+        draft.frames.push({ id: randomId('frame'), x: cx - 240, y: cy - 110, width: 520, height: 250, title: 'Ablauf' });
+        draft.texts.push({ id: randomId('text'), x: cx - 170, y: cy - 10, width: 120, height: 38, text: 'Start', color: '#0f172a', bubble: true });
+        draft.texts.push({ id: randomId('text'), x: cx + 50, y: cy - 10, width: 120, height: 38, text: 'Ende', color: '#0f172a', bubble: true });
+        draft.shapes.push({ id: randomId('shape'), type: 'arrow', x1: cx - 40, y1: cy + 5, x2: cx + 50, y2: cy + 5, color: '#6366f1', width: 2.5 });
       }
       if (templateId === 'matrix') {
-        draft.frames.push({ id: randomId('frame'), x: cx - 240, y: cy - 160, width: 480, height: 320, title: 'Eisenhower-Matrix' });
-        draft.shapes.push({ id: randomId('shape'), type: 'rect', x1: cx - 240, y1: cy - 160, x2: cx + 240, y2: cy + 160, color: '#cbd5e1', width: 2 });
-        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx, y1: cy - 160, x2: cx, y2: cy + 160, color: '#cbd5e1', width: 2 });
+        draft.frames.push({ id: randomId('frame'), x: cx - 240, y: cy - 150, width: 480, height: 300, title: 'Eisenhower-Matrix' });
+        draft.shapes.push({ id: randomId('shape'), type: 'rect', x1: cx - 240, y1: cy - 150, x2: cx + 240, y2: cy + 150, color: '#cbd5e1', width: 2 });
+        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx, y1: cy - 150, x2: cx, y2: cy + 150, color: '#cbd5e1', width: 2 });
         draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx - 240, y1: cy, x2: cx + 240, y2: cy, color: '#cbd5e1', width: 2 });
       }
       if (templateId === 'cards') {
         draft.notes.push({ id: randomId('note'), x: cx - 210, y: cy - 70, width: 160, height: 110, text: 'Begriff', ...STICKY_THEMES[2] });
         draft.notes.push({ id: randomId('note'), x: cx + 20, y: cy - 70, width: 160, height: 110, text: 'Definition', ...STICKY_THEMES[3] });
-        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx - 40, y1: cy - 15, x2: cx + 20, y2: cy - 15, color: '#94a3b8', width: 2 });
+        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx - 40, y1: cy - 10, x2: cx + 20, y2: cy - 10, color: '#94a3b8', width: 2 });
       }
     });
     setShowTemplates(false);
@@ -393,6 +424,40 @@ const Whiteboard = () => {
     setShowStickers(false);
   }, [mutateBoard, pushHistory]);
 
+  const handleImagePick = useCallback(async (event) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const canvas = canvasRef.current;
+      const x = ((canvas?.offsetWidth || 1000) / 2 - panRef.current.x) / zoomRef.current;
+      const y = ((canvas?.offsetHeight || 700) / 2 - panRef.current.y) / zoomRef.current;
+      pushHistory();
+      mutateBoard((draft) => {
+        draft.images.push({ id: randomId('image'), x, y, width: 220, height: 140, src: reader.result });
+      });
+    };
+    reader.readAsDataURL(file);
+    event.target.value = '';
+  }, [mutateBoard, pushHistory]);
+
+  const updateArrayItem = useCallback((kind, id, patch) => {
+    mutateBoard((draft) => {
+      draft[kind] = draft[kind].map((item) => item.id === id ? { ...item, ...patch } : item);
+    });
+  }, [mutateBoard]);
+
+  const startOverlayMove = useCallback((event, kind, item) => {
+    if (tool !== 'select') {
+      setSelected({ kind, id: item.id });
+      return;
+    }
+    event.stopPropagation();
+    const world = getWorldPoint(event, canvasRef.current, panRef.current, zoomRef.current);
+    moveRef.current = { active: true, kind, id: item.id, startX: world.x, startY: world.y, origin: clone(item) };
+    setSelected({ kind, id: item.id });
+  }, [tool]);
+
   const onPointerDown = useCallback((event) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
@@ -400,16 +465,17 @@ const Whiteboard = () => {
     const world = getWorldPoint(event, canvas, panRef.current, zoomRef.current);
 
     if (tool === 'pan' || event.button === 1) {
-      panRefDrag.current = { active: true, x: event.clientX, y: event.clientY, px: panRef.current.x, py: panRef.current.y };
+      dragPanRef.current = { active: true, startX: event.clientX, startY: event.clientY, originX: panRef.current.x, originY: panRef.current.y };
       return;
     }
     if (tool === 'select') {
       const found = findSelection(boardRef.current, world.x, world.y, zoomRef.current);
       if (found) {
-        pushHistory();
         moveRef.current = { active: true, kind: found.kind, id: found.item.id, startX: world.x, startY: world.y, origin: clone(found.item) };
         setSelected({ kind: found.kind, id: found.item.id });
-      } else setSelected(null);
+      } else {
+        setSelected(null);
+      }
       return;
     }
     if (tool === 'note') {
@@ -420,7 +486,7 @@ const Whiteboard = () => {
     }
     if (tool === 'text') {
       pushHistory();
-      mutateBoard((draft) => { draft.texts.push({ id: randomId('text'), x: world.x, y: world.y, width: 180, height: 40, text: 'Text', color, bubble: false }); });
+      mutateBoard((draft) => { draft.texts.push({ id: randomId('text'), x: world.x, y: world.y, width: 180, height: 48, text: 'Text', color, bubble: false }); });
       return;
     }
     if (tool === 'comment') {
@@ -435,28 +501,32 @@ const Whiteboard = () => {
     }
     if (tool === 'eraser') {
       const found = findSelection(boardRef.current, world.x, world.y, zoomRef.current);
-      if (found) {
+      const strokeHit = findStroke(boardRef.current, world.x, world.y, zoomRef.current);
+      if (found || strokeHit) {
         pushHistory();
-        mutateBoard((draft) => { draft[found.kind] = draft[found.kind].filter((item) => item.id !== found.item.id); });
+        mutateBoard((draft) => {
+          if (found) draft[found.kind] = draft[found.kind].filter((item) => item.id !== found.item.id);
+          if (strokeHit) draft.strokes.splice(strokeHit.index, 1);
+        });
       }
       return;
     }
-    if (['rect', 'circle', 'connector'].includes(tool)) {
+    if (['rect', 'circle', 'arrow', 'connector'].includes(tool)) {
       pushHistory();
       shapeRef.current = { active: true, type: tool, x1: world.x, y1: world.y, x2: world.x, y2: world.y };
       return;
     }
     if (tool === 'pen' || tool === 'highlight') {
       pushHistory();
-      drawRef.current = { active: true, stroke: { id: randomId('stroke'), tool: tool === 'highlight' ? 'highlight' : 'pen', color, alpha: tool === 'highlight' ? 0.3 : 1, width: tool === 'highlight' ? 12 : 3, points: [world] } };
+      drawRef.current = { active: true, stroke: { id: randomId('stroke'), tool, color, alpha: tool === 'highlight' ? 0.3 : 1, width: tool === 'highlight' ? 12 : 3, points: [world] } };
     }
   }, [color, mutateBoard, pushHistory, tool]);
 
   const onPointerMove = useCallback((event) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    if (panRefDrag.current.active) {
-      setPan({ x: panRefDrag.current.px + event.clientX - panRefDrag.current.x, y: panRefDrag.current.py + event.clientY - panRefDrag.current.y });
+    if (dragPanRef.current.active) {
+      setPan({ x: dragPanRef.current.originX + event.clientX - dragPanRef.current.startX, y: dragPanRef.current.originY + event.clientY - dragPanRef.current.startY });
       return;
     }
     if (moveRef.current.active) {
@@ -489,13 +559,15 @@ const Whiteboard = () => {
   }, [mutateBoard, redraw]);
 
   const onPointerUp = useCallback((event) => {
-    panRefDrag.current.active = false;
+    dragPanRef.current.active = false;
     moveRef.current.active = false;
     canvasRef.current?.releasePointerCapture?.(event.pointerId);
     if (shapeRef.current.active) {
       const current = shapeRef.current;
       shapeRef.current = { active: false, type: null, x1: 0, y1: 0, x2: 0, y2: 0 };
-      mutateBoard((draft) => { draft.shapes.push({ id: randomId('shape'), type: current.type, x1: current.x1, y1: current.y1, x2: current.x2, y2: current.y2, color, width: 2.5 }); });
+      mutateBoard((draft) => {
+        draft.shapes.push({ id: randomId('shape'), type: current.type, x1: current.x1, y1: current.y1, x2: current.x2, y2: current.y2, color, width: 2.5 });
+      });
       return;
     }
     if (drawRef.current.active) {
@@ -526,14 +598,16 @@ const Whiteboard = () => {
 
   return (
     <div style={{ height: '100vh', overflow: 'hidden', position: 'relative', background: '#fafaf7' }}>
+      <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImagePick} style={{ display: 'none' }} />
+
       <div className="dot-paper" style={{ position: 'absolute', inset: 0, backgroundColor: '#fafaf7' }}>
         <canvas ref={canvasRef} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', touchAction: 'none', cursor: tool === 'pan' ? 'grab' : tool === 'select' ? 'default' : 'crosshair' }} />
 
         {board.frames.map((frame) => {
           const p = toScreen(frame.x, frame.y, pan, zoom);
           return (
-            <div key={frame.id} style={{ position: 'absolute', left: p.x, top: p.y, width: frame.width * zoom, height: frame.height * zoom, border: '1.5px dashed #94a3b8', borderRadius: 14, background: 'rgba(255,255,255,0.16)' }}>
-              <input value={frame.title} onChange={(e) => mutateBoard((draft) => { draft.frames = draft.frames.map((item) => item.id === frame.id ? { ...item, title: e.target.value } : item); })} style={{ position: 'absolute', top: -18, left: 10, border: 'none', background: 'white', padding: '4px 10px', borderRadius: 999, fontSize: 12, color: '#475569', boxShadow: '0 1px 2px rgba(15,23,42,0.06)' }} />
+            <div key={frame.id} onPointerDown={(e) => startOverlayMove(e, 'frames', frame)} style={{ position: 'absolute', left: p.x, top: p.y, width: frame.width * zoom, height: frame.height * zoom, border: selected?.kind === 'frames' && selected?.id === frame.id ? '2px dashed #6366f1' : '1.5px dashed #94a3b8', borderRadius: 14, background: 'rgba(255,255,255,0.16)' }}>
+              <input value={frame.title} onChange={(e) => updateArrayItem('frames', frame.id, { title: e.target.value })} style={{ position: 'absolute', top: -18, left: 10, border: 'none', background: 'white', padding: '4px 10px', borderRadius: 999, fontSize: 12, color: '#475569', boxShadow: '0 1px 2px rgba(15,23,42,0.06)' }} />
             </div>
           );
         })}
@@ -541,31 +615,40 @@ const Whiteboard = () => {
         {board.notes.map((note) => {
           const p = toScreen(note.x, note.y, pan, zoom);
           return (
-            <textarea key={note.id} value={note.text} onChange={(e) => mutateBoard((draft) => { draft.notes = draft.notes.map((item) => item.id === note.id ? { ...item, text: e.target.value } : item); })} style={{ position: 'absolute', left: p.x, top: p.y, width: note.width * zoom, height: note.height * zoom, padding: `${14 * zoom}px`, background: note.bg, border: `1px solid ${note.border}`, borderRadius: 4, boxShadow: '2px 3px 0 rgba(15,23,42,0.05), 0 8px 20px rgba(15,23,42,0.08)', fontFamily: 'Caveat', fontSize: Math.max(14, 18 * zoom), color: '#0f172a', resize: 'none', outline: 'none' }} />
+            <textarea key={note.id} value={note.text} onPointerDown={(e) => startOverlayMove(e, 'notes', note)} onChange={(e) => updateArrayItem('notes', note.id, { text: e.target.value })} style={{ position: 'absolute', left: p.x, top: p.y, width: note.width * zoom, height: note.height * zoom, padding: `${14 * zoom}px`, background: note.bg, border: `${selected?.kind === 'notes' && selected?.id === note.id ? 2 : 1}px solid ${note.border}`, borderRadius: 6, boxShadow: '2px 3px 0 rgba(15,23,42,0.05), 0 8px 20px rgba(15,23,42,0.08)', fontFamily: 'Caveat', fontSize: Math.max(14, 18 * zoom), color: '#0f172a', resize: 'none', outline: 'none' }} />
           );
         })}
 
         {board.texts.map((text) => {
           const p = toScreen(text.x, text.y, pan, zoom);
           return text.bubble ? (
-            <input key={text.id} value={text.text} onChange={(e) => mutateBoard((draft) => { draft.texts = draft.texts.map((item) => item.id === text.id ? { ...item, text: e.target.value } : item); })} style={{ position: 'absolute', left: p.x, top: p.y, width: text.width * zoom, padding: '10px 16px', background: 'white', border: '2px solid #6366f1', borderRadius: 999, fontSize: 13 * zoom, fontWeight: 500, color: text.color, textAlign: 'center', outline: 'none' }} />
+            <input key={text.id} value={text.text} onPointerDown={(e) => startOverlayMove(e, 'texts', text)} onChange={(e) => updateArrayItem('texts', text.id, { text: e.target.value })} style={{ position: 'absolute', left: p.x, top: p.y, width: text.width * zoom, padding: '10px 16px', background: 'white', border: `${selected?.kind === 'texts' && selected?.id === text.id ? 3 : 2}px solid #6366f1`, borderRadius: 999, fontSize: 13 * zoom, fontWeight: 500, color: text.color, textAlign: 'center', outline: 'none' }} />
           ) : (
-            <textarea key={text.id} value={text.text} onChange={(e) => mutateBoard((draft) => { draft.texts = draft.texts.map((item) => item.id === text.id ? { ...item, text: e.target.value } : item); })} style={{ position: 'absolute', left: p.x, top: p.y, width: text.width * zoom, height: text.height * zoom, background: 'transparent', border: 'none', color: text.color, fontSize: Math.max(14, 20 * zoom), fontFamily: 'Caveat', outline: 'none', resize: 'none' }} />
+            <textarea key={text.id} value={text.text} onPointerDown={(e) => startOverlayMove(e, 'texts', text)} onChange={(e) => updateArrayItem('texts', text.id, { text: e.target.value })} style={{ position: 'absolute', left: p.x, top: p.y, width: text.width * zoom, height: text.height * zoom, background: selected?.kind === 'texts' && selected?.id === text.id ? 'rgba(255,255,255,0.8)' : 'transparent', border: 'none', color: text.color, fontSize: Math.max(14, 20 * zoom), fontFamily: 'Caveat', outline: selected?.kind === 'texts' && selected?.id === text.id ? '1px dashed #6366f1' : 'none', resize: 'none' }} />
           );
         })}
 
         {board.comments.map((comment) => {
           const p = toScreen(comment.x, comment.y, pan, zoom);
           return (
-            <div key={comment.id} style={{ position: 'absolute', left: p.x, top: p.y, width: comment.width * zoom, background: 'white', borderRadius: 18, border: '1px solid #cbd5e1', boxShadow: '0 8px 20px rgba(15,23,42,0.08)' }}>
-              <textarea value={comment.text} onChange={(e) => mutateBoard((draft) => { draft.comments = draft.comments.map((item) => item.id === comment.id ? { ...item, text: e.target.value } : item); })} style={{ width: '100%', height: comment.height * zoom, border: 'none', background: 'transparent', resize: 'none', outline: 'none', padding: `${16 * zoom}px`, fontSize: Math.max(12, 14 * zoom), color: '#334155' }} />
+            <div key={comment.id} onPointerDown={(e) => startOverlayMove(e, 'comments', comment)} style={{ position: 'absolute', left: p.x, top: p.y, width: comment.width * zoom, background: 'white', borderRadius: 18, border: selected?.kind === 'comments' && selected?.id === comment.id ? '2px solid #6366f1' : '1px solid #cbd5e1', boxShadow: '0 8px 20px rgba(15,23,42,0.08)' }}>
+              <textarea value={comment.text} onChange={(e) => updateArrayItem('comments', comment.id, { text: e.target.value })} style={{ width: '100%', height: comment.height * zoom, border: 'none', background: 'transparent', resize: 'none', outline: 'none', padding: `${16 * zoom}px`, fontSize: Math.max(12, 14 * zoom), color: '#334155' }} />
+            </div>
+          );
+        })}
+
+        {board.images.map((image) => {
+          const p = toScreen(image.x, image.y, pan, zoom);
+          return (
+            <div key={image.id} onPointerDown={(e) => startOverlayMove(e, 'images', image)} style={{ position: 'absolute', left: p.x, top: p.y, width: image.width * zoom, height: image.height * zoom, borderRadius: 16, overflow: 'hidden', border: selected?.kind === 'images' && selected?.id === image.id ? '2px solid #6366f1' : '1px solid rgba(15,23,42,0.08)', boxShadow: '0 10px 24px rgba(15,23,42,0.12)', background: 'white' }}>
+              <img src={image.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             </div>
           );
         })}
 
         {board.emojis.map((emoji) => {
           const p = toScreen(emoji.x, emoji.y, pan, zoom);
-          return <div key={emoji.id} style={{ position: 'absolute', left: p.x, top: p.y, fontSize: 32 * zoom, transform: `rotate(${emoji.rotate}deg)`, filter: 'drop-shadow(2px 3px 4px rgba(15,23,42,0.15))' }}>{emoji.emoji}</div>;
+          return <div key={emoji.id} onPointerDown={(e) => startOverlayMove(e, 'emojis', emoji)} style={{ position: 'absolute', left: p.x, top: p.y, fontSize: 32 * zoom, transform: `rotate(${emoji.rotate}deg)`, filter: 'drop-shadow(2px 3px 4px rgba(15,23,42,0.15))' }}>{emoji.emoji}</div>;
         })}
       </div>
 
@@ -574,25 +657,26 @@ const Whiteboard = () => {
           <Icons.Logo size={22} />
           <span style={{ fontFamily: 'Caveat', fontSize: 18, fontWeight: 600, color: '#0f172a' }}>StudyFlow</span>
         </a>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: 13, color: '#0f172a', fontWeight: 500, width: 120 }} />
+        <input value={title} onChange={(e) => setTitle(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: 13, color: '#0f172a', fontWeight: 500, width: 160 }} />
         <span style={{ fontSize: 10.5, color: '#a78bfa', background: '#f3e8ff', padding: '1px 6px', borderRadius: 4, fontWeight: 500 }}>Kostenlos</span>
         {savedAt && <span style={{ fontSize: 11, color: '#94a3b8' }}>{savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>}
       </div>
 
       <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', alignItems: 'center', gap: 8, zIndex: 20 }}>
-        <button style={{ background: 'white', border: '1px solid rgba(15,23,42,0.08)', padding: '6px 10px', borderRadius: 8, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#475569', fontFamily: 'inherit' }}>
+        <button style={{ background: 'white', border: '1px solid rgba(15,23,42,0.08)', padding: '6px 10px', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#475569', fontFamily: 'inherit' }}>
           <Avatar name={user?.email || 'Du'} color="#06b6d4" size={22} />
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9l6 6 6-6" /></svg>
+          <Icons.Chevron size={10}/>
         </button>
         <div style={{ display: 'flex' }}>
           <Avatar name="Lara K" color="#ec4899" size={28} ring />
           <div style={{ marginLeft: -6 }}><Avatar name="Tim R" color="#f59e0b" size={28} ring /></div>
         </div>
-        <div style={{ background: 'white', border: '1px solid rgba(15,23,42,0.08)', padding: '6px 10px', borderRadius: 8, fontFamily: 'JetBrains Mono', fontSize: 11.5, color: '#475569', display: 'flex', alignItems: 'center', gap: 5 }}>
+        <div style={{ background: 'white', border: '1px solid rgba(15,23,42,0.08)', padding: '6px 10px', borderRadius: 10, fontFamily: 'JetBrains Mono', fontSize: 11.5, color: '#475569', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Icons.Clock size={11}/>
           {saving ? 'sync' : `${Math.round(zoom * 100)}%`}
         </div>
-        <button onClick={() => setShareOpen(true)} style={{ padding: '7px 14px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: 8, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 1px 2px rgba(139,92,246,0.3)' }}>
-          Teilen
+        <button onClick={() => setShareOpen(true)} style={{ padding: '7px 14px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: 10, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 1px 2px rgba(139,92,246,0.3)', display: 'flex', alignItems: 'center', gap: 6 }}>
+          <Icons.Share size={14}/> Teilen
         </button>
       </div>
 
@@ -603,31 +687,48 @@ const Whiteboard = () => {
       <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 25, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
         {(tool === 'pen' || tool === 'highlight') && (
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 999, padding: '6px 10px', border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 12px rgba(15,23,42,0.06)' }}>
-            {PALETTE.map((swatch) => <button key={swatch} onClick={() => setColor(swatch)} style={{ width: 18, height: 18, borderRadius: '50%', background: swatch, border: color === swatch ? '2px solid #0f172a' : '1px solid rgba(15,23,42,0.1)', cursor: 'pointer', padding: 0 }} />)}
+            {PASTELS.concat(PALETTE).map((swatch) => (
+              <button key={swatch} onClick={() => setColor(swatch)} style={{ width: 18, height: 18, borderRadius: '50%', background: swatch, border: color === swatch ? '2px solid #0f172a' : '1px solid rgba(15,23,42,0.1)', cursor: 'pointer', padding: 0 }} />
+            ))}
           </div>
         )}
+
+        {showShapePicker && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 999, padding: '6px 10px', border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 12px rgba(15,23,42,0.06)' }}>
+            {['rect', 'circle', 'arrow', 'connector'].map((shapeTool) => (
+              <button key={shapeTool} onClick={() => { setTool(shapeTool); setShowShapePicker(false); }} style={{ width: 30, height: 30, borderRadius: 8, border: 'none', background: tool === shapeTool ? '#0f172a' : 'transparent', color: tool === shapeTool ? 'white' : '#475569', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                {TOOL_DEFS[shapeTool].icon}
+              </button>
+            ))}
+          </div>
+        )}
+
         <div style={{ display: 'flex', alignItems: 'center', gap: 1, background: 'white', borderRadius: 12, padding: 5, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 6px 20px rgba(15,23,42,0.08), 0 1px 3px rgba(15,23,42,0.04)' }}>
-          {TOOL_ITEMS.map((item, index) => {
+          {TOOL_ROWS.map((item, index) => {
             if (item === 'divider') return <div key={`d_${index}`} style={{ width: 1, height: 22, background: '#e2e8f0', margin: '0 4px' }} />;
-            const active = tool === item;
-            const label = item === 'select' ? 'Auswählen' : item === 'pan' ? 'Verschieben' : item === 'pen' ? 'Stift' : item === 'highlight' ? 'Marker' : item === 'eraser' ? 'Radierer' : item === 'note' ? 'Notiz' : item === 'rect' ? 'Rechteck' : item === 'circle' ? 'Kreis' : item === 'text' ? 'Text' : item === 'image' ? 'Bild' : item === 'frame' ? 'Frame' : item === 'sticker' ? 'Sticker' : item === 'shapes' ? 'Formen' : item === 'connector' ? 'Verbinder' : item === 'comment' ? 'Kommentar' : 'Mehr';
-            const icon = item === 'select' ? '◢' : item === 'pan' ? '✋' : item === 'pen' ? '✎' : item === 'highlight' ? '🖍️' : item === 'eraser' ? '⌫' : item === 'note' ? '▣' : item === 'rect' ? '▭' : item === 'circle' ? '◯' : item === 'text' ? 'T' : item === 'image' ? '🖼️' : item === 'frame' ? '⌗' : item === 'sticker' ? '⭐' : item === 'shapes' ? '◇' : item === 'connector' ? '↗' : item === 'comment' ? '💬' : '+';
+            const active = tool === item || (item === 'more' && showTemplates) || (item === 'sticker' && showStickers);
             return (
-              <IconButton
+              <button
                 key={item}
-                active={active}
-                title={label}
                 onClick={() => {
                   if (item === 'sticker') { setShowStickers((prev) => !prev); return; }
                   if (item === 'more') { setShowTemplates((prev) => !prev); return; }
-                  if (item === 'shapes') { setTool('rect'); return; }
-                  if (item === 'connector') { setTool('connector'); return; }
-                  if (item === 'image') { setTool('comment'); return; }
+                  if (item === 'image') { fileInputRef.current?.click(); return; }
+                  if (['rect', 'circle', 'arrow', 'connector'].includes(item)) { setTool(item); setShowShapePicker(false); return; }
                   setTool(item);
+                  setShowShapePicker(false);
                 }}
+                onContextMenu={(e) => {
+                  if (['rect', 'circle', 'arrow', 'connector'].includes(item)) {
+                    e.preventDefault();
+                    setShowShapePicker((prev) => !prev);
+                  }
+                }}
+                title={TOOL_DEFS[item].label}
+                style={{ width: 34, height: 34, borderRadius: 10, background: active ? '#0f172a' : 'transparent', color: active ? 'white' : '#475569', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative' }}
               >
-                <span style={{ fontSize: 14 }}>{icon}</span>
-              </IconButton>
+                {TOOL_DEFS[item].icon}
+              </button>
             );
           })}
         </div>
@@ -635,16 +736,16 @@ const Whiteboard = () => {
 
       <div style={{ position: 'absolute', bottom: 16, right: 16, display: 'flex', gap: 6, zIndex: 20 }}>
         <div style={{ background: 'white', border: '1px solid rgba(15,23,42,0.06)', borderRadius: 8, display: 'flex', alignItems: 'center', boxShadow: '0 1px 2px rgba(15,23,42,0.04)' }}>
-          <button onClick={() => setZoom((prev) => Math.max(0.2, prev - 0.1))} style={{ padding: 7, background: 'none', border: 'none', cursor: 'pointer', color: '#475569' }}>-</button>
+          <button onClick={() => setZoom((prev) => Math.max(0.2, prev - 0.1))} style={{ padding: 7, background: 'none', border: 'none', cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }}>-</button>
           <span style={{ fontSize: 11.5, color: '#475569', fontFamily: 'JetBrains Mono', minWidth: 36, textAlign: 'center' }}>{Math.round(zoom * 100)}%</span>
-          <button onClick={() => setZoom((prev) => Math.min(4, prev + 0.1))} style={{ padding: 7, background: 'none', border: 'none', cursor: 'pointer', color: '#475569' }}>+</button>
+          <button onClick={() => setZoom((prev) => Math.min(4, prev + 0.1))} style={{ padding: 7, background: 'none', border: 'none', cursor: 'pointer', color: '#475569', display: 'flex' }}><Icons.Plus size={13}/></button>
         </div>
-        <button onClick={() => save()} style={{ width: 30, height: 30, background: 'white', border: '1px solid rgba(15,23,42,0.06)', borderRadius: 8, cursor: 'pointer', color: '#475569' }} title="Speichern">?</button>
+        <button onClick={() => save()} style={{ width: 30, height: 30, background: 'white', border: '1px solid rgba(15,23,42,0.06)', borderRadius: 8, cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Speichern"><Icons.Doc size={14}/></button>
       </div>
 
       <div style={{ position: 'absolute', bottom: 16, left: 16, zIndex: 20 }}>
-        <button onClick={() => setPan({ x: 0, y: 0 })} style={{ background: 'white', border: '1px solid rgba(15,23,42,0.06)', padding: 8, borderRadius: 8, cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontFamily: 'inherit', boxShadow: '0 1px 2px rgba(15,23,42,0.04)' }} title="Ebenen">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M12 2L2 7l10 5 10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" /></svg>
+        <button onClick={() => { setPan({ x: 0, y: 0 }); setZoom(1); }} style={{ background: 'white', border: '1px solid rgba(15,23,42,0.06)', padding: 8, borderRadius: 8, cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontFamily: 'inherit', boxShadow: '0 1px 2px rgba(15,23,42,0.04)' }} title="Board zentrieren">
+          <ToolIcon size={14}><path d="M12 2L2 7l10 5 10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></ToolIcon>
         </button>
       </div>
 
@@ -652,7 +753,7 @@ const Whiteboard = () => {
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.36)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
           <div style={{ width: 520, background: 'white', borderRadius: 24, boxShadow: '0 24px 60px rgba(15,23,42,0.22)', padding: 20 }}>
             <div style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>Board teilen</div>
-            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>Link fuer Coworking und gemeinsames Bearbeiten.</div>
+            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>Link für Coworking und gemeinsames Bearbeiten.</div>
             <div style={{ display: 'flex', gap: 10 }}>
               <input readOnly value={shareUrl} style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: 12, padding: '11px 12px', fontSize: 12, color: '#334155' }} />
               <button onClick={copyShareLink} style={{ border: 'none', borderRadius: 12, padding: '0 16px', background: copied ? '#16a34a' : '#0f172a', color: 'white', fontWeight: 600, cursor: 'pointer' }}>{copied ? 'Kopiert' : 'Kopieren'}</button>
