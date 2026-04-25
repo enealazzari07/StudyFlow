@@ -221,12 +221,70 @@ const CardsList = ({ cards, setCards, currentSetId }) => {
   );
 };
 
+// ─── Set Share Modal ──────────────────────────────────────────
+const SetShareModal = ({ set, cards, onClose }) => {
+  const [copied, setCopied] = useState(false);
+  const base = window.location.origin + window.location.pathname.replace(/[^/]*$/, '');
+  const url = `${base}lernset.html?id=${set.id}`;
+
+  const copyLink = () => {
+    navigator.clipboard.writeText(url).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
+  };
+
+  const exportJSON = () => {
+    const d = { title: set.title, description: set.description || '', cards: cards.map(c => ({ front: c.front, back: c.back })) };
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(new Blob([JSON.stringify(d, null, 2)], { type: 'application/json' }));
+    a.download = (set.title || 'lernset').replace(/[^a-z0-9]/gi, '_') + '.json';
+    a.click();
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 300, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: 20, padding: 28, width: 460, boxShadow: '0 20px 60px rgba(15,23,42,0.2)' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
+          <div style={{ fontFamily: 'Instrument Sans', fontSize: 18, fontWeight: 600, color: '#0f172a' }}>Lernset teilen</div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b' }}><Icons.X size={18}/></button>
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 14px', background: '#f8fafc', borderRadius: 12, marginBottom: 20 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #c7d2fe', flexShrink: 0 }}>
+            <Icons.Cards size={18}/>
+          </div>
+          <div>
+            <div style={{ fontFamily: 'Caveat', fontSize: 20, color: '#0f172a' }}>{set.title}</div>
+            <div style={{ fontSize: 12, color: '#64748b', marginTop: 2 }}>{cards.length} Karten</div>
+          </div>
+        </div>
+
+        <div style={{ fontSize: 12, color: '#64748b', marginBottom: 6 }}>Direkt-Link</div>
+        <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+          <div style={{ flex: 1, padding: '9px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8, fontSize: 12, color: '#475569', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{url}</div>
+          <button onClick={copyLink} className="btn-primary" style={{ padding: '9px 14px', flexShrink: 0 }}>
+            {copied ? <><Icons.Check size={13}/> Kopiert!</> : 'Kopieren'}
+          </button>
+        </div>
+
+        <button onClick={exportJSON} className="btn-ghost" style={{ width: '100%', justifyContent: 'center', padding: '10px 0', fontSize: 13, marginBottom: 16 }}>
+          <Icons.Upload size={14}/> Als JSON exportieren (Karten + Inhalt)
+        </button>
+
+        <div style={{ padding: '12px 14px', background: '#eef2ff', borderRadius: 10, fontSize: 13, color: '#4338ca', display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+          <Icons.Users size={15}/>
+          <span>Empfänger können das Set per Link öffnen und zum Lernen nutzen oder in ihre Bibliothek importieren.</span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Main ─────────────────────────────────────────────────────
 const LernsetDetail = () => {
   const [studySet, setStudySet] = useState(null);
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [showShare, setShowShare] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -285,9 +343,9 @@ const LernsetDetail = () => {
   const DOCK_ITEMS = [
     { id: 'home', label: 'Start', icon: <Icons.Home size={22}/>, href: 'dashboard.html' },
     { id: 'cards', label: 'Lernsets', icon: <Icons.Cards size={22}/>, href: 'dashboard.html' },
-    { id: 'docs', label: 'Dokumente', icon: <Icons.Doc size={22}/>, href: 'ai-upload.html' },
+    { id: 'docs', label: 'Notes', icon: <Icons.Doc size={22}/>, href: 'dokument.html' },
     { id: 'ai', label: 'Flow AI', icon: <Icons.Sparkles size={22}/>, href: 'ai-upload.html' },
-    { id: 'stats', label: 'Fortschritt', icon: <Icons.Chart size={22}/> },
+    { id: 'stats', label: 'Statistiken', icon: <Icons.Chart size={22}/>, href: 'stats.html' },
     { id: 'settings', label: 'Einstellungen', icon: <Icons.Settings size={22}/> },
   ];
 
@@ -306,7 +364,7 @@ const LernsetDetail = () => {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button className="btn-ghost" style={{ padding: '7px 12px', fontSize: 13 }}>
+          <button onClick={() => setShowShare(true)} className="btn-ghost" style={{ padding: '7px 12px', fontSize: 13 }}>
             <Icons.Share size={13}/> Teilen
           </button>
         </div>
@@ -393,6 +451,10 @@ const LernsetDetail = () => {
         }}/>
       </div>
       <AIAssistant/>
+
+      {showShare && studySet && (
+        <SetShareModal set={studySet} cards={cards} onClose={() => setShowShare(false)}/>
+      )}
     </div>
   );
 };

@@ -45,6 +45,7 @@ const ModeSwitcher = ({ mode, setMode }) => (
     {[
       { id: 'flashcards', label: 'Karten', icon: <Icons.Cards size={14}/> },
       { id: 'quiz', label: 'Quiz', icon: <Icons.Brain size={14}/> },
+      { id: 'typing', label: 'Tippen', icon: <Icons.Edit size={14}/> },
     ].map(m => (
       <button key={m.id} onClick={() => setMode(m.id)} style={{
         padding: '8px 14px', fontSize: 13,
@@ -190,6 +191,127 @@ const QuizMode = ({ sessionCards, reviewed, onGrade }) => {
             );
           })}
         </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Typing Mode ─────────────────────────────────────────────
+const TypingMode = ({ sessionCards, reviewed, onGrade }) => {
+  const { useState: useS, useEffect: useE, useRef: useR } = React;
+  const [input, setInput] = useS('');
+  const [checked, setChecked] = useS(false);
+  const [isCorrect, setIsCorrect] = useS(false);
+  const inputRef = useR(null);
+  const card = sessionCards[reviewed];
+
+  useE(() => {
+    setInput('');
+    setChecked(false);
+    setIsCorrect(false);
+    setTimeout(() => inputRef.current?.focus(), 50);
+  }, [reviewed]);
+
+  if (!card) return null;
+
+  const normalize = s => (s || '').trim().toLowerCase().replace(/\s+/g, ' ');
+
+  const check = () => {
+    const correct = normalize(input) === normalize(card.back);
+    setIsCorrect(correct);
+    setChecked(true);
+  };
+
+  const handleKey = (e) => {
+    if (e.key === 'Enter' && !checked) check();
+    if (e.key === 'Enter' && checked) onGrade(card, isCorrect ? 3 : 1);
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: '32px 0' }}>
+      <div style={{ width: 640, background: 'white', borderRadius: 20, padding: 36, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
+        <div style={{ fontSize: 11, color: '#6366f1', fontWeight: 600, letterSpacing: '0.08em', marginBottom: 10 }}>
+          FRAGE {reviewed + 1} / {sessionCards.length}
+        </div>
+        <div style={{ fontFamily: 'Caveat', fontSize: 34, fontWeight: 500, color: '#0f172a', lineHeight: 1.2, marginBottom: 28 }}>
+          {card.front}
+        </div>
+
+        <div style={{ position: 'relative' }}>
+          <input
+            ref={inputRef}
+            value={input}
+            onChange={e => setInput(e.target.value)}
+            onKeyDown={handleKey}
+            disabled={checked}
+            placeholder="Antwort eingeben…"
+            style={{
+              width: '100%', padding: '14px 16px', fontSize: 16, fontFamily: 'inherit',
+              border: checked
+                ? `2px solid ${isCorrect ? '#10b981' : '#ef4444'}`
+                : '2px solid #e2e8f0',
+              borderRadius: 12, outline: 'none', background: checked
+                ? (isCorrect ? '#f0fdf4' : '#fef2f2')
+                : 'white',
+              color: '#0f172a', transition: 'border 0.2s, background 0.2s',
+              boxSizing: 'border-box',
+            }}
+          />
+        </div>
+
+        {!checked ? (
+          <button onClick={check} disabled={!input.trim()} className="btn-primary" style={{ marginTop: 16, width: '100%', justifyContent: 'center', padding: '12px 0', fontSize: 14, opacity: !input.trim() ? 0.5 : 1 }}>
+            Prüfen <span style={{ marginLeft: 6, opacity: 0.6, fontSize: 12 }}>↵ Enter</span>
+          </button>
+        ) : (
+          <div style={{ marginTop: 16, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            {/* Result banner */}
+            <div style={{
+              padding: '12px 16px', borderRadius: 12,
+              background: isCorrect ? '#d1fae5' : '#fee2e2',
+              border: `1px solid ${isCorrect ? '#6ee7b7' : '#fca5a5'}`,
+              display: 'flex', alignItems: 'flex-start', gap: 10,
+            }}>
+              <div style={{ color: isCorrect ? '#059669' : '#dc2626', flexShrink: 0, marginTop: 1 }}>
+                {isCorrect ? <Icons.Check size={16}/> : <Icons.X size={16}/>}
+              </div>
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 600, color: isCorrect ? '#065f46' : '#991b1b' }}>
+                  {isCorrect ? 'Richtig!' : 'Nicht ganz…'}
+                </div>
+                {!isCorrect && (
+                  <div style={{ fontSize: 13, color: '#374151', marginTop: 4 }}>
+                    Richtige Antwort: <span style={{ fontWeight: 600, color: '#059669' }}>{card.back}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Grade buttons */}
+            <div style={{ display: 'flex', gap: 8 }}>
+              {isCorrect ? (
+                <>
+                  <button onClick={() => onGrade(card, 3)} style={{ flex: 1, padding: '11px 0', background: '#d1fae5', border: '1.5px solid #6ee7b7', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#065f46', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    <Icons.Check size={13}/> Gut
+                  </button>
+                  <button onClick={() => onGrade(card, 4)} style={{ flex: 1, padding: '11px 0', background: '#e0e7ff', border: '1.5px solid #a5b4fc', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#3730a3', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Einfach
+                  </button>
+                </>
+              ) : (
+                <>
+                  <button onClick={() => onGrade(card, 1)} style={{ flex: 1, padding: '11px 0', background: '#fee2e2', border: '1.5px solid #fca5a5', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#991b1b', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Nochmal
+                  </button>
+                  <button onClick={() => onGrade(card, 2)} style={{ flex: 1, padding: '11px 0', background: '#fef3c7', border: '1.5px solid #fcd34d', borderRadius: 10, fontSize: 13, fontWeight: 600, color: '#92400e', cursor: 'pointer', fontFamily: 'inherit' }}>
+                    Schwer (hatte fast recht)
+                  </button>
+                </>
+              )}
+            </div>
+            <div style={{ fontSize: 12, color: '#94a3b8', textAlign: 'center' }}>↵ Enter für weiter</div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -434,6 +556,13 @@ const LernModus = () => {
                 Mindestens 4 Karten für Quiz benötigt
               </div>
             ) : null}
+            {mode === 'typing' && (
+              <TypingMode
+                sessionCards={sessionCards}
+                reviewed={reviewed}
+                onGrade={handleGrade}
+              />
+            )}
           </>
         )}
       </div>

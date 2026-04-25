@@ -740,7 +740,7 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
 
   const navItems = [
     { id: 'home', label: 'Alle Lernsets', count: sets ? sets.length : 0, icon: <Icons.Cards size={15}/> },
-    { id: 'docs', label: 'Dokumente', count: null, icon: <Icons.Doc size={15}/> },
+    { id: 'docs', label: 'Notes', count: null, icon: <Icons.Doc size={15}/> },
     { id: 'fav', label: 'Favoriten', count: 0, icon: <Icons.Star size={15}/> },
     { id: 'shared', label: 'Geteilt mit mir', count: 0, icon: <Icons.Users size={15}/> },
   ];
@@ -852,8 +852,11 @@ const SetRow = ({ set, onDelete }) => {
           {!isDraft && pct === 100 && <span style={{ fontSize: 10, color: '#059669', background: '#d1fae5', padding: '1px 6px', borderRadius: 4, fontWeight: 500, flexShrink: 0 }}>Fertig</span>}
           {isDraft && <span style={{ fontSize: 10, color: '#64748b', background: '#f1f5f9', padding: '1px 6px', borderRadius: 4, fontWeight: 500, flexShrink: 0 }}>Entwurf</span>}
         </div>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: 5 }}>
           {set.total_cards} Karten <span style={{ color: '#cbd5e1' }}>·</span> {lastStudy}
+          {!isDraft && set.total_cards > 0 && (
+            <><span style={{ color: '#cbd5e1' }}>·</span><span style={{ fontWeight: 600, color: pct >= 80 ? '#10b981' : pct >= 40 ? '#f59e0b' : '#6366f1' }}>{pct}%</span></>
+          )}
         </div>
       </div>
       <div>{!isDraft ? (
@@ -1044,10 +1047,13 @@ const Dashboard = () => {
         <Dock items={[
           { id: 'home', label: 'Start', icon: <Icons.Home size={18}/> },
           { id: 'cards', label: 'Lernsets', icon: <Icons.Cards size={18}/> },
-          { id: 'docs', label: 'Dokumente', icon: <Icons.Doc size={18}/> },
-          { id: 'stats', label: 'Fortschritt', icon: <Icons.Chart size={18}/> },
+          { id: 'docs', label: 'Notes', icon: <Icons.Doc size={18}/> },
+          { id: 'stats', label: 'Statistiken', icon: <Icons.Chart size={18}/> },
           { id: 'settings', label: 'Einstellungen', icon: <Icons.Settings size={18}/> },
-        ]} active={active} onSelect={setActive}/>
+        ]} active={active} onSelect={(id) => {
+          if (id === 'stats') { window.location.href = 'stats.html'; return; }
+          setActive(id);
+        }}/>
       </div>
 
       <AIAssistant/>
