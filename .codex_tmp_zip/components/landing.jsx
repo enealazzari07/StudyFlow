@@ -428,7 +428,7 @@ const Footer = () => (
           <Icons.Logo size={26}/>
           <div style={{ fontFamily: 'Caveat', fontSize: 24, fontWeight: 600, color: '#0f172a' }}>StudyFlow</div>
         </div>
-        <div style={{ fontSize: 13, color: '#64748b', marginTop: 8, maxWidth: 300 }}>Made with ☕ &amp; late nights. Aus Berlin.</div>
+        <div style={{ fontSize: 13, color: '#64748b', marginTop: 8, maxWidth: 300 }}>Made with ☕ &amp; late nights. Aus der Schweiz.</div>
       </div>
       <div style={{ display: 'flex', gap: 60, fontSize: 13 }}>
         {[

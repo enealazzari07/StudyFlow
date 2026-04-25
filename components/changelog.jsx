@@ -21,10 +21,8 @@ const Nav = () => (
     </a>
     <div style={{ display: 'flex', alignItems: 'center', gap: 28, fontSize: 14, color: '#475569' }}>
       <a href="Landing.html#features" style={{ textDecoration: 'none', color: 'inherit' }}>Features</a>
-      <a href="Landing.html#ai" style={{ textDecoration: 'none', color: 'inherit' }}>AI</a>
       <a href="changelog.html" style={{ textDecoration: 'none', color: '#0f172a', fontWeight: 500 }}>Changelog</a>
       <a href="Landing.html#preis" style={{ textDecoration: 'none', color: 'inherit' }}>Preise</a>
-      <a href="Landing.html#uni" style={{ textDecoration: 'none', color: 'inherit' }}>Für Unis</a>
     </div>
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <a href="login.html" className="btn-ghost" style={{ padding: '8px 14px' }}>Anmelden</a>
@@ -44,12 +42,11 @@ const Footer = () => (
           <Icons.Logo size={26}/>
           <div style={{ fontFamily: 'Caveat', fontSize: 24, fontWeight: 600, color: '#0f172a' }}>StudyFlow</div>
         </div>
-        <div style={{ fontSize: 13, color: '#64748b', marginTop: 8, maxWidth: 300 }}>Made with ☕ &amp; late nights. Aus Berlin.</div>
+        <div style={{ fontSize: 13, color: '#64748b', marginTop: 8, maxWidth: 300 }}>Made with ☕ &amp; late nights. Aus der Schweiz.</div>
       </div>
       <div style={{ display: 'flex', gap: 60, fontSize: 13 }}>
         {[
           ['Produkt', [{label: 'Features', href: 'Landing.html#features'}, {label: 'AI', href: 'Landing.html#ai'}, {label: 'Changelog', href: 'changelog.html'}, {label: 'Preise', href: 'Landing.html#preis'}, {label: 'Roadmap', href: '#'}]],
-          ['Für Unis', [{label: 'Lizenzen', href: 'Landing.html#uni'}, {label: 'Case Studies', href: '#'}, {label: 'Support', href: '#'}]],
           ['Rechtliches', [{label: 'Datenschutz', href: '#'}, {label: 'AGB', href: '#'}, {label: 'Impressum', href: '#'}]],
         ].map(([h, items]) => (
           <div key={h}>

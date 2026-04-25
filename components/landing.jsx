@@ -243,10 +243,8 @@ const Nav = () => (
     </a>
     <div style={{ display: 'flex', alignItems: 'center', gap: 28, fontSize: 14, color: '#475569' }}>
       <a href="#features">Features</a>
-      <a href="#ai">AI</a>
       <a href="changelog.html">Changelog</a>
       <a href="#preis">Preise</a>
-      <a href="#uni">Für Unis</a>
     </div>
     <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
       <a href="login.html" className="btn-ghost" style={{ padding: '8px 14px' }}>Anmelden</a>
@@ -421,6 +419,60 @@ const AISpotlight = () => (
   </section>
 );
 
+const Pricing = () => (
+  <section id="preis" style={{ maxWidth: 1200, margin: '100px auto', padding: '0 24px' }}>
+    <div style={{ textAlign: 'center', marginBottom: 60 }}>
+      <div style={{ fontFamily: 'Caveat', fontSize: 22, color: '#6366f1', fontWeight: 600 }}>Preise</div>
+      <h2 style={{ fontFamily: 'Instrument Sans', fontSize: 44, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em', marginTop: 4 }}>
+        Ein Plan für alle.
+      </h2>
+    </div>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 32, maxWidth: 860, margin: '0 auto' }}>
+      {/* Free Plan */}
+      <div style={{ background: 'white', borderRadius: 24, padding: 40, border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 4px 20px rgba(15,23,42,0.03)', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: '#f1f5f9', borderRadius: 999, fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 20, alignSelf: 'flex-start' }}>
+          <Icons.Bookmark size={14}/> Free
+        </div>
+        <div style={{ fontFamily: 'Instrument Sans', fontSize: 42, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>
+          0 € <span style={{ fontSize: 16, color: '#64748b', fontWeight: 500 }}>/Monat</span>
+        </div>
+        <div style={{ fontSize: 14, color: '#64748b', marginBottom: 32 }}>Für den einfachen Start ins Semester.</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 40, flex: 1 }}>
+          {['Bis zu 10 Lernsets', '3 AI-Analysen pro Monat', 'Basis-Lernstatistiken', 'Spaced Repetition (SM-2)'].map(f => (
+            <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#334155' }}>
+              <span style={{ color: '#94a3b8', display: 'flex' }}><Icons.Check size={16}/></span> {f}
+            </div>
+          ))}
+        </div>
+        <a href="login.html" className="btn-ghost" style={{ width: '100%', justifyContent: 'center', padding: '12px 0', fontSize: 15 }}>Kostenlos starten</a>
+      </div>
+      
+      {/* Pro Plan */}
+      <div style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)', borderRadius: 24, padding: 40, color: 'white', boxShadow: '0 20px 40px rgba(49, 46, 129, 0.2)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+        <div style={{ position: 'absolute', top: 0, right: 0, background: '#6366f1', color: 'white', fontSize: 11, fontWeight: 700, padding: '6px 36px', transform: 'translate(30%, 20px) rotate(45deg)', letterSpacing: '0.05em', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>BELIEBT</div>
+        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: '#c7d2fe', marginBottom: 20, alignSelf: 'flex-start' }}>
+          <Icons.Bolt size={14}/> Pro
+        </div>
+        <div style={{ fontFamily: 'Instrument Sans', fontSize: 42, fontWeight: 600, color: 'white', marginBottom: 8 }}>
+          9,99 € <span style={{ fontSize: 16, color: '#a5b4fc', fontWeight: 500 }}>/Monat</span>
+        </div>
+        <div style={{ fontSize: 14, color: '#c7d2fe', marginBottom: 32 }}>Für Power-User & Lerngruppen.</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 40, flex: 1 }}>
+          {['Unbegrenzte Lernsets', 'Unbegrenzte AI & Vision AI', 'Live-Kollaboration mit Freunden', 'Detaillierte Lern-Analytics', 'Prioritäts-Support'].map(f => (
+            <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#e0e7ff' }}>
+              <span style={{ color: '#6366f1', display: 'flex' }}><Icons.Check size={16}/></span> {f}
+            </div>
+          ))}
+        </div>
+        <a href="login.html" className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px 0', fontSize: 15, background: 'white', color: '#1e1b4b' }}>Pro aktivieren</a>
+      </div>
+    </div>
+    <div style={{ textAlign: 'center', marginTop: 32, fontSize: 14, color: '#64748b' }}>
+      Hast du eine Uni-Mailadresse? <a href="login.html" style={{ color: '#6366f1', fontWeight: 500, textDecoration: 'underline' }}>Hol dir Pro kostenlos.</a>
+    </div>
+  </section>
+);
+
 const Footer = () => (
   <footer style={{ maxWidth: 1200, margin: '80px auto 40px', padding: '0 24px', borderTop: '1px solid rgba(15,23,42,0.08)', paddingTop: 40 }}>
     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 40 }}>
@@ -429,12 +481,11 @@ const Footer = () => (
           <Icons.Logo size={26}/>
           <div style={{ fontFamily: 'Caveat', fontSize: 24, fontWeight: 600, color: '#0f172a' }}>StudyFlow</div>
         </div>
-        <div style={{ fontSize: 13, color: '#64748b', marginTop: 8, maxWidth: 300 }}>Made with ☕ &amp; late nights. Aus Berlin.</div>
+        <div style={{ fontSize: 13, color: '#64748b', marginTop: 8, maxWidth: 300 }}>Made with ☕ &amp; late nights. Aus der Schweiz.</div>
       </div>
       <div style={{ display: 'flex', gap: 60, fontSize: 13 }}>
         {[
           ['Produkt', ['Features', 'AI', 'Changelog', 'Preise', 'Roadmap']],
-          ['Für Unis', ['Lizenzen', 'Case Studies', 'Support']],
           ['Rechtliches', ['Datenschutz', 'AGB', 'Impressum']],
         ].map(([h, items]) => (
           <div key={h}>
@@ -456,6 +507,7 @@ const Landing = () => (
     <Hero/>
     <BentoGrid/>
     <AISpotlight/>
+    <Pricing/>
     <Footer/>
     <AIAssistant/>
   </div>
