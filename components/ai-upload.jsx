@@ -160,9 +160,8 @@ const AIUpload = () => {
       loadRecentDocs(userId);
       // If opened from a Lernset (targetSetId) and we don't have parsed cards, create placeholders as fallback
       if (paramTargetSetId && generatedCards.length === 0 && !rawAIOutput) {
-        const n = output.cards || 0;
-        const placeholders = Array.from({ length: n }, (_, i) => ({ front: `Frage ${i + 1}`, back: `Antwort ${i + 1}` }));
-        setGeneratedCards(placeholders);
+        // Platzhalter entfernen, damit das Textfeld für die Eingabe bereit ist
+        setGeneratedCards([]);
       }
     } catch (err) {
       setError(err.message || 'Fehler beim Upload');
@@ -318,13 +317,22 @@ const AIUpload = () => {
                     <div style={{ marginTop: 18, background: 'white', padding: 14, borderRadius: 10, border: '1px solid rgba(15,23,42,0.04)' }}>
                       <div style={{ fontSize: 13.5, fontWeight: 600, color: '#0f172a', marginBottom: 10 }}>Vorschau: Karteikarten für Lernset speichern</div>
 
-                              <div style={{ fontSize: 13, color: '#64748b', marginBottom: 10 }}>Rohdaten (kann AI-Ausgabe oder kopierter Text sein). Verwende "Analysieren" um automatische Karten zu erzeugen.</div>
-                              <textarea value={rawAIOutput || generatedCards.map((g,i)=>`Frage ${i+1}\n${g.back}`).join('\n\n')} onChange={e=>setRawAIOutput(e.target.value)} style={{ width: '100%', minHeight: 120, padding: 10, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 10 }} />
+                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 }}>
+                                <div style={{ fontSize: 13, color: '#64748b', paddingRight: 10 }}>
+                                  Füge hier die KI-Ausgabe ein. <strong>Tipp:</strong> Tabellen (<code>| Frage | Antwort |</code>) oder <code>Frage: ... Antwort: ...</code> werden perfekt erkannt!
+                                </div>
+                                <button onClick={() => {
+                                  navigator.clipboard.writeText('Erstelle Karteikarten aus dem folgenden Text. Gib sie ausschließlich als Markdown-Tabelle mit den Spalten "Frage" und "Antwort" aus:\n\n');
+                                  alert('KI-Prompt kopiert!');
+                                }} className="btn-ghost" style={{ padding: '6px 10px', fontSize: 11, flexShrink: 0 }}>
+                                  Prompt kopieren
+                                </button>
+                              </div>
+                              <textarea value={rawAIOutput || generatedCards.map((g)=>`Frage: ${g.front}\nAntwort: ${g.back}`).join('\n\n')} onChange={e=>setRawAIOutput(e.target.value)} placeholder="| Frage | Antwort |&#10;|---|---|&#10;| Was ist das BIP? | Das Bruttoinlandsprodukt... |" style={{ width: '100%', minHeight: 140, padding: 12, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 10, fontFamily: 'inherit', fontSize: 13, resize: 'vertical' }} />
 
                               <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                                 <button onClick={() => {
-                                  // parse rawAIOutput into generatedCards
-                                  const parsed = parseRawToCards(rawAIOutput || generatedCards.map((g)=>`${g.front}\n${g.back}`).join('\n\n'));
+                                  const parsed = parseRawToCards(rawAIOutput || generatedCards.map((g)=>`Frage: ${g.front}\nAntwort: ${g.back}`).join('\n\n'));
                                   if (parsed.length === 0) return alert('Keine Karten gefunden — bitte Format prüfen.');
                                   setGeneratedCards(parsed);
                                 }} className="btn-primary" style={{ padding: '8px 12px' }}>Analysieren & in Karten umwandeln</button>
@@ -459,55 +467,92 @@ ReactDOM.createRoot(document.getElementById('root')).render(<AIUpload/>);
 // --- Helper: parse raw AI/text into card pairs ---
 function parseRawToCards(text) {
   if (!text || !text.trim()) return [];
-  // Normalize line endings
   const t = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
 
-  // Try CSV-like: lines with separator ';' or '\t' or '|'
+  // 1. JSON Array
+  try {
+    const jsonMatch = t.match(/\[\s*\{[\s\S]*\}\s*\]/);
+    if (jsonMatch) {
+      const arr = JSON.parse(jsonMatch[0]);
+      if (Array.isArray(arr) && arr.length > 0) {
+        const parsed = arr.map(item => ({
+          front: item.front || item.q || item.frage || item.question || item.Frage || '',
+          back: item.back || item.a || item.antwort || item.answer || item.Antwort || ''
+        })).filter(c => c.front && c.back);
+        if (parsed.length > 0) return parsed;
+      }
+    }
+  } catch (e) {}
+
   const lines = t.split('\n');
-  const csvCandidates = lines.filter(l => /;|\t|\|/.test(l));
-  if (csvCandidates.length >= 1) {
-    const parsed = csvCandidates.map(l => {
-      const sep = l.includes(';') ? ';' : (l.includes('\t') ? '\t' : '|');
-      const [q, a] = l.split(sep).map(s => s.trim());
-      return q && a ? { front: q, back: a } : null;
-    }).filter(Boolean);
-    if (parsed.length) return parsed;
+
+  // 2. Markdown Table
+  const tableLines = lines.filter(l => l.trim().includes('|'));
+  if (tableLines.length >= 3) {
+    const sepIndex = tableLines.findIndex(l => /\|?\s*[-:]+\s*\|/.test(l));
+    if (sepIndex !== -1 && sepIndex < 5) {
+      const out = [];
+      for (let i = sepIndex + 1; i < tableLines.length; i++) {
+        let row = tableLines[i].trim();
+        if (row.startsWith('|')) row = row.slice(1);
+        if (row.endsWith('|')) row = row.slice(0, -1);
+        const cols = row.split('|').map(s => s.trim());
+        if (cols.length >= 2) {
+          out.push({ front: cols[0], back: cols.slice(1).join(' | ') });
+        }
+      }
+      if (out.length > 0) return out;
+    }
   }
 
-  // Split by double newlines into blocks
+  // 3. Frage: / Antwort: or Q: / A:
+  const faRegex = /(?:Frage|Q|Question)[:]?\s*(.*?)\s*(?:Antwort|A|Answer)[:]?\s*([\s\S]*?)(?=(?:Frage|Q|Question)[:]?|$)/gi;
+  let match;
+  const faPairs = [];
+  while ((match = faRegex.exec(t)) !== null) {
+    if (match[1] && match[2]) {
+      faPairs.push({ front: match[1].trim(), back: match[2].trim() });
+    }
+  }
+  if (faPairs.length > 0) return faPairs;
+
+  // 4. TSV/CSV-like (ohne Pipe | wegen Tabellen)
+  const csvCandidates = lines.filter(l => /;|\t/.test(l));
+  if (csvCandidates.length >= 2 && csvCandidates.length > lines.length / 3) {
+    const parsed = csvCandidates.map(l => {
+      const sep = l.includes('\t') ? '\t' : ';';
+      const [q, ...rest] = l.split(sep).map(s => s.trim());
+      const a = rest.join(sep);
+      return q && a ? { front: q, back: a } : null;
+    }).filter(Boolean);
+    if (parsed.length > 0) return parsed;
+  }
+
+  // 5. Fallback: Split by double newlines into blocks
   const blocks = t.split(/\n{2,}/).map(b => b.trim()).filter(Boolean);
   const pairs = [];
   for (const block of blocks) {
-    // If block contains Q: and A:
-    if (/\bQ[:]?\b/i.test(block) && /\bA[:]?\b/i.test(block)) {
-      const qMatch = block.match(/Q[:]?\s*(.*?)\s*(?=A[:]?)/is);
-      const aMatch = block.match(/A[:]?\s*([\s\S]*)/i);
-      const q = qMatch ? qMatch[1].trim() : '';
-      const a = aMatch ? aMatch[1].trim() : '';
-      if (q || a) pairs.push({ front: q || block, back: a || '' });
-      continue;
-    }
-
-    // Otherwise, split by first newline: first line question, rest answer
     const blines = block.split('\n').map(s=>s.trim()).filter(Boolean);
     if (blines.length === 1) {
-      // single-line block, try split by ' - ' or ' — ' or ':'
       const sepMatch = block.match(/\s[-–—:]\s/);
       if (sepMatch) {
         const sep = sepMatch[0];
-        const [q,a] = block.split(sep).map(s=>s.trim());
-        if (q && a) { pairs.push({ front: q, back: a }); continue; }
+        const [q, ...rest] = block.split(sep).map(s=>s.trim());
+        const a = rest.join(sep);
+        if (q && a) pairs.push({ front: q, back: a });
+      } else {
+        pairs.push({ front: blines[0], back: '' });
       }
-      // as fallback, treat as front with empty back
-      pairs.push({ front: blines[0], back: '' });
     } else {
       const q = blines[0];
-      const a = blines.slice(1).join(' ');
+      const a = blines.slice(1).join('\n');
       pairs.push({ front: q, back: a });
     }
   }
 
-  // If no pairs found but lines are even, pair line-by-line
+  if (pairs.length > 0) return pairs;
+
+  // 6. If pairs still empty but lines exist, pair line by line
   if (pairs.length === 0 && lines.length >= 2) {
     const out = [];
     for (let i=0;i<lines.length;i+=2) {

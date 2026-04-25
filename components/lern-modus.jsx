@@ -190,6 +190,7 @@ const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
 const QuizMode = ({ sessionCards, reviewed, onGrade }) => {
   const [selected, setSelected] = useState(null);
   const [locked, setLocked] = useState(false);
+  const [correctCount, setCorrectCount] = useState(0);
   const card = sessionCards[reviewed];
 
   useEffect(() => { setSelected(null); setLocked(false); }, [reviewed]);
@@ -210,14 +211,21 @@ const QuizMode = ({ sessionCards, reviewed, onGrade }) => {
     if (locked) return;
     setSelected(i);
     setLocked(true);
-    const grade = i === correctIdx ? 3 : 1;
+    const isCorrect = i === correctIdx;
+    if (isCorrect) setCorrectCount(c => c + 1);
+    const grade = isCorrect ? 3 : 1;
     setTimeout(() => onGrade(card, grade), 1200);
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: '32px 0' }}>
       <div style={{ width: 640, background: 'white', borderRadius: 20, padding: 36, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
-        <div style={{ fontSize: 11, color: '#6366f1', fontWeight: 600, letterSpacing: '0.08em' }}>FRAGE {reviewed + 1} / {sessionCards.length}</div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 11, color: '#6366f1', fontWeight: 600, letterSpacing: '0.08em' }}>FRAGE {reviewed + 1} / {sessionCards.length}</div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#10b981', fontWeight: 600, background: '#d1fae5', padding: '4px 8px', borderRadius: 6 }}>
+            <Icons.Check size={12}/> {correctCount} RICHTIG
+          </div>
+        </div>
         <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 500, color: '#0f172a', marginTop: 10, lineHeight: 1.2 }}>
           {card.front}
         </div>
@@ -464,7 +472,7 @@ const LernModus = () => {
 
   return (
     <div className="dot-paper" style={{ minHeight: '100vh' }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 32px', background: 'white', borderBottom: '1px solid rgba(15,23,42,0.06)' }}>
+      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', margin: '14px 16px 0', background: 'white', borderRadius: 18, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.04)' }}>
         <a href={backHref} style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b', fontSize: 13 }}>
           <Icons.X size={16}/> Beenden
         </a>
@@ -526,7 +534,7 @@ const LernModus = () => {
                 reviewed={reviewed}
                 onGrade={handleGrade}
               />
-            ) : null}
+            )}
           </>
         )}
       </div>
