@@ -209,19 +209,20 @@ const AIUpload = () => {
   return (
     <div className="dot-paper" style={{ minHeight: '100vh' }}>
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', margin: '14px 16px 0', background: window.dm('white', '#161b22'), borderRadius: 18, border: `1px solid ${window.dm('rgba(15,23,42,0.06)', 'rgba(255,255,255,0.07)')}`, boxShadow: window.dm('0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.04)', '0 1px 2px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3)') }}>
-        <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-          <Icons.Logo size={28}/>
-          <span style={{ fontFamily: 'Instrument Sans', fontSize: 15, fontWeight: 600, color: window.dm('#0f172a', '#e6edf3'), letterSpacing: '-0.01em' }}>StudyFlow</span>
-        </a>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 500, color: window.dm('#0f172a', '#e6edf3') }}>
-          <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #6366f1, #818cf8)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <Icons.Sparkles size={14}/>
-          </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+            <Icons.Logo size={28}/>
+            <span style={{ fontFamily: 'Instrument Sans', fontSize: 15, fontWeight: 600, color: window.dm('#0f172a', '#e6edf3'), letterSpacing: '-0.01em' }}>StudyFlow</span>
+          </a>
+          <span style={{ color: window.dm('#e2e8f0', 'rgba(255,255,255,0.12)') }}>·</span>
+          <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 4, color: window.dm('#64748b', '#6e7681'), fontSize: 13, textDecoration: 'none' }}>
+            <Icons.ArrowLeft size={13}/> Dashboard
+          </a>
+        </div>
+        <div style={{ fontFamily: 'Caveat', fontSize: 22, fontWeight: 600, color: window.dm('#0f172a', '#e6edf3') }}>
           Flow AI
         </div>
-        <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, color: window.dm('#64748b', '#8b949e') }}>
-          <Icons.ArrowLeft size={13}/> Dashboard
-        </a>
+        <div style={{ fontSize: 12, color: window.dm('#94a3b8', '#484f58') }}>{recentDocs.length} Dokumente</div>
       </header>
 
       <div style={{ maxWidth: 780, margin: '0 auto', padding: '48px 32px 80px', position: 'relative' }}>

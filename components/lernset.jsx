@@ -380,17 +380,18 @@ const LernsetDetail = () => {
     <div className="dot-paper" style={{ minHeight: '100vh' }}>
       {/* Header */}
       <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 24px', margin: '14px 16px 0', background: window.dm('white', '#161b22'), borderRadius: 18, border: `1px solid ${window.dm('rgba(15,23,42,0.06)', 'rgba(255,255,255,0.07)')}`, boxShadow: window.dm('0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.04)', '0 1px 2px rgba(0,0,0,0.4), 0 4px 16px rgba(0,0,0,0.3)') }}>
-        <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
-          <Icons.Logo size={28}/>
-          <span style={{ fontFamily: 'Instrument Sans', fontSize: 15, fontWeight: 600, color: window.dm('#0f172a', '#e6edf3'), letterSpacing: '-0.01em' }}>StudyFlow</span>
-        </a>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: window.dm('#64748b', '#8b949e') }}>
-          <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 4, color: window.dm('#64748b', '#8b949e'), fontSize: 13 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 8, textDecoration: 'none' }}>
+            <Icons.Logo size={28}/>
+            <span style={{ fontFamily: 'Instrument Sans', fontSize: 15, fontWeight: 600, color: window.dm('#0f172a', '#e6edf3'), letterSpacing: '-0.01em' }}>StudyFlow</span>
+          </a>
+          <span style={{ color: window.dm('#e2e8f0', 'rgba(255,255,255,0.12)') }}>·</span>
+          <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 4, color: window.dm('#64748b', '#6e7681'), fontSize: 13, textDecoration: 'none' }}>
             <Icons.ArrowLeft size={13}/> Dashboard
           </a>
-          <span style={{ color: window.dm('#cbd5e1', 'rgba(255,255,255,0.15)') }}>·</span>
-          {studySet.folder && <><span style={{ color: window.dm('#64748b', '#8b949e') }}>{studySet.folder}</span><Icons.Chevron size={11}/></>}
-          <span style={{ color: window.dm('#0f172a', '#e6edf3'), fontWeight: 500 }}>{studySet.title}</span>
+        </div>
+        <div style={{ fontFamily: 'Caveat', fontSize: 22, fontWeight: 600, color: window.dm('#0f172a', '#e6edf3'), letterSpacing: '0.01em' }}>
+          {studySet.title}
         </div>
         <button className="btn-ghost" style={{ padding: '7px 12px', fontSize: 13 }}>
           <Icons.Share size={13}/> Teilen
