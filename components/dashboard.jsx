@@ -808,14 +808,16 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
 };
 
 // ─── TopBar ──────────────────────────────────────────────────
-const TopBar = ({ search, onSearch }) => (
+const TopBar = ({ search, onSearch, streak }) => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16 }}>
     <div style={{ flex: 1, maxWidth: 380, position: 'relative' }}>
       <div style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }}><Icons.Search size={15}/></div>
       <input className="input-paper" placeholder="Suchen…" value={search} onChange={e => onSearch(e.target.value)} style={{ paddingLeft: 36, background: 'white', padding: '8px 12px 8px 36px', fontSize: 13 }}/>
     </div>
     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-      <button style={{ background: 'white', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: 8, cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontFamily: 'inherit' }}><Icons.Bolt size={14}/> —</button>
+      <div title={`${streak || 0} Tage Streak`} style={{ background: 'white', border: '1px solid #e2e8f0', padding: '6px 10px', borderRadius: 8, color: streak > 0 ? '#f59e0b' : '#94a3b8', display: 'flex', alignItems: 'center', gap: 5, fontSize: 13, fontWeight: 600, fontFamily: 'inherit', userSelect: 'none' }}>
+        <Icons.Bolt size={14}/> {streak || 0}
+      </div>
       <button style={{ background: 'white', border: '1px solid #e2e8f0', padding: 7, borderRadius: 8, cursor: 'pointer', color: '#475569', display: 'flex' }}><Icons.Bell size={15}/></button>
     </div>
   </div>
@@ -874,7 +876,7 @@ const SetRow = ({ set, onDelete }) => {
 
 // ─── Stats ───────────────────────────────────────────────────
 const StatsRow = ({ stats }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, maxWidth: 820 }}>
     {[
       { label: 'Fällig heute', value: stats.dueToday || '0', sub: 'Karten' },
       { label: 'Diese Woche', value: stats.weekReviews || '0', sub: 'Karten geübt' },
@@ -918,6 +920,7 @@ const Dashboard = () => {
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
+  const [streak, setStreak] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -956,6 +959,24 @@ const Dashboard = () => {
     const { count: weekReviews } = await window.sb.from('card_reviews')
       .select('id', { count: 'exact', head: true }).eq('user_id', userId).gte('reviewed_at', weekAgo);
     setStats({ dueToday, weekReviews: weekReviews || 0, masteryPct, totalSets: enriched.length });
+
+    // Streak: consecutive days (incl. today) with at least one review
+    const { data: reviewDates } = await window.sb.from('card_reviews')
+      .select('reviewed_at').eq('user_id', userId).order('reviewed_at', { ascending: false }).limit(365);
+    if (reviewDates && reviewDates.length > 0) {
+      const daySet = new Set(reviewDates.map(r => r.reviewed_at.slice(0, 10)));
+      const todayStr = new Date().toISOString().slice(0, 10);
+      let s = 0, check = new Date();
+      // Allow starting from today or yesterday
+      if (!daySet.has(todayStr)) check.setDate(check.getDate() - 1);
+      while (true) {
+        const key = check.toISOString().slice(0, 10);
+        if (!daySet.has(key)) break;
+        s++;
+        check.setDate(check.getDate() - 1);
+      }
+      setStreak(s);
+    }
   };
 
   // Abmelden-Button wurde entfernt (Sidebar-UI)
@@ -989,7 +1010,7 @@ const Dashboard = () => {
       <Sidebar user={user} profile={profile} sets={sets} active={active} onNav={setActive} onNewSet={() => setShowModal(true)}/>
 
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '18px 22px 14px', minWidth: 0, gap: 16, overflow: 'hidden' }}>
-        <TopBar search={search} onSearch={setSearch}/>
+        <TopBar search={search} onSearch={setSearch} streak={streak}/>
 
         {showDocs && <DocsPanel userId={user?.id} profile={profile} onSetCreated={handleSetCreated} targetSetId={targetSetId}/>}
         {showSettings && <SettingsPanel user={user} profile={profile} onProfileUpdate={setProfile}/>}
@@ -1024,12 +1045,12 @@ const Dashboard = () => {
               </div>
 
               {filteredSets.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 110px 90px 70px 80px', gap: 14, padding: '0 14px', fontSize: 10.5, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase' }}>
+                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 110px 90px 70px 80px', gap: 14, padding: '0 14px', fontSize: 10.5, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', maxWidth: 820 }}>
                   <div>Name</div><div>Fortschritt</div><div>Status</div><div>Team</div><div></div>
                 </div>
               )}
 
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4, paddingBottom: 70 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4, paddingBottom: 70, maxWidth: 820 }}>
                 {filteredSets.length > 0
                   ? filteredSets.map(s => <SetRow key={s.id} set={s} onDelete={handleSetDeleted}/>)
                   : <EmptyState onNewSet={() => setShowModal(true)}/>
