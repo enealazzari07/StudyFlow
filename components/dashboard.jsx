@@ -821,6 +821,276 @@ const TopBar = ({ search, onSearch }) => (
   </div>
 );
 
+// ─── Notes Panel ─────────────────────────────────────────────
+const FOLDER_COLORS = ['#6366f1','#ef4444','#f59e0b','#10b981','#06b6d4','#8b5cf6','#ec4899','#475569'];
+const PAGE_MIME = 'application/studyflow-page+json';
+
+function notesUid() { return Math.random().toString(36).slice(2, 9); }
+
+const NotesFolderModal = ({ folder, onSave, onDelete, onClose }) => {
+  const [name, setName] = useState(folder?.name || '');
+  const [color, setColor] = useState(folder?.color || FOLDER_COLORS[0]);
+  const ref = useRef(null);
+  useEffect(() => { ref.current?.focus(); }, []);
+  return (
+    <div style={{ position:'fixed', inset:0, background:'rgba(15,23,42,0.4)', zIndex:300, display:'flex', alignItems:'center', justifyContent:'center', padding:24 }} onClick={onClose}>
+      <div style={{ background:'white', borderRadius:20, padding:28, width:380, boxShadow:'0 20px 60px rgba(15,23,42,0.2)' }} onClick={e=>e.stopPropagation()}>
+        <div style={{ fontFamily:'Instrument Sans', fontSize:17, fontWeight:600, color:'#0f172a', marginBottom:20 }}>{folder ? 'Ordner bearbeiten' : 'Neuer Ordner'}</div>
+        <label style={{ fontSize:12, fontWeight:500, color:'#475569', display:'block', marginBottom:6 }}>Name</label>
+        <input ref={ref} value={name} onChange={e=>setName(e.target.value)}
+          onKeyDown={e=>{ if(e.key==='Enter'&&name.trim()) onSave(name.trim(), color); if(e.key==='Escape') onClose(); }}
+          placeholder="z.B. Physik, Mathe…" className="input-paper" style={{ marginBottom:18, width:'100%' }}/>
+        <label style={{ fontSize:12, fontWeight:500, color:'#475569', display:'block', marginBottom:8 }}>Farbe</label>
+        <div style={{ display:'flex', gap:8, flexWrap:'wrap', marginBottom:24 }}>
+          {FOLDER_COLORS.map(c => (
+            <button key={c} onClick={()=>setColor(c)} style={{ width:30, height:30, borderRadius:'50%', background:c, border: color===c?'3px solid #0f172a':'3px solid transparent', cursor:'pointer', padding:0, outline:'none' }}/>
+          ))}
+        </div>
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={onClose} className="btn-ghost" style={{ flex:1, justifyContent:'center', padding:'9px 0' }}>Abbrechen</button>
+          <button onClick={()=>name.trim()&&onSave(name.trim(),color)} disabled={!name.trim()} className="btn-primary" style={{ flex:1, justifyContent:'center', padding:'9px 0', opacity:!name.trim()?0.5:1 }}>Speichern</button>
+        </div>
+        {folder && onDelete && (
+          <button onClick={onDelete} style={{ marginTop:12, width:'100%', background:'none', border:'none', color:'#dc2626', cursor:'pointer', fontSize:12, padding:'6px 0' }}>Ordner löschen</button>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const NotesPanel = ({ userId }) => {
+  const { useRef: useR } = React;
+  const [notes, setNotes] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [folders, setFolders] = useState([]);
+  const [docFolders, setDocFolders] = useState({});
+  const [currentFolder, setCurrentFolder] = useState(null);
+  const [showFolderModal, setShowFolderModal] = useState(false);
+  const [editingFolder, setEditingFolder] = useState(null);
+  const [contextDoc, setContextDoc] = useState(null); // { id, x, y }
+
+  const lsKey = `sf_notes_v1_${userId}`;
+
+  useEffect(() => {
+    if (!userId) return;
+    try {
+      const raw = localStorage.getItem(lsKey);
+      if (raw) { const { folders: f=[], docFolders: df={} } = JSON.parse(raw); setFolders(f); setDocFolders(df); }
+    } catch {}
+  }, [userId]);
+
+  const persist = (f, df) => {
+    try { localStorage.setItem(lsKey, JSON.stringify({ folders: f, docFolders: df })); } catch {}
+  };
+
+  useEffect(() => {
+    if (!userId) return;
+    (async () => {
+      const { data } = await window.sb.from('documents')
+        .select('id, name, mime_type, file_size, updated_at')
+        .eq('owner_id', userId)
+        .order('updated_at', { ascending: false });
+      setNotes(data || []);
+      setLoading(false);
+    })();
+  }, [userId]);
+
+  const createFolder = (name, color) => {
+    const f = { id: notesUid(), name, color };
+    const nf = [...folders, f];
+    setFolders(nf); persist(nf, docFolders);
+  };
+  const updateFolder = (id, name, color) => {
+    const nf = folders.map(f => f.id===id?{...f,name,color}:f);
+    setFolders(nf); persist(nf, docFolders);
+  };
+  const deleteFolder = (id) => {
+    const nf = folders.filter(f=>f.id!==id);
+    const ndf = Object.fromEntries(Object.entries(docFolders).filter(([,v])=>v!==id));
+    setFolders(nf); setDocFolders(ndf); persist(nf, ndf);
+    if (currentFolder?.id===id) setCurrentFolder(null);
+  };
+  const moveDoc = (docId, folderId) => {
+    const ndf = folderId ? {...docFolders,[docId]:folderId} : Object.fromEntries(Object.entries(docFolders).filter(([k])=>k!==docId));
+    setDocFolders(ndf); persist(folders, ndf);
+  };
+  const deleteDoc = async (id) => {
+    if (!confirm('Note wirklich löschen?')) return;
+    await window.sb.from('documents').delete().eq('id', id);
+    setNotes(prev => prev.filter(n => n.id !== id));
+    const ndf = Object.fromEntries(Object.entries(docFolders).filter(([k])=>k!==id));
+    setDocFolders(ndf); persist(folders, ndf);
+  };
+
+  const openNew = (type) => {
+    const p = new URLSearchParams({ type });
+    if (currentFolder) p.set('folderId', currentFolder.id);
+    window.location.href = `dokument.html?${p}`;
+  };
+
+  const noteTitle = (n) => (n.name||'').replace(/\.studyflow\.json$/, '').replace(/\.studyflow$/, '') || 'Ohne Titel';
+  const isWB = (n) => n.mime_type !== PAGE_MIME;
+  const visibleNotes = currentFolder
+    ? notes.filter(n => docFolders[n.id] === currentFolder.id)
+    : notes.filter(n => !docFolders[n.id]);
+
+  return (
+    <div style={{ flex:1, display:'flex', flexDirection:'column', gap:0, overflow:'hidden', minHeight:0 }}>
+      {/* Header */}
+      <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:16, flexShrink:0 }}>
+        <div style={{ display:'flex', alignItems:'center', gap:10 }}>
+          {currentFolder && (
+            <button onClick={()=>setCurrentFolder(null)} className="btn-ghost" style={{ padding:'5px 10px', fontSize:12, display:'flex', alignItems:'center', gap:4 }}>
+              <Icons.ArrowLeft size={12}/> Alle Notes
+            </button>
+          )}
+          <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+            {currentFolder && <div style={{ width:10, height:10, borderRadius:'50%', background:currentFolder.color }}/>}
+            <h1 style={{ fontFamily:'Instrument Sans', fontSize:22, fontWeight:600, color:'#0f172a', letterSpacing:'-0.02em', margin:0 }}>
+              {currentFolder ? currentFolder.name : 'Notes'}
+            </h1>
+          </div>
+        </div>
+        <div style={{ display:'flex', gap:8 }}>
+          <button onClick={()=>{setEditingFolder(null);setShowFolderModal(true);}} className="btn-ghost" style={{ padding:'7px 12px', fontSize:12, display:'flex', alignItems:'center', gap:5 }}>
+            <Icons.Plus size={12}/> Ordner
+          </button>
+          <button onClick={()=>openNew('whiteboard')} className="btn-ghost" style={{ padding:'7px 12px', fontSize:12, display:'flex', alignItems:'center', gap:5 }}>
+            ✏️ Whiteboard
+          </button>
+          <button onClick={()=>openNew('document')} className="btn-primary" style={{ padding:'7px 12px', fontSize:12, display:'flex', alignItems:'center', gap:5 }}>
+            📄 Dokument
+          </button>
+        </div>
+      </div>
+
+      <div style={{ flex:1, overflowY:'auto', paddingBottom:80, minHeight:0 }}>
+        {/* Folders (root only) */}
+        {!currentFolder && folders.length > 0 && (
+          <div style={{ marginBottom:24 }}>
+            <div style={{ fontSize:10.5, fontWeight:600, color:'#94a3b8', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:10 }}>Ordner</div>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(160px, 1fr))', gap:10 }}>
+              {folders.map(folder => {
+                const count = notes.filter(n => docFolders[n.id] === folder.id).length;
+                return (
+                  <div key={folder.id}
+                    style={{ background:'white', borderRadius:12, padding:'12px 14px', cursor:'pointer', border:`1.5px solid ${folder.color}30`, display:'flex', alignItems:'center', gap:10, position:'relative', transition:'box-shadow 0.15s' }}
+                    onClick={()=>setCurrentFolder(folder)}
+                    onMouseEnter={e=>e.currentTarget.style.boxShadow='0 4px 12px rgba(15,23,42,0.08)'}
+                    onMouseLeave={e=>e.currentTarget.style.boxShadow='none'}>
+                    <div style={{ width:34, height:34, borderRadius:9, background:folder.color, display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0 }}>
+                      <span style={{ fontSize:16 }}>📁</span>
+                    </div>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ fontWeight:500, fontSize:13, color:'#0f172a', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{folder.name}</div>
+                      <div style={{ fontSize:11, color:'#94a3b8' }}>{count} {count===1?'Item':'Items'}</div>
+                    </div>
+                    <button onClick={e=>{e.stopPropagation();setEditingFolder(folder);setShowFolderModal(true);}}
+                      style={{ position:'absolute', top:6, right:6, background:'none', border:'none', color:'#cbd5e1', cursor:'pointer', padding:2, borderRadius:4, lineHeight:1 }}
+                      title="Bearbeiten">⋯</button>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Notes header */}
+        {(!currentFolder && folders.length > 0) && (
+          <div style={{ fontSize:10.5, fontWeight:600, color:'#94a3b8', letterSpacing:'0.06em', textTransform:'uppercase', marginBottom:10 }}>Notizen</div>
+        )}
+
+        {/* Notes grid */}
+        {loading ? (
+          <div style={{ color:'#94a3b8', fontFamily:'Caveat', fontSize:20, textAlign:'center', paddingTop:40 }}>Lädt…</div>
+        ) : visibleNotes.length === 0 ? (
+          <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:14, paddingTop:60, color:'#94a3b8' }}>
+            <div style={{ fontSize:42 }}>{currentFolder ? '📂' : '✏️'}</div>
+            <div style={{ fontFamily:'Caveat', fontSize:22 }}>{currentFolder ? 'Ordner ist leer' : 'Noch keine Notes'}</div>
+            <div style={{ fontSize:13, textAlign:'center' }}>Erstelle ein Whiteboard oder Dokument mit den Buttons oben rechts.</div>
+          </div>
+        ) : (
+          <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(170px, 1fr))', gap:12 }}>
+            {visibleNotes.map(note => (
+              <div key={note.id} style={{ position:'relative' }}
+                onContextMenu={e=>{e.preventDefault();setContextDoc({id:note.id,x:e.clientX,y:e.clientY});}}>
+                <a href={`dokument.html?id=${note.id}`}
+                  style={{ display:'flex', flexDirection:'column', textDecoration:'none', background:'white', borderRadius:12, border:'1px solid rgba(15,23,42,0.06)', overflow:'hidden', transition:'box-shadow 0.15s, border-color 0.15s' }}
+                  onMouseEnter={e=>{e.currentTarget.style.boxShadow='0 4px 16px rgba(15,23,42,0.08)';e.currentTarget.style.borderColor='#cbd5e1';}}
+                  onMouseLeave={e=>{e.currentTarget.style.boxShadow='none';e.currentTarget.style.borderColor='rgba(15,23,42,0.06)';}}>
+                  {/* Thumbnail */}
+                  <div style={{ height:100, background: isWB(note) ? '#f8fafc' : '#fff', borderBottom:'1px solid rgba(15,23,42,0.05)', display:'flex', alignItems:'center', justifyContent:'center', position:'relative', overflow:'hidden' }}>
+                    {isWB(note) ? (
+                      <div style={{ backgroundImage:'radial-gradient(circle, #cbd5e1 1px, transparent 1px)', backgroundSize:'16px 16px', position:'absolute', inset:0, opacity:0.6 }}/>
+                    ) : (
+                      <div style={{ background:'white', width:70, height:90, borderRadius:2, boxShadow:'0 2px 8px rgba(15,23,42,0.12)', border:'1px solid #e2e8f0' }}/>
+                    )}
+                    <div style={{ position:'relative', fontSize:28, zIndex:1 }}>{isWB(note)?'🖊️':'📄'}</div>
+                  </div>
+                  {/* Info */}
+                  <div style={{ padding:'10px 12px' }}>
+                    <div style={{ fontWeight:500, fontSize:13, color:'#0f172a', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{noteTitle(note)}</div>
+                    <div style={{ fontSize:11, color:'#94a3b8', marginTop:2, display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                      <span>{isWB(note)?'Whiteboard':'Dokument'}</span>
+                      <span>{relativeTime(note.updated_at)}</span>
+                    </div>
+                  </div>
+                </a>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Context menu */}
+      {contextDoc && (
+        <div style={{ position:'fixed', left:contextDoc.x, top:contextDoc.y, background:'white', borderRadius:10, boxShadow:'0 8px 24px rgba(15,23,42,0.15)', border:'1px solid rgba(15,23,42,0.08)', padding:'4px 0', zIndex:500, minWidth:180 }}
+          onClick={()=>setContextDoc(null)} onMouseLeave={()=>setContextDoc(null)}>
+          {folders.length > 0 && (
+            <>
+              <div style={{ fontSize:10.5, fontWeight:600, color:'#94a3b8', letterSpacing:'0.06em', textTransform:'uppercase', padding:'6px 14px 2px' }}>In Ordner verschieben</div>
+              {folders.map(f => (
+                <button key={f.id} onClick={()=>{moveDoc(contextDoc.id, f.id);setContextDoc(null);}}
+                  style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'7px 14px', background:'none', border:'none', cursor:'pointer', fontSize:13, color:'#0f172a', textAlign:'left' }}
+                  onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'} onMouseLeave={e=>e.currentTarget.style.background='none'}>
+                  <div style={{ width:10, height:10, borderRadius:'50%', background:f.color, flexShrink:0 }}/>{f.name}
+                </button>
+              ))}
+              {docFolders[contextDoc.id] && (
+                <button onClick={()=>{moveDoc(contextDoc.id, null);setContextDoc(null);}}
+                  style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'7px 14px', background:'none', border:'none', cursor:'pointer', fontSize:13, color:'#64748b', textAlign:'left' }}
+                  onMouseEnter={e=>e.currentTarget.style.background='#f8fafc'} onMouseLeave={e=>e.currentTarget.style.background='none'}>
+                  Aus Ordner entfernen
+                </button>
+              )}
+              <div style={{ height:1, background:'#f1f5f9', margin:'4px 0' }}/>
+            </>
+          )}
+          <button onClick={()=>{deleteDoc(contextDoc.id);setContextDoc(null);}}
+            style={{ display:'flex', alignItems:'center', gap:8, width:'100%', padding:'7px 14px', background:'none', border:'none', cursor:'pointer', fontSize:13, color:'#dc2626', textAlign:'left' }}
+            onMouseEnter={e=>e.currentTarget.style.background='#fef2f2'} onMouseLeave={e=>e.currentTarget.style.background='none'}>
+            <Icons.Trash size={12}/> Löschen
+          </button>
+        </div>
+      )}
+
+      {/* Folder modal */}
+      {showFolderModal && (
+        <NotesFolderModal
+          folder={editingFolder}
+          onSave={(name, color) => {
+            if (editingFolder) updateFolder(editingFolder.id, name, color);
+            else createFolder(name, color);
+            setShowFolderModal(false); setEditingFolder(null);
+          }}
+          onDelete={editingFolder ? ()=>{ deleteFolder(editingFolder.id); setShowFolderModal(false); setEditingFolder(null); } : null}
+          onClose={() => { setShowFolderModal(false); setEditingFolder(null); }}
+        />
+      )}
+    </div>
+  );
+};
+
 // ─── Set Row ─────────────────────────────────────────────────
 const SetRow = ({ set, onDelete }) => {
   const pct = set.total_cards ? Math.round((set.mastered_cards / set.total_cards) * 100) : 0;
@@ -1012,7 +1282,7 @@ const Dashboard = () => {
       <main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '18px 22px 14px', minWidth: 0, gap: 16, overflow: 'hidden' }}>
         <TopBar search={search} onSearch={setSearch}/>
 
-        {showDocs && <DocsPanel userId={user?.id} profile={profile} onSetCreated={handleSetCreated} targetSetId={targetSetId}/>}
+        {showDocs && <NotesPanel userId={user?.id}/>}
         {showSettings && <SettingsPanel user={user} profile={profile} onProfileUpdate={setProfile}/>}
 
         {showSets && (

@@ -272,13 +272,46 @@ const PresenceCursors = ({ cursors, myId }) => (
   </>
 );
 
+// ─── Canvas render with optional page guides ──────────────────
+function redrawCanvasWithPages(ctx, elements, selectedId, previewEl, numPages, cssW, cssH) {
+  ctx.clearRect(0, 0, cssW, cssH);
+  if (numPages > 0) {
+    // Document mode: gray background + white A4 pages
+    ctx.fillStyle = '#e5e7eb';
+    ctx.fillRect(0, 0, cssW, cssH);
+    for (let p = 0; p < numPages; p++) {
+      const px = 30, py = 30 + p * (PAGE_H + PAGE_GAP);
+      ctx.fillStyle = 'white';
+      ctx.shadowColor = 'rgba(15,23,42,0.12)';
+      ctx.shadowBlur = 12;
+      ctx.fillRect(px, py, PAGE_W, PAGE_H);
+      ctx.shadowBlur = 0;
+      // Page number
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '11px Instrument Sans, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText(`${p + 1}`, px + PAGE_W / 2, py + PAGE_H + 18);
+    }
+  } else {
+    // Whiteboard: white canvas (dots come from container CSS)
+    ctx.fillStyle = 'transparent';
+    ctx.clearRect(0, 0, cssW, cssH);
+  }
+  redrawCanvas(ctx, elements, selectedId, previewEl);
+}
+
 // ─── Main Whiteboard ──────────────────────────────────────────
-const Whiteboard = ({ elements, setElements, textItems, setTextItems, colChannel, myId, myName, docId }) => {
+const PAGE_W = 794, PAGE_H = 1123, PAGE_GAP = 28;
+
+function docCanvasHeight(numPages) { return numPages * PAGE_H + (numPages - 1) * PAGE_GAP + 60; }
+
+const Whiteboard = ({ elements, setElements, textItems, setTextItems, colChannel, myId, myName, docId, docType, numPages, setNumPages }) => {
   const canvasRef = useRef(null);
   const containerRef = useRef(null);
   const drawingRef = useRef({ active:false, stroke:null, startX:0, startY:0 });
   const dragRef = useRef({ active:false, targetId:null, part:null });
   const imgInputRef = useRef(null);
+  const isDoc = docType === 'document';
 
   const [tool, setTool] = useState('pen');
   const [color, setColor] = useState('#0f172a');
@@ -292,28 +325,28 @@ const Whiteboard = ({ elements, setElements, textItems, setTextItems, colChannel
   const lastCursorBroadcast = useRef(0);
   const lastPos = useRef({ x: 0, y: 0 });
 
-  // Canvas setup
-  useEffect(() => {
+  // Canvas setup — fixed large size for whiteboard, page-based for document
+  const initCanvas = useCallback(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
-    const resize = () => {
-      const r = canvas.getBoundingClientRect();
-      const dpr = window.devicePixelRatio || 1;
-      const w = Math.floor(r.width * dpr), h = Math.floor(r.height * dpr);
-      if (canvas.width !== w || canvas.height !== h) {
-        canvas.width = w; canvas.height = h;
-        const ctx = canvas.getContext('2d');
-        ctx.scale(dpr, dpr);
-      }
-      const ctx = canvas.getContext('2d');
-      redrawCanvas(ctx, elements, selectedId, previewEl);
-    };
-    resize();
-    const ro = new ResizeObserver(resize);
-    ro.observe(canvas);
-    window.addEventListener('resize', resize);
-    return () => { ro.disconnect(); window.removeEventListener('resize', resize); };
-  }, []);
+    const dpr = window.devicePixelRatio || 1;
+    let cssW, cssH;
+    if (isDoc) {
+      cssW = PAGE_W + 60;
+      cssH = docCanvasHeight(numPages || 1);
+    } else {
+      cssW = 3200; cssH = 2200;
+    }
+    canvas.style.width = cssW + 'px';
+    canvas.style.height = cssH + 'px';
+    canvas.width = Math.floor(cssW * dpr);
+    canvas.height = Math.floor(cssH * dpr);
+    const ctx = canvas.getContext('2d');
+    ctx.scale(dpr, dpr);
+    redrawCanvasWithPages(ctx, elements, selectedId, previewEl, isDoc ? (numPages || 1) : 0, cssW, cssH);
+  }, [isDoc, numPages]);
+
+  useEffect(() => { initCanvas(); }, [isDoc, numPages]);
 
   // Redraw on data change
   useEffect(() => {
@@ -322,8 +355,9 @@ const Whiteboard = ({ elements, setElements, textItems, setTextItems, colChannel
     const ctx = canvas.getContext('2d');
     const dpr = window.devicePixelRatio || 1;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    redrawCanvas(ctx, elements, selectedId, previewEl);
-  }, [elements, selectedId, previewEl]);
+    const cssW = canvas.width / dpr, cssH = canvas.height / dpr;
+    redrawCanvasWithPages(ctx, elements, selectedId, previewEl, isDoc ? (numPages || 1) : 0, cssW, cssH);
+  }, [elements, selectedId, previewEl, isDoc, numPages]);
 
   // Collab: subscribe to remote events
   useEffect(() => {
@@ -676,14 +710,20 @@ const Whiteboard = ({ elements, setElements, textItems, setTextItems, colChannel
             </>
           )}
 
-          <div style={{ marginLeft:'auto', fontSize:11, color:'#94a3b8' }}>
-            Strg+Z zum Rückgängig
+          <div style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:10 }}>
+            {isDoc && (
+              <button onClick={()=>setNumPages(p=>(p||1)+1)} style={{ padding:'4px 10px', background:'#eef2ff', color:'#4f46e5', border:'none', borderRadius:6, fontSize:11.5, fontWeight:500, cursor:'pointer', display:'flex', alignItems:'center', gap:4 }}>
+                + Seite
+              </button>
+            )}
+            <span style={{ fontSize:11, color:'#94a3b8' }}>Strg+Z zum Rückgängig</span>
           </div>
         </div>
 
         {/* Canvas + overlays */}
-        <div ref={containerRef} style={{ flex:1, position:'relative', overflow:'hidden', background:'white' }}>
-          <canvas ref={canvasRef} style={{ width:'100%', height:'100%', display:'block', touchAction:'none', cursor }}
+        <div ref={containerRef} style={{ flex:1, position:'relative', overflow:'auto', background: isDoc ? '#e5e7eb' : undefined }}
+          className={isDoc ? undefined : 'dot-paper'}>
+          <canvas ref={canvasRef} style={{ display:'block', touchAction:'none', cursor }}
             onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp}/>
 
           {/* Text/formula overlays */}
@@ -774,8 +814,14 @@ const Whiteboard = ({ elements, setElements, textItems, setTextItems, colChannel
 };
 
 // ─── Main Page ─────────────────────────────────────────────────
+const PAGE_MIME_DOC = 'application/studyflow-page+json';
+
 const DokumentEditor = () => {
-  const docId = useMemo(() => new URLSearchParams(window.location.search).get('id'), []);
+  const params = useMemo(() => new URLSearchParams(window.location.search), []);
+  const docId = params.get('id');
+  const urlType = params.get('type'); // 'whiteboard' | 'document'
+  const urlFolderId = params.get('folderId');
+
   const [user, setUser] = useState(null);
   const [docRow, setDocRow] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -785,6 +831,8 @@ const DokumentEditor = () => {
   const [title, setTitle] = useState('Neue Note');
   const [elements, setElements] = useState([]);
   const [textItems, setTextItems] = useState([]);
+  const [numPages, setNumPages] = useState(1);
+  const [docType, setDocType] = useState(urlType || 'whiteboard');
   const [showShare, setShowShare] = useState(false);
   const [colChannel, setColChannel] = useState(null);
   const [myId] = useState(() => uid());
@@ -811,6 +859,9 @@ const DokumentEditor = () => {
               if (dl) {
                 const parsed = JSON.parse(await dl.text());
                 setTitle(parsed.title || 'Note');
+                if (parsed.docType) setDocType(parsed.docType);
+                else if (row.mime_type === PAGE_MIME_DOC) setDocType('document');
+                if (parsed.numPages) setNumPages(parsed.numPages);
                 const els = Array.isArray(parsed.elements) ? parsed.elements : [];
                 // Restore image _img references
                 const restored = await Promise.all(els.map(el => {
@@ -861,28 +912,40 @@ const DokumentEditor = () => {
     if (!silent) setSaving(true);
     setError('');
     try {
+      const mimeType = docType === 'document' ? PAGE_MIME_DOC : DOC_MIME;
       const payload = {
         type: 'studyflow_doc', version: DOC_VERSION,
+        docType, numPages: docType === 'document' ? numPages : undefined,
         title: title?.trim() || 'Note',
         elements: elements.map(({ _img, ...el }) => el),
         textItems,
         updated_at: new Date().toISOString(),
       };
       const json = JSON.stringify(payload);
-      const blob = new Blob([json], { type: DOC_MIME });
+      const blob = new Blob([json], { type: mimeType });
       const safe = payload.title.replace(/[^a-zA-Z0-9._-]/g, '_');
       let path = docRow?.file_path || `${user.id}/${Date.now()}_${safe}.studyflow.json`;
 
-      await window.sb.storage.from('documents').upload(path, blob, { contentType: DOC_MIME, upsert: true });
+      await window.sb.storage.from('documents').upload(path, blob, { contentType: mimeType, upsert: true });
 
       if (!docRow) {
         const { data: row } = await window.sb.from('documents').insert({
           owner_id: user.id, name: `${payload.title}.studyflow.json`,
-          file_path: path, file_size: blob.size, mime_type: DOC_MIME, ai_processed: false,
+          file_path: path, file_size: blob.size, mime_type: mimeType, ai_processed: false,
         }).select().single();
         if (row) {
           setDocRow(row);
           window.history.replaceState({}, '', `?id=${row.id}`);
+          // Store folder association in localStorage if we came from a folder
+          if (urlFolderId) {
+            try {
+              const lsKey = `sf_notes_v1_${user.id}`;
+              const raw = localStorage.getItem(lsKey);
+              const stored = raw ? JSON.parse(raw) : { folders: [], docFolders: {} };
+              stored.docFolders[row.id] = urlFolderId;
+              localStorage.setItem(lsKey, JSON.stringify(stored));
+            } catch {}
+          }
         }
       } else {
         await window.sb.from('documents').update({
@@ -912,7 +975,10 @@ const DokumentEditor = () => {
           <input value={title} onChange={e=>setTitle(e.target.value)}
             style={{ fontFamily:'Instrument Sans', fontSize:15, fontWeight:600, color:'#0f172a', border:'none', outline:'none', background:'transparent', minWidth:0, flex:1 }}
             placeholder="Titel…"/>
-          <div style={{ fontSize:11, color:'#94a3b8', flexShrink:0, whiteSpace:'nowrap' }}>
+          <div style={{ fontSize:11, color:'#94a3b8', flexShrink:0, whiteSpace:'nowrap', display:'flex', alignItems:'center', gap:6 }}>
+            <span style={{ fontSize:10, padding:'2px 7px', borderRadius:999, background: docType==='document'?'#f1f5f9':'#eef2ff', color: docType==='document'?'#475569':'#4f46e5', fontWeight:500 }}>
+              {docType === 'document' ? '📄 Dokument' : '🖊️ Whiteboard'}
+            </span>
             {formatFileSize(docRow?.file_size)}
             {savedAt && ` · ${savedAt.toLocaleTimeString('de-DE',{hour:'2-digit',minute:'2-digit'})}`}
           </div>
@@ -940,13 +1006,15 @@ const DokumentEditor = () => {
         </div>
       )}
 
-      {/* Whiteboard */}
-      <div style={{ flex:1, overflow:'hidden', margin:'12px', borderRadius:16, border:'1px solid rgba(15,23,42,0.07)', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', background:'white' }}>
+      {/* Whiteboard / Document canvas */}
+      <div style={{ flex:1, overflow:'hidden', margin:'12px', borderRadius:16, border:'1px solid rgba(15,23,42,0.07)', boxShadow:'0 2px 12px rgba(15,23,42,0.06)', background: docType === 'document' ? '#e5e7eb' : 'white' }}>
         <Whiteboard
           elements={elements} setElements={setElements}
           textItems={textItems} setTextItems={setTextItems}
           colChannel={colChannel} myId={myId} myName={myName}
           docId={docRow?.id}
+          docType={docType}
+          numPages={numPages} setNumPages={setNumPages}
         />
       </div>
 
