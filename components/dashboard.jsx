@@ -663,98 +663,6 @@ const DocsPanel = ({ userId }) => {
   );
 };
 
-// ─── Stats Panel ─────────────────────────────────────────────
-const StatsPanel = ({ stats, streak, sets, profile }) => {
-  const heatmapCells = React.useMemo(() => Array.from({ length: 14 * 7 }).map((_, i) => {
-    const pseudo = (Math.sin(i * 12.9898) * 43758.5453) % 1;
-    const r = Math.abs(pseudo);
-    if (r < 0.35) return 0;
-    if (r < 0.6) return 0.2;
-    if (r < 0.78) return 0.4;
-    if (r < 0.92) return 0.65;
-    return 1;
-  }), []);
-
-  const weeklyGoal = profile?.weekly_goal || 20;
-  const weekReviews = stats?.weekReviews || 0;
-  const goalPct = Math.min(100, Math.round((weekReviews / weeklyGoal) * 100));
-
-  return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 24, flex: 1, minHeight: 0, overflowY: 'auto', paddingBottom: 80 }}>
-      <div>
-        <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em', margin: 0 }}>Fortschritt & Aktivität</h1>
-        <div style={{ fontSize: 13, color: '#64748b', marginTop: 4 }}>Deine Lernstatistiken im Detail.</div>
-      </div>
-
-      <StatsRow stats={stats}/>
-
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-        {/* Heatmap */}
-        <div style={{ background: 'white', borderRadius: 16, padding: 24, border: '1px solid rgba(15,23,42,0.06)' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 16 }}>Aktivität (letzte 14 Wochen)</div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 24 }}>
-            <div style={{ textAlign: 'center' }}>
-              <div style={{ fontFamily: 'Caveat', fontSize: 36, fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>{streak || 0}</div>
-              <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>Tage Streak</div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(14, 1fr)', gap: 3, flex: 1 }}>
-              {heatmapCells.map((intensity, i) => (
-                <div key={i} style={{ aspectRatio: 1, borderRadius: 2, background: intensity === 0 ? '#f1f5f9' : `rgba(99,102,241,${intensity})` }}></div>
-              ))}
-            </div>
-          </div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', gap: 4, marginTop: 12, fontSize: 10, color: '#94a3b8' }}>
-            <span>weniger</span>
-            {[0, 0.2, 0.4, 0.65, 1].map(v => (
-              <div key={v} style={{ width: 8, height: 8, borderRadius: 2, background: v === 0 ? '#f1f5f9' : `rgba(99,102,241,${v})` }}></div>
-            ))}
-            <span>mehr</span>
-          </div>
-        </div>
-
-        {/* Wochenziel */}
-        <div style={{ background: 'white', borderRadius: 16, padding: 24, border: '1px solid rgba(15,23,42,0.06)' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 16 }}>Wochenziel</div>
-          <div style={{ display: 'flex', alignItems: 'flex-end', gap: 8 }}>
-            <span style={{ fontFamily: 'Instrument Sans', fontSize: 36, fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>{weekReviews}</span>
-            <span style={{ fontSize: 14, color: '#64748b', paddingBottom: 4 }}>/ {weeklyGoal} Karten</span>
-          </div>
-          <div style={{ height: 8, background: '#f1f5f9', borderRadius: 999, marginTop: 16, overflow: 'hidden' }}>
-            <div style={{ width: `${goalPct}%`, height: '100%', background: goalPct >= 100 ? '#10b981' : '#6366f1', borderRadius: 999 }}/>
-          </div>
-          <div style={{ fontSize: 12, color: '#64748b', marginTop: 12 }}>
-            {goalPct >= 100 ? 'Ziel erreicht! Großartige Arbeit 🎉' : `Noch ${Math.max(0, weeklyGoal - weekReviews)} Karten bis zum Ziel.`}
-          </div>
-        </div>
-
-        {/* Lernsets Overview */}
-        <div style={{ background: 'white', borderRadius: 16, padding: 24, border: '1px solid rgba(15,23,42,0.06)', gridColumn: '1 / -1' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 16 }}>Lernsets Fortschritt</div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))', gap: 16 }}>
-            {sets.map(s => {
-              const pct = s.total_cards ? Math.round((s.mastered_cards / s.total_cards) * 100) : 0;
-              return (
-                <div key={s.id} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 12, border: '1px solid rgba(15,23,42,0.04)', borderRadius: 10 }}>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 12.5, fontWeight: 500, color: '#0f172a', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.title}</div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
-                      <div style={{ flex: 1, height: 4, background: '#f1f5f9', borderRadius: 999, overflow: 'hidden' }}>
-                        <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#059669' : 'linear-gradient(90deg, #6366f1, #818cf8)', borderRadius: 999 }}/>
-                      </div>
-                      <span style={{ fontSize: 11, color: '#64748b', fontWeight: 500, width: 28 }}>{pct}%</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            {sets.length === 0 && <div style={{ fontSize: 13, color: '#94a3b8' }}>Keine Lernsets vorhanden.</div>}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
 // ─── Sidebar ─────────────────────────────────────────────────
 const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -765,7 +673,6 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
   const navItems = [
     { id: 'home', label: 'Alle Lernsets', count: sets ? sets.length : 0, icon: <Icons.Cards size={15}/> },
     { id: 'docs', label: 'Dokumente', count: null, icon: <Icons.Doc size={15}/> },
-    { id: 'stats', label: 'Fortschritt', count: null, icon: <Icons.Chart size={15}/> },
     { id: 'fav', label: 'Favoriten', count: 0, icon: <Icons.Star size={15}/> },
     { id: 'shared', label: 'Geteilt mit mir', count: 0, icon: <Icons.Users size={15}/> },
   ];
@@ -940,22 +847,54 @@ const SetCard = ({ set, onDelete }) => {
 };
 
 // ─── Stats ───────────────────────────────────────────────────
-const StatsRow = ({ stats }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
-    {[
-      { label: 'Fällig heute', value: stats.dueToday || '0', sub: 'Karten' },
-      { label: 'Diese Woche', value: stats.weekReviews || '0', sub: 'Karten geübt' },
-      { label: 'Gemeistert', value: stats.masteryPct || '0%', sub: 'aller Karten' },
-      { label: 'Lernsets', value: stats.totalSets || '0', sub: 'gesamt' },
-    ].map(s => (
-      <div key={s.label} style={{ background: 'white', borderRadius: 10, padding: '12px 14px', border: '1px solid rgba(15,23,42,0.05)' }}>
-        <div style={{ fontSize: 11, color: '#64748b' }}>{s.label}</div>
-        <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: '#0f172a', marginTop: 2, letterSpacing: '-0.02em', lineHeight: 1 }}>{s.value}</div>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>{s.sub}</div>
+const StatsRow = ({ stats, streak }) => {
+  const cells = React.useMemo(() => {
+    const arr = [];
+    for (let i = 0; i < 35; i++) {
+      const d = new Date();
+      d.setDate(d.getDate() - (34 - i));
+      const dateStr = d.toISOString().slice(0, 10);
+      const count = stats.reviewCounts?.[dateStr] || 0;
+      let v = 0;
+      if (count > 0) v = 0.2;
+      if (count >= 10) v = 0.4;
+      if (count >= 20) v = 0.65;
+      if (count >= 30) v = 1;
+      arr.push(v);
+    }
+    return arr;
+  }, [stats.reviewCounts]);
+
+  return (
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 10 }}>
+      {[
+        { label: 'Fällig heute', value: stats.dueToday || '0', sub: 'Karten' },
+        { label: 'Diese Woche', value: stats.weekReviews || '0', sub: 'Karten geübt' },
+        { label: 'Gemeistert', value: stats.masteryPct || '0%', sub: 'aller Karten' },
+        { label: 'Lernsets', value: stats.totalSets || '0', sub: 'gesamt' },
+      ].map(s => (
+        <div key={s.label} style={{ background: 'white', borderRadius: 10, padding: '12px 14px', border: '1px solid rgba(15,23,42,0.05)' }}>
+          <div style={{ fontSize: 11, color: '#64748b' }}>{s.label}</div>
+          <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: '#0f172a', marginTop: 2, letterSpacing: '-0.02em', lineHeight: 1 }}>{s.value}</div>
+          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>{s.sub}</div>
+        </div>
+      ))}
+      {/* Activity Heatmap Block */}
+      <div style={{ background: 'white', borderRadius: 10, padding: '12px 14px', border: '1px solid rgba(15,23,42,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+        <div>
+          <div style={{ fontSize: 11, color: '#64748b' }}>Aktivität</div>
+          <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: '#0f172a', marginTop: 2, letterSpacing: '-0.02em', lineHeight: 1 }}>{streak || 0} <span style={{ fontSize: 12, fontWeight: 500, color: '#94a3b8', letterSpacing: 'normal' }}>Tage</span></div>
+          <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 3 }}>letzte 35 Tage</div>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3 }}>
+          {cells.map((v, i) => (
+            <div key={i} style={{ width: 9, height: 9, borderRadius: 2, background: v === 0 ? '#f1f5f9' : `rgba(99,102,241,${v})` }} />
+          ))}
+        </div>
       </div>
-    ))}
-  </div>
-);
+    </div>
+  );
+};
 
 // ─── Empty State ─────────────────────────────────────────────
 const EmptyState = ({ onNewSet }) => (
@@ -1068,8 +1007,7 @@ const Dashboard = () => {
 
   const showDocs = active === 'docs';
   const showSettings = active === 'settings';
-  const showStats = active === 'stats';
-  const showSets = !showDocs && !showSettings && !showStats;
+  const showSets = !showDocs && !showSettings;
 
   return (
     <div className="dot-paper" style={{ height: '100vh', overflow: 'hidden', display: 'flex' }}>
@@ -1080,7 +1018,6 @@ const Dashboard = () => {
 
         {showDocs && <DocsPanel userId={user?.id}/>}
         {showSettings && <SettingsPanel user={user} profile={profile} onProfileUpdate={setProfile}/>}
-        {showStats && <StatsPanel stats={stats} streak={streak} sets={sets} profile={profile}/>}
 
         {showSets && (
           <>
@@ -1097,7 +1034,7 @@ const Dashboard = () => {
               </div>
             </div>
 
-            <StatsRow stats={stats}/>
+            <StatsRow stats={stats} streak={streak}/>
 
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -1127,7 +1064,6 @@ const Dashboard = () => {
           { id: 'home', label: 'Start', icon: <Icons.Home size={18}/> },
           { id: 'cards', label: 'Lernsets', icon: <Icons.Cards size={18}/> },
           { id: 'docs', label: 'Dokumente', icon: <Icons.Doc size={18}/> },
-          { id: 'stats', label: 'Fortschritt', icon: <Icons.Chart size={18}/> },
           { id: 'settings', label: 'Einstellungen', icon: <Icons.Settings size={18}/> },
         ]} active={active} onSelect={setActive}/>
       </div>
