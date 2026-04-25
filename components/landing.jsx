@@ -237,13 +237,14 @@ const Nav = () => (
     display: 'flex', alignItems: 'center', justifyContent: 'space-between',
     boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 4px 16px rgba(15,23,42,0.04)',
   }}>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+    <a href="Landing.html" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
       <Icons.Logo size={30}/>
       <div style={{ fontFamily: 'Caveat', fontSize: 26, fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>StudyFlow</div>
-    </div>
+    </a>
     <div style={{ display: 'flex', alignItems: 'center', gap: 28, fontSize: 14, color: '#475569' }}>
       <a href="#features">Features</a>
       <a href="#ai">AI</a>
+      <a href="changelog.html">Changelog</a>
       <a href="#preis">Preise</a>
       <a href="#uni">Für Unis</a>
     </div>
@@ -432,14 +433,14 @@ const Footer = () => (
       </div>
       <div style={{ display: 'flex', gap: 60, fontSize: 13 }}>
         {[
-          ['Produkt', ['Features', 'AI', 'Preise', 'Roadmap']],
+          ['Produkt', ['Features', 'AI', 'Changelog', 'Preise', 'Roadmap']],
           ['Für Unis', ['Lizenzen', 'Case Studies', 'Support']],
           ['Rechtliches', ['Datenschutz', 'AGB', 'Impressum']],
         ].map(([h, items]) => (
           <div key={h}>
             <div style={{ fontWeight: 600, color: '#0f172a', marginBottom: 10 }}>{h}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, color: '#64748b' }}>
-              {items.map(i => <a key={i} href="#">{i}</a>)}
+              {items.map(i => <a key={i} href={i === 'Changelog' ? 'changelog.html' : '#'}>{i}</a>)}
             </div>
           </div>
         ))}

@@ -27,6 +27,53 @@ function readFileAsText(file) {
   return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = rej; r.readAsText(file); });
 }
 
+function createFolderArtDataUri({ filled = false } = {}) {
+  const svg = filled ? `
+    <svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="folderBack" x1="18" y1="16" x2="142" y2="148" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#2CC7FF"/>
+          <stop offset="1" stop-color="#1638C7"/>
+        </linearGradient>
+        <linearGradient id="folderFront" x1="26" y1="42" x2="138" y2="146" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#3CC4FF"/>
+          <stop offset="1" stop-color="#3055CC"/>
+        </linearGradient>
+        <linearGradient id="paper" x1="34" y1="24" x2="122" y2="78" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#F7FBFF"/>
+          <stop offset="1" stop-color="#D3E3F6"/>
+        </linearGradient>
+      </defs>
+      <rect x="4" y="18" width="152" height="134" rx="22" fill="url(#folderBack)" stroke="#5EAFFF" stroke-width="3"/>
+      <path d="M18 36C18 26.6112 25.6112 19 35 19H67.2467C71.2585 19 75.1266 20.5112 78.0785 23.232L87.9215 32.2979C90.8734 35.0187 94.7415 36.53 98.7533 36.53H140C146.627 36.53 152 41.9026 152 48.53V55H18V36Z" fill="#7EDBFF" fill-opacity="0.42"/>
+      <g opacity="0.96">
+        <path d="M32 30.5C33.7334 25.247 39.2142 21.9593 44.6897 22.6478L127.024 33.0006C132.499 33.6891 136.334 38.0933 135.998 43.242L132.353 99.1173C132.017 104.266 127.637 108.122 122.162 107.434L39.8272 97.0815C34.3517 96.393 30.5164 91.9888 30.8521 86.8401L32 30.5Z" fill="url(#paper)"/>
+        <path d="M25.5 44.5C26.6769 38.5067 31.8772 34.1667 38.0264 34.0574L119.32 32.6128C125.469 32.5035 130.822 36.6565 132.211 42.6045L144.517 95.3021C145.906 101.25 142.882 107.403 137.245 109.713L62.0254 140.545C56.3884 142.855 49.9249 140.759 46.7446 135.51L18.587 89.0368C15.4066 83.7875 14.7331 77.1059 16.7832 71.2483L25.5 44.5Z" fill="url(#paper)" fill-opacity="0.84"/>
+      </g>
+      <rect x="10" y="39" width="140" height="106" rx="22" fill="url(#folderFront)" stroke="#66ACFF" stroke-width="3"/>
+    </svg>
+  ` : `
+    <svg width="160" height="160" viewBox="0 0 160 160" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="folderShell" x1="16" y1="14" x2="144" y2="148" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#2CC7FF"/>
+          <stop offset="1" stop-color="#1638C7"/>
+        </linearGradient>
+        <linearGradient id="folderFace" x1="12" y1="40" x2="148" y2="148" gradientUnits="userSpaceOnUse">
+          <stop stop-color="#35BCFF"/>
+          <stop offset="1" stop-color="#2348CB"/>
+        </linearGradient>
+      </defs>
+      <path d="M5 29C5 16.8497 14.8497 7 27 7H73.4387C78.6698 7 83.7023 9.00937 87.4984 12.6132L97.5016 22.1068C101.298 25.7106 106.33 27.72 111.561 27.72H133C145.15 27.72 155 37.5697 155 49.72V133C155 145.15 145.15 155 133 155H27C14.8497 155 5 145.15 5 133V29Z" fill="url(#folderShell)" stroke="#5EAFFF" stroke-width="3"/>
+      <rect x="5" y="42" width="150" height="113" rx="22" fill="url(#folderFace)" stroke="#66ACFF" stroke-width="3"/>
+    </svg>
+  `;
+  return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
+}
+
+const EMPTY_FOLDER_ART = createFolderArtDataUri({ filled: false });
+const FILLED_FOLDER_ART = createFolderArtDataUri({ filled: true });
+
 async function callAI(messages) {
   const res = await fetch(AI_URL, {
     method: 'POST',
@@ -419,9 +466,11 @@ const DocsPanel = ({ userId }) => {
 
   const IconForType = ({ type }) => {
     if (type === 'folder') return (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <path d="M2 5a2 2 0 012-2h3.586a1 1 0 01.707.293L9.707 4.707A1 1 0 0010.414 5H16a2 2 0 012 2v8a2 2 0 01-2 2H4a2 2 0 01-2-2V5z" fill="#f59e0b" opacity="0.9"/>
-      </svg>
+      <img
+        src={EMPTY_FOLDER_ART}
+        alt=""
+        style={{ width: 20, height: 20, objectFit: 'contain', display: 'block' }}
+      />
     );
     if (type === 'whiteboard') return (
       <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
@@ -509,22 +558,32 @@ const DocsPanel = ({ userId }) => {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: 10 }}>
           {/* Folders */}
-          {folders.map(item => (
-            <div key={item.id} onClick={() => openItem(item)}
-              style={{ background: 'white', borderRadius: 12, padding: '16px 14px', border: '1px solid rgba(15,23,42,0.06)', cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}
-              onMouseEnter={e => { e.currentTarget.style.borderColor='#fcd34d'; e.currentTarget.style.boxShadow='0 4px 16px rgba(245,158,11,0.1)'; }}
-              onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(15,23,42,0.06)'; e.currentTarget.style.boxShadow='none'; }}>
-              <IconForType type="folder"/>
-              <div style={{ fontSize: 13.5, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
-              <div style={{ fontSize: 11, color: '#94a3b8' }}>
-                {items.filter(i => i.folder_id === item.id).length} Elemente
+          {folders.map(item => {
+            const childCount = items.filter(i => i.folder_id === item.id).length;
+            const folderArt = childCount > 0 ? FILLED_FOLDER_ART : EMPTY_FOLDER_ART;
+            return (
+              <div key={item.id} onClick={() => openItem(item)}
+                style={{ background: 'white', borderRadius: 14, padding: '14px 14px 12px', border: '1px solid rgba(15,23,42,0.06)', cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor='#fcd34d'; e.currentTarget.style.boxShadow='0 4px 16px rgba(245,158,11,0.1)'; }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(15,23,42,0.06)'; e.currentTarget.style.boxShadow='none'; }}>
+                <div style={{ height: 84, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: childCount > 0 ? 'linear-gradient(180deg, rgba(219,234,254,0.55), rgba(255,255,255,0.92))' : 'linear-gradient(180deg, rgba(239,246,255,0.95), rgba(255,255,255,0.92))', overflow: 'hidden' }}>
+                  <img
+                    src={folderArt}
+                    alt={childCount > 0 ? 'Ordner mit Inhalten' : 'Leerer Ordner'}
+                    style={{ width: 74, height: 74, objectFit: 'contain', display: 'block', filter: childCount > 0 ? 'drop-shadow(0 10px 18px rgba(37, 99, 235, 0.16))' : 'drop-shadow(0 8px 14px rgba(37, 99, 235, 0.12))' }}
+                  />
+                </div>
+                <div style={{ fontSize: 13.5, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+                <div style={{ fontSize: 11, color: '#94a3b8' }}>
+                  {childCount} {childCount === 1 ? 'Element' : 'Elemente'}
+                </div>
+                <button onClick={e => deleteItem(item.id, e)} style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 4, borderRadius: 4, display: 'flex' }}
+                  onMouseEnter={e => e.currentTarget.style.color='#ef4444'} onMouseLeave={e => e.currentTarget.style.color='#cbd5e1'}>
+                  <Icons.X size={12}/>
+                </button>
               </div>
-              <button onClick={e => deleteItem(item.id, e)} style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', color: '#cbd5e1', cursor: 'pointer', padding: 4, borderRadius: 4, display: 'flex' }}
-                onMouseEnter={e => e.currentTarget.style.color='#ef4444'} onMouseLeave={e => e.currentTarget.style.color='#cbd5e1'}>
-                <Icons.X size={12}/>
-              </button>
-            </div>
-          ))}
+            );
+          })}
           {/* Docs & Whiteboards */}
           {files.map(item => (
             <div key={item.id} onClick={() => openItem(item)}
