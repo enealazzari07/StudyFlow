@@ -823,8 +823,8 @@ const TopBar = ({ search, onSearch, streak }) => (
   </div>
 );
 
-// ─── Set Row ─────────────────────────────────────────────────
-const SetRow = ({ set, onDelete }) => {
+// ─── Set Card ────────────────────────────────────────────────
+const SetCard = ({ set, onDelete }) => {
   const pct = set.total_cards ? Math.round((set.mastered_cards / set.total_cards) * 100) : 0;
   const isDraft = set.total_cards === 0;
   const lastStudy = set.updated_at ? (() => {
@@ -842,33 +842,48 @@ const SetRow = ({ set, onDelete }) => {
   };
 
   return (
-    <a href={`lernset.html?id=${set.id}`} style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 110px 90px 70px 80px', alignItems: 'center', gap: 14, padding: '10px 14px', background: 'white', borderRadius: 10, border: '1px solid rgba(15,23,42,0.05)', transition: 'border-color 0.15s, background 0.15s', textDecoration: 'none' }}
-      onMouseEnter={e => { e.currentTarget.style.borderColor='#cbd5e1'; e.currentTarget.style.background='#fafbfc'; }}
-      onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(15,23,42,0.05)'; e.currentTarget.style.background='white'; }}>
-      <div style={{ minWidth: 0 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
-          <span style={{ width: 26, height: 26, borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', background: '#eef2ff', color: '#6366f1', border: '1px solid #c7d2fe', flexShrink: 0 }}>
-            <Icons.Cards size={14}/>
-          </span>
-          <div style={{ fontSize: 13.5, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', minWidth: 0 }}>{set.title}</div>
-          {!isDraft && pct === 100 && <span style={{ fontSize: 10, color: '#059669', background: '#d1fae5', padding: '1px 6px', borderRadius: 4, fontWeight: 500, flexShrink: 0 }}>Fertig</span>}
-          {isDraft && <span style={{ fontSize: 10, color: '#64748b', background: '#f1f5f9', padding: '1px 6px', borderRadius: 4, fontWeight: 500, flexShrink: 0 }}>Entwurf</span>}
+    <a href={`lernset.html?id=${set.id}`} style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '18px 20px', background: 'white', borderRadius: 14, border: '1px solid rgba(15,23,42,0.06)', transition: 'border-color 0.15s, box-shadow 0.15s', textDecoration: 'none', boxShadow: '0 1px 3px rgba(15,23,42,0.04)' }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor='#c7d2fe'; e.currentTarget.style.boxShadow='0 4px 16px rgba(99,102,241,0.08)'; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(15,23,42,0.06)'; e.currentTarget.style.boxShadow='0 1px 3px rgba(15,23,42,0.04)'; }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
+          <div style={{ width: 36, height: 36, borderRadius: 10, background: '#eef2ff', color: '#6366f1', border: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Icons.Cards size={16}/>
+          </div>
+          <div style={{ minWidth: 0 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'Instrument Sans' }}>{set.title}</div>
+            <div style={{ fontSize: 11.5, color: '#94a3b8', marginTop: 1 }}>{set.total_cards} Karten · {lastStudy}</div>
+          </div>
         </div>
-        <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-          {set.total_cards} Karten <span style={{ color: '#cbd5e1' }}>·</span> {lastStudy}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+          {!isDraft && pct === 100 && <span style={{ fontSize: 10, color: '#059669', background: '#d1fae5', padding: '2px 7px', borderRadius: 4, fontWeight: 600 }}>Fertig</span>}
+          {isDraft && <span style={{ fontSize: 10, color: '#64748b', background: '#f1f5f9', padding: '2px 7px', borderRadius: 4, fontWeight: 600 }}>Entwurf</span>}
+          {set.due_cards > 0 && <span style={{ fontSize: 10, color: '#dc2626', background: '#fee2e2', padding: '2px 7px', borderRadius: 4, fontWeight: 600 }}>{set.due_cards} fällig</span>}
+          <button onClick={handleDelete} style={{ padding: 4, background: 'none', border: 'none', borderRadius: 5, cursor: 'pointer', color: '#cbd5e1', display: 'flex' }}><Icons.MoreH size={14}/></button>
         </div>
       </div>
-      <div>{!isDraft ? (
-        <div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#64748b', marginBottom: 3 }}><span>{pct}%</span><span>{set.mastered_cards}/{set.total_cards}</span></div>
-          <div style={{ height: 4, background: '#f1f5f9', borderRadius: 999, overflow: 'hidden' }}><div style={{ width: `${pct}%`, height: '100%', background: '#0f172a', borderRadius: 999 }}></div></div>
+
+      {/* Progress bar */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: '#94a3b8', marginBottom: 5 }}>
+          <span>Fortschritt</span>
+          <span style={{ fontWeight: 500, color: '#475569' }}>{isDraft ? '—' : `${pct}%`}</span>
         </div>
-      ) : <div style={{ fontSize: 11.5, color: '#94a3b8' }}>—</div>}</div>
-      <div style={{ fontSize: 12, color: '#64748b' }}>{set.due_cards > 0 ? <span style={{ color: '#dc2626', fontWeight: 500 }}>{set.due_cards} fällig</span> : <span style={{ color: '#94a3b8' }}>keine fällig</span>}</div>
-      <div><div style={{ fontSize: 11.5, color: '#cbd5e1' }}>Nur ich</div></div>
-      <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 4 }}>
-        <a href={`lern-modus.html?id=${set.id}`} onClick={e => e.stopPropagation()} style={{ padding: '5px 10px', background: '#0f172a', color: 'white', border: 'none', borderRadius: 6, fontSize: 11.5, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center' }}>Lernen</a>
-        <button onClick={handleDelete} style={{ padding: 5, background: 'none', border: 'none', borderRadius: 6, cursor: 'pointer', color: '#94a3b8', display: 'flex' }}><Icons.MoreH size={14}/></button>
+        <div style={{ height: 5, background: '#f1f5f9', borderRadius: 999, overflow: 'hidden' }}>
+          <div style={{ width: `${pct}%`, height: '100%', background: pct === 100 ? '#059669' : 'linear-gradient(90deg, #6366f1, #818cf8)', borderRadius: 999, transition: 'width 0.3s' }}/>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
+        <div style={{ fontSize: 11.5, color: '#94a3b8' }}>
+          {!isDraft ? <span>{set.mastered_cards} / {set.total_cards} gemeistert</span> : <span>Noch leer</span>}
+        </div>
+        <a href={`lern-modus.html?id=${set.id}`} onClick={e => e.stopPropagation()}
+          style={{ padding: '6px 14px', background: '#0f172a', color: 'white', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
+          <Icons.Brain size={12}/> Lernen
+        </a>
       </div>
     </a>
   );
@@ -876,7 +891,7 @@ const SetRow = ({ set, onDelete }) => {
 
 // ─── Stats ───────────────────────────────────────────────────
 const StatsRow = ({ stats }) => (
-  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10, maxWidth: 820 }}>
+  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
     {[
       { label: 'Fällig heute', value: stats.dueToday || '0', sub: 'Karten' },
       { label: 'Diese Woche', value: stats.weekReviews || '0', sub: 'Karten geübt' },
@@ -1044,15 +1059,9 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              {filteredSets.length > 0 && (
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(0,1fr) 110px 90px 70px 80px', gap: 14, padding: '0 14px', fontSize: 10.5, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', maxWidth: 820 }}>
-                  <div>Name</div><div>Fortschritt</div><div>Status</div><div>Team</div><div></div>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4, paddingBottom: 70, maxWidth: 820 }}>
+              <div style={{ display: filteredSets.length > 0 ? 'grid' : 'flex', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4, paddingBottom: 70, alignContent: 'start' }}>
                 {filteredSets.length > 0
-                  ? filteredSets.map(s => <SetRow key={s.id} set={s} onDelete={handleSetDeleted}/>)
+                  ? filteredSets.map(s => <SetCard key={s.id} set={s} onDelete={handleSetDeleted}/>)
                   : <EmptyState onNewSet={() => setShowModal(true)}/>
                 }
               </div>
