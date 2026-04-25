@@ -130,11 +130,17 @@ const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
             if (!hasDragged.current) setFlipped(!flipped);
           }} w={600} h={360}/>
           
-          {flipped && dragX > 20 && (
-            <div style={{ position: 'absolute', top: 30, left: 30, padding: '8px 20px', border: '4px solid #10b981', color: '#10b981', borderRadius: 12, fontSize: 32, fontWeight: 700, textTransform: 'uppercase', transform: 'rotate(-15deg)', opacity: Math.min(1, dragX / 100), zIndex: 10, pointerEvents: 'none', background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(4px)' }}>Richtig</div>
-          )}
-          {flipped && dragX < -20 && (
-            <div style={{ position: 'absolute', top: 30, right: 30, padding: '8px 20px', border: '4px solid #ef4444', color: '#ef4444', borderRadius: 12, fontSize: 32, fontWeight: 700, textTransform: 'uppercase', transform: 'rotate(15deg)', opacity: Math.min(1, -dragX / 100), zIndex: 10, pointerEvents: 'none', background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(4px)' }}>Falsch</div>
+          {/* Overlay für Richtig/Falsch Swipe */}
+          {flipped && dragX !== 0 && (
+            <div style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 20,
+              background: dragX > 0 ? '#10b981' : '#ef4444',
+              opacity: Math.min(0.5, Math.abs(dragX) / 150),
+              pointerEvents: 'none',
+              zIndex: 10,
+            }}></div>
           )}
         </div>
       </div>

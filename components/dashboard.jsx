@@ -858,9 +858,9 @@ const SetCard = ({ set, onDelete }) => {
 const StatsRow = ({ stats, streak, profile, sets }) => {
   const cells = React.useMemo(() => {
     const arr = [];
-    for (let i = 0; i < 36; i++) {
+    for (let i = 0; i < 28; i++) {
       const d = new Date();
-      d.setDate(d.getDate() - (35 - i));
+      d.setDate(d.getDate() - (27 - i));
       const dateStr = d.toISOString().slice(0, 10);
       const count = stats.reviewCounts?.[dateStr] || 0;
       let v = 0;
@@ -868,7 +868,7 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
       if (count >= 10) v = 0.4;
       if (count >= 20) v = 0.65;
       if (count >= 30) v = 1;
-      arr.push(v);
+      arr.push({ v, count, dateStr: d.toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' }) });
     }
     return arr;
   }, [stats.reviewCounts]);
@@ -911,11 +911,11 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <div style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Aktivität</div>
             <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: 'var(--text-main)', letterSpacing: '-0.02em', lineHeight: 1 }}>{streak || 0} <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-lighter)', letterSpacing: 'normal' }}>Tage</span></div>
-            <div style={{ fontSize: 11, color: 'var(--text-lighter)', marginTop: 2 }}>letzte 36 Tage</div>
+            <div style={{ fontSize: 11, color: 'var(--text-lighter)', marginTop: 2 }}>letzte 28 Tage</div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 3 }}>
-            {cells.map((v, i) => (
-              <div key={i} style={{ width: 8, height: 8, borderRadius: 2, background: v === 0 ? 'var(--bg-active)' : `rgba(99,102,241,${v})` }} />
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+            {cells.map((cell, i) => (
+              <div key={i} title={`${cell.dateStr}\n${cell.count} Karten geübt`} style={{ width: 10, height: 10, borderRadius: 2, background: cell.v === 0 ? 'var(--bg-active)' : `rgba(99,102,241,${cell.v})`, cursor: 'help' }} />
             ))}
           </div>
         </div>
