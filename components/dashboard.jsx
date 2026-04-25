@@ -105,13 +105,6 @@ function extractJSON(raw) {
 
 // ─── Toggle ──────────────────────────────────────────────────
 const Toggle = ({ on, onChange }) => (
-  <div onClick={onChange} style={{ width: 40, height: 22, borderRadius: 999, background: on ? '#6366f1' : '#cbd5e1', position: 'relative', cursor: 'pointer', transition: 'background 0.2s', flexShrink: 0 }}>
-    <div style={{ position: 'absolute', top: 3, left: on ? 20 : 3, width: 16, height: 16, borderRadius: '50%', background: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(15,23,42,0.2)' }}/>
-  </div>
-);
-
-// ─── Toggle ──────────────────────────────────────────────────
-const Toggle = ({ on, onChange }) => (
   <div onClick={onChange} style={{ width: 40, height: 22, borderRadius: 999, background: on ? '#6366f1' : 'var(--border-focus)', position: 'relative', cursor: 'pointer', transition: 'background 0.2s', flexShrink: 0 }}>
     <div style={{ position: 'absolute', top: 3, left: on ? 21 : 3, width: 16, height: 16, borderRadius: '50%', background: 'white', transition: 'left 0.2s', boxShadow: '0 1px 3px rgba(15,23,42,0.2)' }}/>
   </div>
