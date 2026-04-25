@@ -1,4 +1,4 @@
-// StudyFlow — AI Upload: llama-4-scout Vision + Dokument-Upload
+// StudyFlow — AI Upload: Vision KI + Dokument-Upload
 const { useState, useEffect, useRef } = React;
 
 const AIRFORCE_KEY = 'sk-air-tWdMV6mXgoa1zAfHr8UfGVI9BFzyr5dXE2jdZO4pPApRVrXDyH6W6Bdv6RwmUctq';
@@ -58,7 +58,6 @@ function extractJSON(raw) {
 
 // Call llama-4-scout with image (base64 data URL) → returns raw AI text
 async function analyzeImageWithVision(base64DataUrl) {
-  const mimeType = base64DataUrl.match(/data:(.*?);base64/)?.[1] || 'image/jpeg';
   const resp = await fetch(AI_URL, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${AIRFORCE_KEY}`, 'Content-Type': 'application/json' },
@@ -74,11 +73,17 @@ async function analyzeImageWithVision(base64DataUrl) {
           {
             type: 'text',
             text:
-              'Analysiere dieses Bild (z.B. Notizen, Skript, Karteikarten, Tafelbilder, Bücher, Folien). ' +
-              'Erkenne allen Text und Inhalt und erstelle daraus sinnvolle Lern-Karteikarten. ' +
-              'Gib NUR ein JSON-Array zurück, kein anderer Text. ' +
-              'Format: [{"front":"Begriff oder Frage","back":"Erklärung oder Antwort"},...] ' +
-              'Erstelle so viele Karten wie der Inhalt hergibt. Schreibe auf Deutsch wenn der Text Deutsch ist, sonst auf Englisch.',
+              'Du bist ein Lernassistent. Analysiere dieses Bild genau und erstelle Lern-Karteikarten.\n\n' +
+              'WICHTIGE REGELN:\n' +
+              '1. Wenn das Bild zwei Sprachen zeigt (z.B. Spanisch-Deutsch, Englisch-Deutsch, Vokabelliste), ' +
+              'nutze Sprache A als "front" und Sprache B als "back". Vermische NICHT beide Sprachen auf einer Seite.\n' +
+              '2. Wenn es eine Vokabelliste ist (z.B. Wort + Artikel wie "das Brot"), ' +
+              'setze die Frage auf "front" (z.B. "Welchen Artikel hat Brot?") und die Antwort auf "back" (z.B. "das Brot").\n' +
+              '3. Die Vorder- und Rückseite müssen sich INHALTLICH unterscheiden und ergänzen — niemals fast dasselbe auf beiden Seiten.\n' +
+              '4. Bei Definitionen: Begriff → Erklärung. Bei Formeln: Formelname → Formel. Bei Fakten: Frage → Antwort.\n' +
+              '5. Schreibe in der Sprache des Bildinhalts.\n\n' +
+              'Gib NUR ein JSON-Array zurück, kein anderer Text:\n' +
+              '[{"front":"Frage oder Begriff","back":"Antwort oder Erklärung"},...]',
           },
         ],
       }],
@@ -225,12 +230,12 @@ const AIUpload = () => {
 
       // ── Stage 2: Image or Document processing ──
       if (isImageFile(file)) {
-        // ── IMAGE PATH: llama-4-scout Vision ──
+        // ── IMAGE PATH: Vision AI ──
         setStage('scanning');
         setScanProgress('Lese Bilddaten…');
 
         const base64DataUrl = await readFileAsBase64(file);
-        setScanProgress('Sende an llama-4-scout…');
+        setScanProgress('KI analysiert Bild…');
 
         const aiRaw = await analyzeImageWithVision(base64DataUrl);
         setScanProgress('Verarbeite Antwort…');
@@ -345,11 +350,11 @@ const AIUpload = () => {
             Bild, PDF, DOCX oder Text — Flow scannt den Inhalt mit KI und baut automatisch Karteikarten.
           </p>
 
-          {/* Model badge */}
+          {/* AI badge */}
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, marginTop: 12, padding: '4px 12px', background: '#f1f5f9', borderRadius: 999, border: '1px solid #e2e8f0' }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }}/>
             <span style={{ fontSize: 11.5, color: '#475569', fontWeight: 500 }}>
-              Bild-Scan: <span style={{ color: '#6366f1', fontWeight: 700 }}>llama-4-scout</span> Vision
+              Bild-Scan mit <span style={{ color: '#6366f1', fontWeight: 700 }}>Flow Vision KI</span>
             </span>
           </div>
         </div>
@@ -430,7 +435,7 @@ const AIUpload = () => {
                   {formatFileSize(file.size)}
                   {isImage && (
                     <span style={{ marginLeft: 8, background: '#eef2ff', color: '#4f46e5', padding: '2px 7px', borderRadius: 5, fontWeight: 500, fontSize: 11 }}>
-                      📷 Bild · llama-4-scout
+                      📷 Bild-Scan
                     </span>
                   )}
                 </div>
@@ -490,7 +495,7 @@ const AIUpload = () => {
                 </div>
                 <div style={{ fontSize: 13, color: '#475569', marginTop: 8 }}>
                   {isImage
-                    ? `llama-4-scout hat den Bildinhalt analysiert und ${generatedCards.length} Karten extrahiert.`
+                    ? `Flow KI hat den Bildinhalt analysiert und ${generatedCards.length} Karten erstellt.`
                     : 'Das Dokument wurde gespeichert.'}
                 </div>
 
@@ -655,10 +660,10 @@ const AIUpload = () => {
                   <div style={{ marginTop: 24, paddingTop: 20, borderTop: '1px solid rgba(15,23,42,0.06)' }}>
                     <div style={{ padding: 14, background: '#eef2ff', borderRadius: 12, border: '1px solid #c7d2fe', marginBottom: 16 }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#4f46e5', fontWeight: 600 }}>
-                        <Icons.Eye size={15}/> Bild-Scan mit llama-4-scout
+                        <Icons.Eye size={15}/> Flow Vision — Bild-Scan
                       </div>
                       <div style={{ fontSize: 12.5, color: '#475569', marginTop: 5, lineHeight: 1.6 }}>
-                        Das Modell analysiert das Bild, erkennt Texte, Begriffe und Konzepte und erstellt automatisch Karteikarten daraus.
+                        Flow KI analysiert das Bild, erkennt Texte, Sprachen, Begriffe und Konzepte und erstellt automatisch passende Karteikarten.
                         Funktioniert mit Fotos, Screenshots, Tafelbildern und handschriftlichen Notizen.
                       </div>
                     </div>
