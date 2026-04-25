@@ -330,7 +330,7 @@ const SettingsPanel = ({ user, profile, onProfileUpdate }) => {
         </div>
         {!isPro && (
           <button onClick={() => setShowUpgrade(true)} className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '11px 0', marginTop: 20, background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}>
-            <Icons.Sparkles size={14}/> Jetzt auf Pro upgraden — 9,99 €/Monat
+            <Icons.Sparkles size={14}/> Jetzt auf Pro upgraden — 5,99 €/Monat
           </button>
         )}
       </div>
@@ -359,7 +359,7 @@ const SettingsPanel = ({ user, profile, onProfileUpdate }) => {
             <div style={{ fontFamily: 'Instrument Sans', fontSize: 24, fontWeight: 700, color: '#0f172a', marginBottom: 6 }}>StudyFlow Pro</div>
             <div style={{ fontSize: 13, color: '#64748b', marginBottom: 24 }}>Lerne smarter — ohne Einschränkungen.</div>
             <div style={{ fontFamily: 'Instrument Sans', fontSize: 36, fontWeight: 700, color: '#0f172a', marginBottom: 4 }}>
-              9,99 € <span style={{ fontSize: 16, color: '#64748b', fontWeight: 400 }}>/Monat</span>
+              5,99 € <span style={{ fontSize: 16, color: '#64748b', fontWeight: 400 }}>/Monat</span>
             </div>
             <div style={{ fontSize: 12, color: '#94a3b8', marginBottom: 28 }}>Jederzeit kündbar · Keine Bindung</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 28, textAlign: 'left' }}>
@@ -448,6 +448,13 @@ const DocsPanel = ({ userId }) => {
     setItems(prev => prev.filter(i => i.id !== id));
   };
 
+  const handleDrop = async (itemId, folderId) => {
+    if (!itemId) return;
+    setItems(prev => prev.map(i => i.id === itemId ? { ...i, folder_id: folderId } : i));
+    const { error: err } = await window.sb.from('documents').update({ folder_id: folderId }).eq('id', itemId);
+    if (err) { setError(err.message); load(); }
+  };
+
   const visibleItems = items.filter(i =>
     currentFolder ? i.folder_id === currentFolder : !i.folder_id
   );
@@ -501,7 +508,11 @@ const DocsPanel = ({ userId }) => {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           {breadcrumb && (
-            <button onClick={() => setCurrentFolder(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 0', fontFamily: 'inherit' }}>
+            <button onClick={() => setCurrentFolder(null)}
+              onDragOver={e => { e.preventDefault(); e.currentTarget.style.color = '#6366f1'; }}
+              onDragLeave={e => { e.currentTarget.style.color = '#64748b'; }}
+              onDrop={e => { e.currentTarget.style.color = '#64748b'; handleDrop(e.dataTransfer.getData('text/plain'), null); }}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#64748b', fontSize: 13, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 0', fontFamily: 'inherit', transition: 'color 0.15s' }}>
               <Icons.ArrowLeft size={14}/> Dokumente
             </button>
           )}
@@ -563,10 +574,13 @@ const DocsPanel = ({ userId }) => {
             const folderArt = childCount > 0 ? FILLED_FOLDER_ART : EMPTY_FOLDER_ART;
             return (
               <div key={item.id} onClick={() => openItem(item)}
-                style={{ background: 'white', borderRadius: 14, padding: '14px 14px 12px', border: '1px solid rgba(15,23,42,0.06)', cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}
+                onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor='#6366f1'; e.currentTarget.style.background='#eef2ff'; }}
+                onDragLeave={e => { e.currentTarget.style.borderColor='rgba(15,23,42,0.06)'; e.currentTarget.style.background='white'; }}
+                onDrop={e => { e.currentTarget.style.borderColor='rgba(15,23,42,0.06)'; e.currentTarget.style.background='white'; handleDrop(e.dataTransfer.getData('text/plain'), item.id); }}
+                style={{ background: 'white', borderRadius: 14, padding: '14px 14px 12px', border: '1px solid rgba(15,23,42,0.06)', cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor='#fcd34d'; e.currentTarget.style.boxShadow='0 4px 16px rgba(245,158,11,0.1)'; }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(15,23,42,0.06)'; e.currentTarget.style.boxShadow='none'; }}>
-                <div style={{ height: 84, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: childCount > 0 ? 'linear-gradient(180deg, rgba(219,234,254,0.55), rgba(255,255,255,0.92))' : 'linear-gradient(180deg, rgba(239,246,255,0.95), rgba(255,255,255,0.92))', overflow: 'hidden' }}>
+                onMouseLeave={e => { e.currentTarget.style.borderColor='rgba(15,23,42,0.06)'; e.currentTarget.style.boxShadow='none'; e.currentTarget.style.background='white'; }}>
+                <div style={{ height: 84, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', overflow: 'hidden' }}>
                   <img
                     src={folderArt}
                     alt={childCount > 0 ? 'Ordner mit Inhalten' : 'Leerer Ordner'}
@@ -587,6 +601,8 @@ const DocsPanel = ({ userId }) => {
           {/* Docs & Whiteboards */}
           {files.map(item => (
             <div key={item.id} onClick={() => openItem(item)}
+              draggable
+              onDragStart={e => { e.dataTransfer.setData('text/plain', item.id); e.dataTransfer.effectAllowed = 'move'; }}
               style={{ background: 'white', borderRadius: 12, border: '1px solid rgba(15,23,42,0.06)', cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}
               onMouseEnter={e => {
                 e.currentTarget.style.borderColor = item.doc_type === 'whiteboard' ? '#a5b4fc' : '#c7d2fe';
@@ -655,7 +671,7 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
         {navItems.map(item => {
           const isActive = active === item.id || (active === 'cards' && item.id === 'home');
           return (
-            <div key={item.id} onClick={() => onNav(item.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 8, background: isActive ? '#f1f5f9' : 'transparent', color: isActive ? '#0f172a' : '#475569', fontSize: 13, fontWeight: isActive ? 500 : 400, cursor: 'pointer', transition: 'background 0.1s' }}>
+            <div key={item.id} onClick={() => onNav(item.id)} onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = '#f8fafc'; }} onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 8, background: isActive ? '#f1f5f9' : 'transparent', color: isActive ? '#0f172a' : '#475569', fontSize: 13, fontWeight: isActive ? 500 : 400, cursor: 'pointer', transition: 'background 0.1s' }}>
               {item.icon}
               <span style={{ flex: 1 }}>{item.label}</span>
               {item.count !== null && <span style={{ fontSize: 11, color: '#94a3b8' }}>{item.count}</span>}
@@ -668,7 +684,7 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
         <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
           <div style={{ fontSize: 10.5, fontWeight: 600, color: '#94a3b8', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6, padding: '0 8px' }}>Ordner</div>
           {folders.map(f => (
-            <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', fontSize: 13, color: '#475569', cursor: 'pointer', borderRadius: 8 }}>
+            <div key={f} onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', fontSize: 13, color: '#475569', cursor: 'pointer', borderRadius: 8, transition: 'background 0.1s' }}>
               <Icons.Folder size={15}/>
               <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{f}</span>
             </div>
@@ -677,12 +693,18 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
       )}
 
       <div style={{ marginTop: 'auto', borderTop: '1px solid rgba(15,23,42,0.06)', paddingTop: 14 }}>
-        {/* Settings nav item */}
-        <div onClick={() => onNav('settings')} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 8, background: active === 'settings' ? '#f1f5f9' : 'transparent', color: active === 'settings' ? '#0f172a' : '#475569', fontSize: 13, cursor: 'pointer', marginBottom: 8 }}>
-          <Icons.Settings size={15}/>
-          <span style={{ flex: 1 }}>Einstellungen</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div
+          onClick={async () => {
+            if (confirm('Möchtest du dich abmelden?')) {
+              await window.sb.auth.signOut();
+              window.location.href = 'login.html';
+            }
+          }}
+          onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px', borderRadius: 10, cursor: 'pointer', transition: 'background 0.1s' }}
+          title="Klicken zum Abmelden"
+        >
           <Avatar name={displayName} color="#6366f1" size={30}/>
           <div style={{ flex: 1, minWidth: 0 }}>
             <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
@@ -691,7 +713,13 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
               {isPro ? 'Pro Plan' : 'Free Plan'}
             </div>
           </div>
-          <button onClick={() => onNav('settings')} title="Einstellungen" style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', color: '#94a3b8', display: 'flex' }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); onNav('settings'); }}
+            title="Einstellungen"
+            onMouseEnter={e => e.currentTarget.style.background = '#e2e8f0'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            style={{ background: 'none', border: 'none', padding: 6, borderRadius: 8, cursor: 'pointer', color: '#475569', display: 'flex', transition: 'background 0.1s' }}
+          >
             <Icons.Settings size={16}/>
           </button>
         </div>

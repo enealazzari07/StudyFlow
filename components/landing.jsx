@@ -454,7 +454,7 @@ const Pricing = () => (
           <Icons.Bolt size={14}/> Pro
         </div>
         <div style={{ fontFamily: 'Instrument Sans', fontSize: 42, fontWeight: 600, color: 'white', marginBottom: 8 }}>
-          9,99 € <span style={{ fontSize: 16, color: '#a5b4fc', fontWeight: 500 }}>/Monat</span>
+          5,99 € <span style={{ fontSize: 16, color: '#a5b4fc', fontWeight: 500 }}>/Monat</span>
         </div>
         <div style={{ fontSize: 14, color: '#c7d2fe', marginBottom: 32 }}>Für Power-User & Lerngruppen.</div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 40, flex: 1 }}>
