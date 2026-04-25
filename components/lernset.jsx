@@ -116,6 +116,90 @@ const CardRow = ({ card, index, focused, onFocus, onDelete }) => {
   );
 };
 
+// ─── Exam Date Banner ─────────────────────────────────────────
+const ExamDateBanner = ({ studySet, cards, onSave }) => {
+  const [editing, setEditing] = useState(false);
+  const [dateInput, setDateInput] = useState(studySet.exam_date ? studySet.exam_date.slice(0, 10) : '');
+  const [saving, setSaving] = useState(false);
+
+  const mastered = cards.filter(c => c.mastery_level === 'mastered' || c.mastery_level === 'good').length;
+  const unmastered = cards.length - mastered;
+
+  const handleSave = async () => {
+    setSaving(true);
+    const val = dateInput || null;
+    await window.sb.from('study_sets').update({ exam_date: val }).eq('id', studySet.id);
+    setSaving(false);
+    setEditing(false);
+    onSave(val);
+  };
+
+  if (!studySet.exam_date && !editing) {
+    return (
+      <button onClick={() => setEditing(true)} style={{ marginTop: 12, background: 'none', border: '1px dashed #cbd5e1', borderRadius: 10, padding: '8px 14px', fontSize: 12.5, color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}>
+        <Icons.Calendar size={13}/> Prüfungsdatum festlegen
+      </button>
+    );
+  }
+
+  if (editing) {
+    return (
+      <div style={{ marginTop: 12, background: 'white', border: '1px solid #c7d2fe', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 12 }}>
+        <Icons.Calendar size={15} style={{ color: '#6366f1', flexShrink: 0 }}/>
+        <span style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>Prüfungsdatum:</span>
+        <input type="date" value={dateInput} onChange={e => setDateInput(e.target.value)} style={{ border: '1px solid #e2e8f0', borderRadius: 7, padding: '5px 10px', fontSize: 13, fontFamily: 'inherit', color: '#0f172a' }}/>
+        <button onClick={handleSave} disabled={saving} className="btn-primary" style={{ padding: '6px 14px', fontSize: 12 }}>{saving ? 'Speichert…' : 'Speichern'}</button>
+        <button onClick={() => setEditing(false)} className="btn-ghost" style={{ padding: '6px 10px', fontSize: 12 }}>Abbrechen</button>
+      </div>
+    );
+  }
+
+  const today = new Date(); today.setHours(0,0,0,0);
+  const exam = new Date(studySet.exam_date); exam.setHours(0,0,0,0);
+  const daysRemaining = Math.round((exam - today) / 86400000);
+
+  let status, statusText, cardsPerDay = 0;
+  if (daysRemaining < 0) {
+    status = 'danger'; statusText = 'Prüfung bereits vorbei';
+  } else if (daysRemaining === 0) {
+    status = 'danger'; statusText = 'Prüfung heute! Nur noch wiederholen.';
+  } else if (daysRemaining === 1) {
+    status = 'danger'; statusText = 'Letzter Tag — nur wiederholen!'; cardsPerDay = unmastered;
+  } else if (unmastered === 0) {
+    status = 'good'; statusText = 'Alle Karten gemeistert — du bist bereit!';
+  } else {
+    cardsPerDay = Math.ceil(unmastered / (daysRemaining - 1));
+    if (cardsPerDay > 20)      { status = 'danger';  statusText = 'Sehr intensiv lernen nötig'; }
+    else if (cardsPerDay > 10) { status = 'warning'; statusText = 'Intensiv lernen nötig'; }
+    else if (cardsPerDay > 5)  { status = 'ok';      statusText = 'Gut auf Kurs'; }
+    else                        { status = 'good';    statusText = 'Du bist im Plan'; }
+  }
+
+  const col = {
+    good:    { bg: '#d1fae5', border: '#6ee7b7', text: '#065f46', dot: '#10b981' },
+    ok:      { bg: '#dbeafe', border: '#93c5fd', text: '#1e40af', dot: '#3b82f6' },
+    warning: { bg: '#fef3c7', border: '#fde68a', text: '#92400e', dot: '#f59e0b' },
+    danger:  { bg: '#fee2e2', border: '#fecaca', text: '#991b1b', dot: '#ef4444' },
+  }[status];
+
+  const examStr = new Date(studySet.exam_date).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+  return (
+    <div style={{ marginTop: 12, background: col.bg, border: `1px solid ${col.border}`, borderRadius: 12, padding: '12px 18px', display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+      <span style={{ width: 10, height: 10, borderRadius: '50%', background: col.dot, flexShrink: 0 }}></span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ fontSize: 13.5, fontWeight: 600, color: col.text }}>{statusText}</div>
+        <div style={{ fontSize: 12, color: col.text, opacity: 0.75, marginTop: 2 }}>
+          Prüfung: {examStr} · {daysRemaining > 0 ? `noch ${daysRemaining} Tag${daysRemaining !== 1 ? 'e' : ''}` : daysRemaining === 0 ? 'heute' : 'vorbei'}
+          {cardsPerDay > 0 && ` · ${cardsPerDay} Karte${cardsPerDay !== 1 ? 'n' : ''}/Tag`}
+          {unmastered > 0 && ` · ${unmastered} noch zu lernen`}
+        </div>
+      </div>
+      <button onClick={() => { setDateInput(studySet.exam_date ? studySet.exam_date.slice(0, 10) : ''); setEditing(true); }} style={{ background: 'none', border: 'none', fontSize: 11.5, color: col.text, opacity: 0.7, cursor: 'pointer', textDecoration: 'underline', fontFamily: 'inherit', padding: 0 }}>Ändern</button>
+    </div>
+  );
+};
+
 // ─── Cards List ───────────────────────────────────────────────
 const CardsList = ({ cards, setCards, currentSetId }) => {
   const [focused, setFocused] = useState(null);
@@ -227,6 +311,7 @@ const LernsetDetail = () => {
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const updateExamDate = (val) => setStudySet(prev => ({ ...prev, exam_date: val }));
 
   useEffect(() => {
     (async () => {
@@ -382,6 +467,7 @@ const LernsetDetail = () => {
             </div>
           ))}
         </div>
+        <ExamDateBanner studySet={studySet} cards={cards} onSave={updateExamDate}/>
       </section>
 
       <CardsList cards={cards} setCards={setCards} currentSetId={setId}/>

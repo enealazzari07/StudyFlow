@@ -1,6 +1,54 @@
 // StudyFlow — AI Upload (echte Datei-Uploads zu Supabase Storage)
 const { useState, useEffect, useRef } = React;
 
+const _AF_KEY = 'sk-air-tWdMV6mXgoa1zAfHr8UfGVI9BFzyr5dXE2jdZO4pPApRVrXDyH6W6Bdv6RwmUctq';
+const _AF_URL = 'https://api.airforce/v1/chat/completions';
+const _AF_VISION_MODEL = 'llama-4-scout';
+
+const IMAGE_SCAN_PROMPT = `Du bist ein präziser Lernassistent. Analysiere das Bild gründlich und erkenne ALLE Texte, Begriffe, Definitionen, Fakten, Formeln und Konzepte. Erstelle daraus hochwertige Lernkarteikarten auf Deutsch.
+
+Regeln:
+- Jede Karte: eine klare Frage (front) und eine vollständige Antwort (back)
+- Nutze den gesamten Bildinhalt (Beschriftungen, Tabellen, Stichpunkte, Fließtext)
+- Erstelle mindestens 3 und maximal 30 Karten
+- Antworte NUR mit einem JSON-Array ohne weiteren Text
+
+Format: [{"front":"Frage/Begriff","back":"Antwort/Definition"}, ...]`;
+
+async function readFileAsBase64(file) {
+  return new Promise((res, rej) => {
+    const r = new FileReader();
+    r.onload = () => res(r.result);
+    r.onerror = rej;
+    r.readAsDataURL(file);
+  });
+}
+
+async function scanImageWithAI(file) {
+  const dataUrl = await readFileAsBase64(file);
+  const body = {
+    model: _AF_VISION_MODEL,
+    messages: [
+      { role: 'system', content: IMAGE_SCAN_PROMPT },
+      {
+        role: 'user',
+        content: [
+          { type: 'image_url', image_url: { url: dataUrl } },
+          { type: 'text', text: 'Erstelle Karteikarten aus diesem Bild.' },
+        ],
+      },
+    ],
+  };
+  const res = await fetch(_AF_URL, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${_AF_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Bildscan fehlgeschlagen (${res.status})`);
+  const data = await res.json();
+  return data.choices[0].message.content;
+}
+
 const STAGES = [
   { key: 'idle', label: 'Bereit' },
   { key: 'uploading', label: 'Lade hoch', pct: 15 },
@@ -87,18 +135,6 @@ const AIUpload = () => {
     if (f) handleFileSelect(f);
   };
 
-  // Load Tesseract.js dynamically (CDN) for client-side OCR
-  const loadTesseract = () => new Promise((resolve, reject) => {
-    if (window.Tesseract) return resolve(window.Tesseract);
-    const s = document.createElement('script');
-    s.src = 'https://unpkg.com/tesseract.js@2.1.5/dist/tesseract.min.js';
-    s.onload = () => {
-      if (window.Tesseract) resolve(window.Tesseract);
-      else reject(new Error('Tesseract not available'));
-    };
-    s.onerror = reject;
-    document.head.appendChild(s);
-  });
 
   const start = async () => {
     if (!file || !userId) return;
@@ -140,19 +176,17 @@ const AIUpload = () => {
         await window.sb.from('documents').update({ ai_processed: true }).eq('id', doc.id);
       }
 
-      // If uploaded file is an image, attempt OCR -> parse -> fill generatedCards
+      // If uploaded file is an image, use AI vision to extract content and generate cards
       if (file && file.type && file.type.startsWith('image/')) {
         try {
-          const T = await loadTesseract();
-          const res = await T.recognize(file, 'deu').catch(() => T.recognize(file, 'eng'));
-          const text = (res && res.data && res.data.text) ? res.data.text.trim() : '';
-          if (text) {
-            setRawAIOutput(text);
-            const parsed = parseRawToCards(text);
+          const aiText = await scanImageWithAI(file);
+          if (aiText) {
+            setRawAIOutput(aiText);
+            const parsed = parseRawToCards(aiText);
             if (parsed && parsed.length) setGeneratedCards(parsed);
           }
-        } catch (ocrErr) {
-          console.warn('OCR failed', ocrErr);
+        } catch (scanErr) {
+          console.warn('Bildscan fehlgeschlagen', scanErr);
         }
       }
 
@@ -216,7 +250,7 @@ const AIUpload = () => {
         <input
           ref={fileInputRef}
           type="file"
-          accept=".pdf,.docx,.txt,.md"
+          accept=".pdf,.docx,.txt,.md,image/*"
           style={{ display: 'none' }}
           onChange={handleInputChange}
         />
@@ -248,7 +282,7 @@ const AIUpload = () => {
               oder <span style={{ color: '#4f46e5', fontWeight: 500 }}>durchsuchen</span>
             </div>
             <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 16 }}>
-              PDF · DOCX · MD · TXT · max. 50 MB
+              PDF · DOCX · MD · TXT · Bilder (JPG, PNG, …) · max. 50 MB
             </div>
           </div>
         ) : (
