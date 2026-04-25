@@ -221,12 +221,174 @@ const CardsList = ({ cards, setCards, currentSetId }) => {
   );
 };
 
+// ─── Exam Planner ─────────────────────────────────────────────
+const ExamPlanner = ({ studySet, cards, onUpdate }) => {
+  const [examDate, setExamDate] = useState(studySet.exam_date ? studySet.exam_date.slice(0, 10) : '');
+  const [editing, setEditing] = useState(false);
+  const [saving, setSaving] = useState(false);
+
+  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const minDate = new Date(today); minDate.setDate(minDate.getDate() + 1);
+  const minDateStr = minDate.toISOString().slice(0, 10);
+
+  const exam = examDate ? (() => { const d = new Date(examDate); d.setHours(0,0,0,0); return d; })() : null;
+  const daysLeft = exam ? Math.round((exam - today) / 86400000) : null;
+
+  const unmastered = cards.filter(c => c.mastery_level !== 'mastered' && c.mastery_level !== 'good').length;
+  const mastered = cards.length - unmastered;
+  const learningDays = daysLeft !== null ? Math.max(1, daysLeft - 1) : null;
+  const cardsPerDay = learningDays ? Math.ceil(unmastered / learningDays) : unmastered;
+  const hasReviewDay = daysLeft !== null && daysLeft > 1;
+  const onlyRepetition = daysLeft === 1;
+  const isToday = daysLeft === 0;
+  const isPast = daysLeft !== null && daysLeft < 0;
+
+  const statusColor = daysLeft === null ? '#6366f1'
+    : isPast ? '#dc2626'
+    : isToday ? '#dc2626'
+    : onlyRepetition ? '#f59e0b'
+    : daysLeft <= 3 ? '#f59e0b'
+    : '#10b981';
+
+  const saveDate = async (val) => {
+    setSaving(true);
+    await window.sb.from('study_sets').update({ exam_date: val || null }).eq('id', studySet.id);
+    setSaving(false);
+    onUpdate({ ...studySet, exam_date: val || null });
+    setEditing(false);
+  };
+
+  if (!examDate && !editing) {
+    return (
+      <button
+        onClick={() => setEditing(true)}
+        style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 14px', background: 'white', border: '1px dashed #cbd5e1', borderRadius: 10, fontSize: 13, color: '#64748b', cursor: 'pointer', fontFamily: 'inherit', transition: 'border-color 0.15s' }}
+        onMouseEnter={e => e.currentTarget.style.borderColor = '#6366f1'}
+        onMouseLeave={e => e.currentTarget.style.borderColor = '#cbd5e1'}
+      >
+        <Icons.Calendar size={14}/> Prüfungsdatum setzen
+      </button>
+    );
+  }
+
+  return (
+    <div style={{ background: 'white', border: `1px solid ${statusColor}22`, borderRadius: 14, padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
+      {/* Header row */}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: `${statusColor}18`, color: statusColor, display: 'flex', alignItems: 'center', justifyContent: 'center', border: `1px solid ${statusColor}30` }}>
+            <Icons.Calendar size={15}/>
+          </div>
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#64748b', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Prüfung</div>
+            {editing ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 2 }}>
+                <input
+                  type="date"
+                  value={examDate}
+                  min={minDateStr}
+                  onChange={e => setExamDate(e.target.value)}
+                  style={{ border: '1px solid #e2e8f0', borderRadius: 7, padding: '4px 8px', fontSize: 13, fontFamily: 'inherit', color: '#0f172a', outline: 'none' }}
+                  autoFocus
+                />
+                <button onClick={() => saveDate(examDate)} disabled={saving || !examDate} className="btn-primary" style={{ padding: '5px 12px', fontSize: 12, opacity: saving ? 0.7 : 1 }}>
+                  {saving ? 'Speichert…' : 'Speichern'}
+                </button>
+                <button onClick={() => { setEditing(false); if (!studySet.exam_date) setExamDate(''); }} style={{ background: 'none', border: 'none', fontSize: 12, color: '#94a3b8', cursor: 'pointer', fontFamily: 'inherit', padding: '5px 8px' }}>
+                  Abbrechen
+                </button>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>
+                  {new Date(examDate + 'T00:00:00').toLocaleDateString('de-DE', { weekday: 'short', day: 'numeric', month: 'long' })}
+                </span>
+                <button onClick={() => setEditing(true)} style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', color: '#94a3b8', display: 'flex' }}>
+                  <Icons.Settings size={13}/>
+                </button>
+                <button onClick={() => { setExamDate(''); saveDate(''); }} style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', color: '#cbd5e1', display: 'flex' }} title="Datum entfernen">
+                  <Icons.X size={13}/>
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Days badge */}
+        {!editing && daysLeft !== null && (
+          <div style={{ padding: '6px 14px', borderRadius: 10, background: `${statusColor}14`, border: `1px solid ${statusColor}30`, textAlign: 'center', flexShrink: 0 }}>
+            <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 700, color: statusColor, lineHeight: 1 }}>
+              {isPast ? '0' : daysLeft}
+            </div>
+            <div style={{ fontSize: 10.5, color: statusColor, fontWeight: 600, marginTop: 1 }}>
+              {isPast ? 'VORBEI' : daysLeft === 0 ? 'HEUTE' : daysLeft === 1 ? 'TAG' : 'TAGE'}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Study plan */}
+      {!editing && daysLeft !== null && !isPast && (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
+          {/* Cards per day */}
+          <div style={{ background: '#f8fafc', borderRadius: 10, padding: '10px 12px', border: '1px solid #f1f5f9' }}>
+            <div style={{ fontSize: 10.5, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Pro Tag</div>
+            <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 700, color: '#0f172a', marginTop: 2, lineHeight: 1 }}>
+              {isToday || onlyRepetition ? '—' : cardsPerDay}
+            </div>
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>
+              {isToday ? 'Prüfung heute!' : onlyRepetition ? 'Nur Wiederholung' : 'neue Karten'}
+            </div>
+          </div>
+
+          {/* Unmastered */}
+          <div style={{ background: '#f8fafc', borderRadius: 10, padding: '10px 12px', border: '1px solid #f1f5f9' }}>
+            <div style={{ fontSize: 10.5, color: '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Noch offen</div>
+            <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 700, color: '#0f172a', marginTop: 2, lineHeight: 1 }}>
+              {unmastered}
+            </div>
+            <div style={{ fontSize: 11, color: '#64748b', marginTop: 2 }}>von {cards.length} Karten</div>
+          </div>
+
+          {/* Last day */}
+          <div style={{ background: hasReviewDay ? '#fef3c7' : '#f8fafc', borderRadius: 10, padding: '10px 12px', border: `1px solid ${hasReviewDay ? '#fde68a' : '#f1f5f9'}` }}>
+            <div style={{ fontSize: 10.5, color: hasReviewDay ? '#92400e' : '#94a3b8', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.06em' }}>Letzter Tag</div>
+            <div style={{ fontFamily: 'Instrument Sans', fontSize: 14, fontWeight: 700, color: hasReviewDay ? '#92400e' : '#94a3b8', marginTop: 4, lineHeight: 1.3 }}>
+              {hasReviewDay ? 'Nur Wdh.' : onlyRepetition ? 'Heute' : '—'}
+            </div>
+            <div style={{ fontSize: 11, color: hasReviewDay ? '#b45309' : '#94a3b8', marginTop: 2 }}>
+              {hasReviewDay ? `Tag vor Prüfung` : onlyRepetition ? 'Wiederholen!' : 'bald'}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Status message */}
+      {!editing && (
+        <div style={{ fontSize: 12.5, color: '#475569', lineHeight: 1.55, padding: '8px 12px', background: `${statusColor}08`, borderRadius: 8, border: `1px solid ${statusColor}18` }}>
+          {isPast && '⚠️ Das Prüfungsdatum ist bereits vergangen.'}
+          {isToday && '🎯 Heute ist Prüfungstag — viel Erfolg!'}
+          {onlyRepetition && `⏰ Morgen ist Prüfung — heute nur Wiederholung aller ${mastered} gemeinsterter Karten.`}
+          {!isPast && !isToday && !onlyRepetition && unmastered === 0 && '🏆 Alle Karten gemeistert — du bist bereit!'}
+          {!isPast && !isToday && !onlyRepetition && unmastered > 0 && hasReviewDay && (
+            `📅 Lerne ${cardsPerDay} Karten/Tag für ${learningDays} Tag${learningDays !== 1 ? 'e' : ''}, dann am letzten Tag nur Wiederholung.`
+          )}
+          {!isPast && !isToday && !onlyRepetition && unmastered > 0 && !hasReviewDay && daysLeft > 1 && (
+            `📅 Lerne ${cardsPerDay} Karten/Tag — du hast noch ${daysLeft} Tage.`
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 // ─── Main ─────────────────────────────────────────────────────
 const LernsetDetail = () => {
   const [studySet, setStudySet] = useState(null);
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const handleSetUpdate = (updated) => setStudySet(updated);
 
   useEffect(() => {
     (async () => {
@@ -381,6 +543,11 @@ const LernsetDetail = () => {
               <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: '#0f172a', marginTop: 2 }}>{s.n}</div>
             </div>
           ))}
+        </div>
+
+        {/* Exam Planner */}
+        <div style={{ marginTop: 16 }}>
+          <ExamPlanner studySet={studySet} cards={cards} onUpdate={handleSetUpdate}/>
         </div>
       </section>
 
