@@ -65,20 +65,36 @@ const ModeSwitcher = ({ mode, setMode }) => (
 const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
   const [flipped, setFlipped] = useState(false);
   const [dragX, setDragX] = useState(0);
+  const [exiting, setExiting] = useState(null); // 'left' | 'right' | null
   const dragRef = useRef({ active: false, startX: 0 });
   const hasDragged = useRef(false);
   const idx = reviewed;
   const card = sessionCards[idx];
+  const nextCard = sessionCards[idx + 1] || null;
+  const nextNextCard = sessionCards[idx + 2] || null;
 
   useEffect(() => {
     setFlipped(false);
     setDragX(0);
-    dragRef.current.active = false;
+    setExiting(null);
+    dragRef.current = { active: false, startX: 0 };
   }, [idx]);
 
   if (!card) return null;
 
+  // 0..1 progress toward the swipe threshold
+  const dragProgress = Math.min(1, Math.abs(dragX) / 120);
+  const isDragging = dragRef.current.active;
+
+  const triggerExit = (dir, grade) => {
+    dragRef.current.active = false;
+    setExiting(dir);
+    setDragX(dir === 'right' ? 760 : -760);
+    setTimeout(() => onGrade(card, grade), 380);
+  };
+
   const handlePointerDown = (e) => {
+    if (exiting) return;
     hasDragged.current = false;
     if (!flipped) return;
     dragRef.current = { active: true, startX: e.clientX };
@@ -86,19 +102,19 @@ const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
   };
 
   const handlePointerMove = (e) => {
-    if (!dragRef.current.active) return;
+    if (!dragRef.current.active || exiting) return;
     const diff = e.clientX - dragRef.current.startX;
     setDragX(diff);
     if (Math.abs(diff) > 5) hasDragged.current = true;
   };
 
   const handlePointerUp = (e) => {
-    if (!dragRef.current.active) return;
+    if (!dragRef.current.active || exiting) return;
     dragRef.current.active = false;
     const diff = e.clientX - dragRef.current.startX;
-    if (diff > 120) onGrade(card, 3); // Gut / Richtig
-    else if (diff < -120) onGrade(card, 1); // Nochmal / Falsch
-    else setDragX(0); // Zurückfedern
+    if (diff > 120) triggerExit('right', 3);
+    else if (diff < -120) triggerExit('left', 1);
+    else setDragX(0);
   };
 
   const grades = [
@@ -108,15 +124,27 @@ const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
     { g: 4, label: 'Einfach', color: '#6366f1', bg: '#e0e7ff' },
   ];
 
+  // Background card animates "up" as top card is dragged
+  const bgScale = 0.93 + dragProgress * 0.07;
+  const bgTranslateY = 6 - dragProgress * 6;
+  const bg2Scale = 0.87 + dragProgress * 0.06;
+  const bg2TranslateY = 12 - dragProgress * 6;
+  const animTransition = isDragging ? 'none' : 'transform 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94)';
+
+  // Top card position: flies off when exiting, otherwise follows drag
+  const cardX = exiting ? (exiting === 'right' ? 760 : -760) : dragX;
+  const cardRot = cardX * 0.05;
+  const cardTransition = isDragging ? 'none' : 'transform 0.38s cubic-bezier(0.25, 0.46, 0.45, 0.94), opacity 0.3s ease';
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 32, padding: '32px 0' }}>
-      {/* Screen Edge Blurs für Swipe-Feedback */}
+      {/* Screen edge feedback */}
       <div style={{
         position: 'fixed', top: 0, right: 0, bottom: 0, width: '40vw',
         background: 'radial-gradient(circle at right center, rgba(16,185,129,0.35) 0%, transparent 70%)',
         opacity: flipped && dragX > 0 ? Math.min(1, dragX / 150) : 0,
         pointerEvents: 'none',
-        transition: dragRef.current.active ? 'none' : 'opacity 0.3s ease-out',
+        transition: isDragging ? 'none' : 'opacity 0.3s ease-out',
         zIndex: 100,
       }} />
       <div style={{
@@ -124,31 +152,75 @@ const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
         background: 'radial-gradient(circle at left center, rgba(239,68,68,0.35) 0%, transparent 70%)',
         opacity: flipped && dragX < 0 ? Math.min(1, Math.abs(dragX) / 150) : 0,
         pointerEvents: 'none',
-        transition: dragRef.current.active ? 'none' : 'opacity 0.3s ease-out',
+        transition: isDragging ? 'none' : 'opacity 0.3s ease-out',
         zIndex: 100,
       }} />
 
-      <div style={{ width: 600, position: 'relative' }}>
-        <div style={{ position: 'absolute', inset: 0, background: 'white', borderRadius: 20, transform: 'rotate(-1.5deg) translateY(8px)', opacity: 0.6, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 2px 8px rgba(15,23,42,0.04)' }}></div>
-        <div style={{ position: 'absolute', inset: 0, background: 'white', borderRadius: 20, transform: 'rotate(0.8deg) translateY(4px)', opacity: 0.85, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 2px 8px rgba(15,23,42,0.06)' }}></div>
+      {/* Card stack */}
+      <div style={{ width: 600, height: 360, position: 'relative' }}>
+
+        {/* Back layer — card after next */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'white', borderRadius: 20,
+          transform: `rotate(-1.5deg) translateY(${bg2TranslateY}px) scale(${bg2Scale})`,
+          opacity: 0.55,
+          border: '1px solid rgba(15,23,42,0.06)',
+          boxShadow: '0 2px 8px rgba(15,23,42,0.04)',
+          transition: animTransition,
+          overflow: 'hidden',
+          pointerEvents: 'none',
+        }}>
+          {nextNextCard && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+              <div style={{ fontFamily: 'Caveat', fontSize: 24, color: '#94a3b8', textAlign: 'center', lineHeight: 1.3 }}>
+                {nextNextCard.front}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Middle layer — next card preview */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          background: 'white', borderRadius: 20,
+          transform: `rotate(0.7deg) translateY(${bgTranslateY}px) scale(${bgScale})`,
+          opacity: 0.88,
+          border: '1px solid rgba(15,23,42,0.06)',
+          boxShadow: '0 2px 8px rgba(15,23,42,0.06)',
+          transition: animTransition,
+          overflow: 'hidden',
+          pointerEvents: 'none',
+        }}>
+          {nextCard && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: 28 }}>
+              <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 10 }}>Frage</div>
+              <div style={{ fontFamily: 'Caveat', fontSize: 28, color: '#334155', textAlign: 'center', lineHeight: 1.25 }}>
+                {nextCard.front}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Top card */}
         <div
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
           style={{
-            position: 'relative',
-            transform: `translateX(${dragX}px) rotate(${dragX * 0.05}deg)`,
-            transition: dragRef.current.active ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
+            position: 'absolute', inset: 0,
+            transform: `translateX(${cardX}px) rotate(${cardRot}deg)`,
+            opacity: exiting ? 0 : 1,
+            transition: cardTransition,
             touchAction: flipped ? 'none' : 'auto',
-            cursor: flipped ? (dragRef.current.active ? 'grabbing' : 'grab') : 'pointer',
-            userSelect: dragRef.current.active ? 'none' : 'auto',
+            cursor: flipped ? (isDragging ? 'grabbing' : 'grab') : 'pointer',
+            userSelect: isDragging ? 'none' : 'auto',
           }}
         >
           <Flashcard front={card.front} back={card.back} flipped={flipped} onFlip={() => {
             if (!hasDragged.current) setFlipped(!flipped);
           }} w={600} h={360}/>
-          
         </div>
       </div>
 
@@ -159,7 +231,7 @@ const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
       {flipped ? (
         <div style={{ display: 'flex', gap: 10 }}>
           {grades.map(b => (
-            <button key={b.g} onClick={() => onGrade(card, b.g)} style={{
+            <button key={b.g} onClick={() => !exiting && triggerExit(b.g >= 3 ? 'right' : 'left', b.g)} style={{
               padding: '12px 24px',
               background: 'white',
               border: `1.5px solid ${b.bg}`,
