@@ -858,9 +858,9 @@ const SetCard = ({ set, onDelete }) => {
 const StatsRow = ({ stats, streak, profile, sets }) => {
   const cells = React.useMemo(() => {
     const arr = [];
-    for (let i = 0; i < 35; i++) {
+    for (let i = 0; i < 36; i++) {
       const d = new Date();
-      d.setDate(d.getDate() - (34 - i));
+      d.setDate(d.getDate() - (35 - i));
       const dateStr = d.toISOString().slice(0, 10);
       const count = stats.reviewCounts?.[dateStr] || 0;
       let v = 0;
@@ -880,6 +880,11 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
   const totalCards = sets?.reduce((acc, s) => acc + (s.total_cards || 0), 0) || 0;
   const totalMastered = sets?.reduce((acc, s) => acc + (s.mastered_cards || 0), 0) || 0;
   const masteredPct = totalCards ? Math.round((totalMastered / totalCards) * 100) : 0;
+  const activeSets = sets?.filter(s => s.mastered_cards > 0).length || 0;
+
+  const radius = 18;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (masteredPct / 100) * circumference;
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -891,9 +896,9 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
           { label: 'Gemeistert', value: stats.masteryPct || '0%', sub: 'aller Karten' },
           { label: 'Lernsets', value: stats.totalSets || '0', sub: 'gesamt' },
         ].map(s => (
-          <div key={s.label} style={{ background: 'var(--bg-panel)', borderRadius: 10, padding: '12px 14px', border: '1px solid var(--border-light)' }}>
+          <div key={s.label} style={{ background: 'var(--bg-panel)', borderRadius: 10, padding: '10px 14px', border: '1px solid var(--border-light)' }}>
             <div style={{ fontSize: 11, color: 'var(--text-light)' }}>{s.label}</div>
-            <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: 'var(--text-main)', marginTop: 2, letterSpacing: '-0.02em', lineHeight: 1 }}>{s.value}</div>
+            <div style={{ fontFamily: 'Instrument Sans', fontSize: 20, fontWeight: 600, color: 'var(--text-main)', marginTop: 2, letterSpacing: '-0.02em', lineHeight: 1 }}>{s.value}</div>
             <div style={{ fontSize: 11, color: 'var(--text-lighter)', marginTop: 3 }}>{s.sub}</div>
           </div>
         ))}
@@ -902,46 +907,54 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
       {/* Untere Reihe: 3 große Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
         {/* Block 1: Aktivität Heatmap */}
-        <div style={{ background: 'var(--bg-panel)', borderRadius: 12, padding: '16px 18px', border: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div>
+        <div style={{ background: 'var(--bg-panel)', borderRadius: 12, padding: '14px 16px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <div style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Aktivität</div>
-            <div style={{ fontFamily: 'Instrument Sans', fontSize: 26, fontWeight: 600, color: 'var(--text-main)', marginTop: 2, letterSpacing: '-0.02em', lineHeight: 1 }}>{streak || 0} <span style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-lighter)', letterSpacing: 'normal' }}>Tage Streak</span></div>
+            <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: 'var(--text-main)', letterSpacing: '-0.02em', lineHeight: 1 }}>{streak || 0} <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-lighter)', letterSpacing: 'normal' }}>Tage</span></div>
+            <div style={{ fontSize: 11, color: 'var(--text-lighter)', marginTop: 2 }}>letzte 36 Tage</div>
           </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(12, 1fr)', gap: 3 }}>
             {cells.map((v, i) => (
-              <div key={i} style={{ width: '100%', aspectRatio: '1', borderRadius: 3, background: v === 0 ? 'var(--bg-active)' : `rgba(99,102,241,${v})` }} />
+              <div key={i} style={{ width: 8, height: 8, borderRadius: 2, background: v === 0 ? 'var(--bg-active)' : `rgba(99,102,241,${v})` }} />
             ))}
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-lighter)', textAlign: 'right', marginTop: -4 }}>letzte 35 Tage</div>
         </div>
 
         {/* Block 2: Wochenziel */}
-        <div style={{ background: 'var(--bg-panel)', borderRadius: 12, padding: '16px 18px', border: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Wochenziel</div>
+        <div style={{ background: 'var(--bg-panel)', borderRadius: 12, padding: '14px 16px', border: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Wochenziel</div>
+            <div style={{ fontSize: 11, color: 'var(--text-lighter)' }}>{goalPct >= 100 ? 'Ziel erreicht! 🎉' : `Noch ${Math.max(0, weeklyGoal - weekReviews)}`}</div>
+          </div>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <div style={{ fontFamily: 'Instrument Sans', fontSize: 26, fontWeight: 600, color: 'var(--text-main)', letterSpacing: '-0.02em', lineHeight: 1 }}>{weekReviews}</div>
-            <div style={{ fontSize: 13, color: 'var(--text-lighter)', fontWeight: 500 }}>/ {weeklyGoal} Karten</div>
+            <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: 'var(--text-main)', letterSpacing: '-0.02em', lineHeight: 1 }}>{weekReviews}</div>
+            <div style={{ fontSize: 12, color: 'var(--text-lighter)', fontWeight: 500 }}>/ {weeklyGoal} Karten</div>
           </div>
-          <div style={{ height: 6, background: 'var(--bg-active)', borderRadius: 999, overflow: 'hidden', marginTop: 'auto' }}>
+          <div style={{ height: 6, background: 'var(--bg-active)', borderRadius: 999, overflow: 'hidden' }}>
             <div style={{ width: `${goalPct}%`, height: '100%', background: goalPct >= 100 ? '#10b981' : '#6366f1', borderRadius: 999 }} />
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-lighter)' }}>
-            {goalPct >= 100 ? 'Ziel erreicht! 🎉' : `Noch ${Math.max(0, weeklyGoal - weekReviews)} Karten zu lernen`}
           </div>
         </div>
 
-        {/* Block 3: Gesamt-Fortschritt */}
-        <div style={{ background: 'var(--bg-panel)', borderRadius: 12, padding: '16px 18px', border: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', gap: 12 }}>
-          <div style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Gesamt-Fortschritt</div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <div style={{ fontFamily: 'Instrument Sans', fontSize: 26, fontWeight: 600, color: 'var(--text-main)', letterSpacing: '-0.02em', lineHeight: 1 }}>{totalCards}</div>
-            <div style={{ fontSize: 13, color: 'var(--text-lighter)', fontWeight: 500 }}>Karten insgesamt</div>
+        {/* Block 3: Gesamt-Fortschritt (Circle Donut Chart) */}
+        <div style={{ background: 'var(--bg-panel)', borderRadius: 12, padding: '14px 16px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            <div style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Gesamt-Fortschritt</div>
+            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
+              <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: 'var(--text-main)', letterSpacing: '-0.02em', lineHeight: 1 }}>{totalMastered}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-lighter)', fontWeight: 500 }}>/ {totalCards} Karten</div>
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-lighter)', marginTop: 2 }}>
+              <span style={{ color: 'var(--text-main)', fontWeight: 500 }}>{activeSets}</span> Lernsets geübt
+            </div>
           </div>
-          <div style={{ height: 6, background: 'var(--bg-active)', borderRadius: 999, overflow: 'hidden', marginTop: 'auto', display: 'flex' }}>
-            <div style={{ width: `${masteredPct}%`, height: '100%', background: '#10b981' }} />
-          </div>
-          <div style={{ fontSize: 11, color: 'var(--text-lighter)' }}>
-            <span style={{ color: '#10b981', fontWeight: 600 }}>{totalMastered}</span> gemeistert ({masteredPct}%)
+
+          {/* Circle Donut Chart */}
+          <div style={{ position: 'relative', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="44" height="44" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="22" cy="22" r={radius} stroke="var(--bg-active)" strokeWidth="4" fill="none" />
+              <circle cx="22" cy="22" r={radius} stroke="#10b981" strokeWidth="4" fill="none" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.5s ease' }} />
+            </svg>
+            <div style={{ position: 'absolute', fontSize: 10, fontWeight: 600, color: 'var(--text-main)' }}>{masteredPct}%</div>
           </div>
         </div>
       </div>
@@ -1151,12 +1164,20 @@ const Dashboard = () => {
           --text-lighter: #64748b;
           --border-light: rgba(255,255,255,0.1);
           --border-focus: rgba(255,255,255,0.15);
+          --dot-color: rgba(255,255,255,0.05);
         }
         body.dark-theme { background-color: var(--bg-main); color: var(--text-main); }
         body.dark-theme .dot-paper { background-color: var(--bg-main) !important; }
         body.dark-theme .input-paper { background-color: var(--bg-panel); color: var(--text-main); border-color: var(--border-focus); }
         body.dark-theme .btn-ghost { background-color: var(--bg-panel); color: var(--text-main); border-color: var(--border-light); }
         body.dark-theme .btn-ghost:hover { background-color: var(--bg-hover); }
+
+        .custom-slider::-webkit-slider-thumb { -webkit-appearance: none; appearance: none; width: 20px; height: 20px; border-radius: 50%; background: white; border: 2px solid #6366f1; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.1s, box-shadow 0.1s; }
+        .custom-slider::-moz-range-thumb { width: 20px; height: 20px; border-radius: 50%; background: white; border: 2px solid #6366f1; cursor: pointer; box-shadow: 0 2px 4px rgba(0,0,0,0.1); transition: transform 0.1s, box-shadow 0.1s; }
+        .custom-slider:focus::-webkit-slider-thumb, .custom-slider:hover::-webkit-slider-thumb { transform: scale(1.1); box-shadow: 0 0 0 4px rgba(99,102,241,0.15); }
+        .custom-slider:focus::-moz-range-thumb, .custom-slider:hover::-moz-range-thumb { transform: scale(1.1); box-shadow: 0 0 0 4px rgba(99,102,241,0.15); }
+        body.dark-theme .custom-slider::-webkit-slider-thumb { background: var(--bg-panel); }
+        body.dark-theme .custom-slider::-moz-range-thumb { background: var(--bg-panel); }
       `}</style>
       <Sidebar user={user} profile={profile} sets={sets} active={active} onNav={setActive} onNewSet={() => setShowModal(true)}/>
 
