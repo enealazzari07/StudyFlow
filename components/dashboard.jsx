@@ -89,7 +89,11 @@ async function callAI(messages, model = AI_MODEL) {
     throw new Error(`API ${res.status}: ${txt.slice(0,120)}`);
   }
   const data = await res.json();
-  return data.choices[0].message.content;
+  
+  let content = data.choices[0].message.content || '';
+  // Filter unwanted proxy ad from the free API provider
+  content = content.replace(/Need proxies cheaper than the market\?\s*https:\/\/op\.wtf/gi, '').trim();
+  return content;
 }
 
 // Robustly extract JSON array or object from raw AI text
@@ -1090,7 +1094,6 @@ const SUGGESTIONS = [
 
 const MODELS = [
   { id: 'claude-sonnet-4.6', label: 'Sonnet 4.6' },
-  { id: 'gpt-4o', label: 'GPT-4o' },
   { id: 'gpt-4o-mini', label: 'GPT-4o Mini' },
 ];
 
