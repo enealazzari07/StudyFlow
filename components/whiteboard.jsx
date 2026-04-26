@@ -38,6 +38,19 @@ const PEN_SIZES = [
   { id: 'brush',  label: 'Pinsel', size: 18,  dot: 18 },
 ];
 
+const LINE_STYLES = [
+  { id: 'solid',  label: 'Durchgehend', dash: []     },
+  { id: 'dashed', label: 'Gestrichelt', dash: [8, 5] },
+  { id: 'dotted', label: 'Gepunktet',   dash: [2, 5] },
+];
+
+const ARROW_ENDS = [
+  { id: 'none',  label: 'Keine Pfeile',    icon: '━' },
+  { id: 'end',   label: 'Pfeil am Ende',   icon: '→' },
+  { id: 'both',  label: 'Beide Pfeile',    icon: '↔' },
+  { id: 'start', label: 'Pfeil am Start',  icon: '←' },
+];
+
 const SHORTCUT_MAP = {
   'v': 'select', 'h': 'pan', 'p': 'pen', 'm': 'highlight',
   'e': 'eraser', 'n': 'note', 'r': 'rect', 'c': 'circle',
@@ -150,7 +163,7 @@ function drawBoard(ctx, board, pan, zoom) {
     ctx.lineWidth = shape.width || 2.5;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
-    ctx.setLineDash(shape.type === 'connector' ? [6, 6] : []);
+    ctx.setLineDash(shape.dash !== undefined ? shape.dash : (shape.type === 'connector' ? [6, 6] : []));
     ctx.beginPath();
     if (shape.type === 'rect') {
       const x = Math.min(shape.x1, shape.x2);
@@ -162,13 +175,22 @@ function drawBoard(ctx, board, pan, zoom) {
     } else if (shape.type === 'circle') {
       ctx.ellipse((shape.x1 + shape.x2) / 2, (shape.y1 + shape.y2) / 2, Math.abs(shape.x2 - shape.x1) / 2, Math.abs(shape.y2 - shape.y1) / 2, 0, 0, Math.PI * 2);
     } else {
+      const ae = shape.arrowEnd !== undefined ? shape.arrowEnd : (shape.type === 'arrow' ? 'end' : 'none');
       const angle = Math.atan2(shape.y2 - shape.y1, shape.x2 - shape.x1);
       const head = 14;
       ctx.moveTo(shape.x1, shape.y1);
       ctx.lineTo(shape.x2, shape.y2);
-      ctx.moveTo(shape.x2 - head * Math.cos(angle - 0.45), shape.y2 - head * Math.sin(angle - 0.45));
-      ctx.lineTo(shape.x2, shape.y2);
-      ctx.lineTo(shape.x2 - head * Math.cos(angle + 0.45), shape.y2 - head * Math.sin(angle + 0.45));
+      if (ae === 'end' || ae === 'both') {
+        ctx.moveTo(shape.x2 - head * Math.cos(angle - 0.45), shape.y2 - head * Math.sin(angle - 0.45));
+        ctx.lineTo(shape.x2, shape.y2);
+        ctx.lineTo(shape.x2 - head * Math.cos(angle + 0.45), shape.y2 - head * Math.sin(angle + 0.45));
+      }
+      if (ae === 'start' || ae === 'both') {
+        const ar = angle + Math.PI;
+        ctx.moveTo(shape.x1 - head * Math.cos(ar - 0.45), shape.y1 - head * Math.sin(ar - 0.45));
+        ctx.lineTo(shape.x1, shape.y1);
+        ctx.lineTo(shape.x1 - head * Math.cos(ar + 0.45), shape.y1 - head * Math.sin(ar + 0.45));
+      }
     }
     ctx.stroke();
     ctx.restore();
@@ -296,6 +318,32 @@ function StickersPanel({ onClose, onPick }) {
   );
 }
 
+/* ─── LineStylePicker ─────────────────────────────────────────────────────── */
+
+function LineStylePicker({ lineStyle, arrowEnd, onLineStyle, onArrowEnd }) {
+  const lineIcons = { solid: '—', dashed: '╌', dotted: '···' };
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 999, padding: '6px 10px', border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 12px rgba(15,23,42,0.06)' }}>
+        {LINE_STYLES.map((s) => (
+          <button key={s.id} onClick={() => onLineStyle(s.id)} title={s.label}
+            style={{ width: 36, height: 28, borderRadius: 8, border: lineStyle === s.id ? '2px solid #0f172a' : '1px solid #e2e8f0', background: lineStyle === s.id ? '#f8fafc' : 'transparent', cursor: 'pointer', fontFamily: 'monospace', fontSize: 14, color: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {lineIcons[s.id]}
+          </button>
+        ))}
+      </div>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 999, padding: '6px 10px', border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 12px rgba(15,23,42,0.06)' }}>
+        {ARROW_ENDS.map((a) => (
+          <button key={a.id} onClick={() => onArrowEnd(a.id)} title={a.label}
+            style={{ width: 36, height: 28, borderRadius: 8, border: arrowEnd === a.id ? '2px solid #0f172a' : '1px solid #e2e8f0', background: arrowEnd === a.id ? '#f8fafc' : 'transparent', cursor: 'pointer', fontFamily: 'monospace', fontSize: 16, color: '#334155', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {a.icon}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 /* ─── PenSizePicker ───────────────────────────────────────────────────────── */
 
 function PenSizePicker({ penSizeId, onChange }) {
@@ -340,6 +388,8 @@ const Whiteboard = () => {
   const [tool, setTool] = useState('pen');
   const [color, setColor] = useState('#0f172a');
   const [penSizeId, setPenSizeId] = useState('normal');
+  const [lineStyle, setLineStyle] = useState('solid');
+  const [arrowEnd, setArrowEnd] = useState('end');
   const [board, setBoard] = useState(DEFAULT_BOARD);
   const [history, setHistory] = useState([]);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -364,10 +414,12 @@ const Whiteboard = () => {
     drawBoard(canvas.getContext('2d'), boardRef.current, panRef.current, zoomRef.current);
     if (shapeRef.current.active) {
       const preview = clone(boardRef.current);
-      preview.shapes.push({ id: 'preview', type: shapeRef.current.type, x1: shapeRef.current.x1, y1: shapeRef.current.y1, x2: shapeRef.current.x2, y2: shapeRef.current.y2, color, width: 2.5 });
+      const dash = LINE_STYLES.find((s) => s.id === lineStyle)?.dash || [];
+      const ae = ['arrow', 'connector'].includes(shapeRef.current.type) ? arrowEnd : 'none';
+      preview.shapes.push({ id: 'preview', type: shapeRef.current.type, x1: shapeRef.current.x1, y1: shapeRef.current.y1, x2: shapeRef.current.x2, y2: shapeRef.current.y2, color, width: 2.5, dash, arrowEnd: ae });
       drawBoard(canvas.getContext('2d'), preview, panRef.current, zoomRef.current);
     }
-  }, [color]);
+  }, [color, lineStyle, arrowEnd]);
 
   useEffect(() => { redraw(); }, [board, pan, zoom, redraw]);
 
@@ -653,6 +705,7 @@ const Whiteboard = () => {
       return;
     }
     event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
     const world = getWorldPoint(event, canvasRef.current, panRef.current, zoomRef.current);
     moveRef.current = { active: true, kind, id: item.id, startX: world.x, startY: world.y, origin: clone(item) };
     setSelected({ kind, id: item.id });
@@ -779,12 +832,13 @@ const Whiteboard = () => {
   const onPointerUp = useCallback((event) => {
     dragPanRef.current.active = false;
     moveRef.current.active = false;
-    canvasRef.current?.releasePointerCapture?.(event.pointerId);
     if (shapeRef.current.active) {
       const current = shapeRef.current;
       shapeRef.current = { active: false, type: null, x1: 0, y1: 0, x2: 0, y2: 0 };
+      const dash = LINE_STYLES.find((s) => s.id === lineStyle)?.dash || [];
+      const ae = ['arrow', 'connector'].includes(current.type) ? arrowEnd : 'none';
       mutateBoard((draft) => {
-        draft.shapes.push({ id: randomId('shape'), type: current.type, x1: current.x1, y1: current.y1, x2: current.x2, y2: current.y2, color, width: 2.5 });
+        draft.shapes.push({ id: randomId('shape'), type: current.type, x1: current.x1, y1: current.y1, x2: current.x2, y2: current.y2, color, width: 2.5, dash, arrowEnd: ae });
       });
       return;
     }
@@ -793,7 +847,7 @@ const Whiteboard = () => {
       drawRef.current = { active: false, stroke: null };
       mutateBoard((draft) => { draft.strokes.push(stroke); });
     }
-  }, [color, mutateBoard]);
+  }, [color, lineStyle, arrowEnd, mutateBoard]);
 
   /* share */
   const shareUrl = (() => {
@@ -817,7 +871,7 @@ const Whiteboard = () => {
 
   /* ─── render ── */
   return (
-    <div style={{ height: '100vh', overflow: 'hidden', position: 'relative', background: '#fafaf7' }}>
+    <div onPointerMove={onPointerMove} onPointerUp={onPointerUp} style={{ height: '100vh', overflow: 'hidden', position: 'relative', background: '#fafaf7' }}>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImagePick} style={{ display: 'none' }} />
 
       {/* canvas layer */}
@@ -825,9 +879,6 @@ const Whiteboard = () => {
         <canvas
           ref={canvasRef}
           onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', touchAction: 'none', cursor: tool === 'pan' ? 'grab' : tool === 'select' ? 'default' : tool === 'eraser' ? 'cell' : 'crosshair' }}
         />
 
@@ -867,9 +918,10 @@ const Whiteboard = () => {
 
         {board.images.map((image) => {
           const p = toScreen(image.x, image.y, pan, zoom);
+          const isSelected = selected?.kind === 'images' && selected?.id === image.id;
           return (
-            <div key={image.id} onPointerDown={(e) => startOverlayMove(e, 'images', image)} style={{ position: 'absolute', left: p.x, top: p.y, width: image.width * zoom, height: image.height * zoom, borderRadius: 16, overflow: 'hidden', border: selected?.kind === 'images' && selected?.id === image.id ? '2px solid #6366f1' : '1px solid rgba(15,23,42,0.08)', boxShadow: '0 10px 24px rgba(15,23,42,0.12)', background: 'white' }}>
-              <img src={image.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+            <div key={image.id} onPointerDown={(e) => startOverlayMove(e, 'images', image)} style={{ position: 'absolute', left: p.x, top: p.y, width: image.width * zoom, height: image.height * zoom, overflow: 'hidden', outline: isSelected ? '2px solid #6366f1' : 'none', cursor: tool === 'select' ? 'grab' : 'default' }}>
+              <img src={image.src} alt="" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block', userSelect: 'none', pointerEvents: 'none' }} />
             </div>
           );
         })}
@@ -940,6 +992,10 @@ const Whiteboard = () => {
               ))}
             </div>
           </div>
+        )}
+
+        {(['arrow', 'connector'].includes(tool)) && (
+          <LineStylePicker lineStyle={lineStyle} arrowEnd={arrowEnd} onLineStyle={setLineStyle} onArrowEnd={setArrowEnd} />
         )}
 
         {showShapePicker && (
