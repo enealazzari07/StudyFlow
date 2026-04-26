@@ -1,22 +1,48 @@
 const { useCallback, useEffect, useMemo, useRef, useState } = React;
 
 const WB_MIME = 'application/studyflow-whiteboard+json';
-const PALETTE = ['#0f172a', '#ef4444', '#f97316', '#f59e0b', '#eab308', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7'];
-const PASTELS = ['#fef3a0', '#bfdbfe', '#fbcfe8', '#bbf7d0', '#fed7aa'];
+const PALETTE = ['#0f172a', '#475569', '#ef4444', '#f97316', '#f59e0b', '#eab308', '#10b981', '#06b6d4', '#3b82f6', '#6366f1', '#a855f7', '#ec4899', '#ffffff'];
+const PASTELS = ['#fef3a0', '#bfdbfe', '#fbcfe8', '#bbf7d0', '#fed7aa', '#e9d5ff', '#fecaca'];
 const STICKY_THEMES = [
   { bg: '#fef3a0', border: '#eab308' },
   { bg: '#bfdbfe', border: '#3b82f6' },
   { bg: '#fbcfe8', border: '#ec4899' },
   { bg: '#bbf7d0', border: '#22c55e' },
   { bg: '#fed7aa', border: '#f97316' },
+  { bg: '#e9d5ff', border: '#a855f7' },
 ];
-const STICKERS = ['⭐', '✅', '❗', '💡', '🔥', '🎯', '📌', '✏️', '🤔', '👍', '❤️', '🚀', '🏆', '⚡', '📝', '🎉'];
+
+const STICKER_CATEGORIES = [
+  { name: 'Beliebt',    items: ['⭐', '✅', '❗', '💡', '🔥', '🎯', '📌', '🏆', '⚡', '💯', '✨', '💥'] },
+  { name: 'Lernen',     items: ['📚', '📖', '✏️', '📝', '🎓', '🧠', '🔬', '💻', '📐', '🧮', '🖊️', '🔭', '📊', '📈', '📉', '🗂️'] },
+  { name: 'Reaktionen', items: ['👍', '❤️', '🎉', '😍', '🙌', '👏', '🤔', '😎', '🥳', '💪', '🤩', '👋', '🫶', '🤯', '😅', '🙏'] },
+  { name: 'Natur',      items: ['🚀', '💎', '🌈', '🌟', '🦋', '🎨', '🔮', '💫', '🌸', '🏅', '🍀', '🦄', '🌙', '🌺', '🌻', '⭐'] },
+  { name: 'Status',     items: ['✔️', '❌', '⚠️', '❓', '🔄', '⏳', '🔒', '📍', '🆕', '🔑', '🚧', '🎖️', '📎', '🗝️', '🔓', '📬'] },
+];
+
 const TEMPLATES = [
-  { id: 'mindmap', name: 'Mind Map', desc: 'Brainstorming für ein Thema', icon: '🧠' },
-  { id: 'flow', name: 'Flussdiagramm', desc: 'Prozess oder Ablauf visualisieren', icon: '📊' },
-  { id: 'matrix', name: 'Eisenhower-Matrix', desc: 'Aufgaben nach Wichtigkeit sortieren', icon: '🗂️' },
-  { id: 'cards', name: 'Lern-Karteikarten', desc: 'Karten gruppieren und verbinden', icon: '🃏' },
+  { id: 'mindmap',  name: 'Mind Map',          desc: 'Brainstorming für ein Thema',            icon: '🧠' },
+  { id: 'flow',     name: 'Flussdiagramm',     desc: 'Prozess oder Ablauf visualisieren',      icon: '📊' },
+  { id: 'matrix',   name: 'Eisenhower-Matrix', desc: 'Aufgaben nach Wichtigkeit sortieren',    icon: '🗂️' },
+  { id: 'cards',    name: 'Lern-Karteikarten', desc: 'Karten gruppieren und verbinden',        icon: '🃏' },
+  { id: 'swot',     name: 'SWOT-Analyse',      desc: 'Stärken, Schwächen, Chancen, Risiken',  icon: '🔍' },
+  { id: 'timeline', name: 'Zeitleiste',         desc: 'Ereignisse chronologisch darstellen',   icon: '📅' },
+  { id: 'cornell',  name: 'Cornell-Notizen',   desc: 'Strukturierte Mitschriften',             icon: '📋' },
+  { id: 'kanban',   name: 'Kanban-Board',      desc: 'Aufgaben nach Status verwalten',         icon: '📌' },
 ];
+
+const PEN_SIZES = [
+  { id: 'thin',   label: 'Dünn',   size: 1.5, dot: 5  },
+  { id: 'normal', label: 'Normal', size: 3,   dot: 9  },
+  { id: 'thick',  label: 'Dick',   size: 7,   dot: 13 },
+  { id: 'brush',  label: 'Pinsel', size: 18,  dot: 18 },
+];
+
+const SHORTCUT_MAP = {
+  'v': 'select', 'h': 'pan', 'p': 'pen', 'm': 'highlight',
+  'e': 'eraser', 'n': 'note', 'r': 'rect', 'c': 'circle',
+  'a': 'arrow', 't': 'text', 'i': 'image', 'f': 'frame', 's': 'sticker',
+};
 
 const DEFAULT_BOARD = () => ({
   strokes: [],
@@ -31,6 +57,7 @@ const DEFAULT_BOARD = () => ({
 
 const randomId = (prefix) => `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 const clone = (value) => JSON.parse(JSON.stringify(value));
+const dist2 = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
 
 const ToolIcon = ({ children, size = 18 }) => (
   <Icon size={size} stroke={1.9}>
@@ -39,25 +66,27 @@ const ToolIcon = ({ children, size = 18 }) => (
 );
 
 const TOOL_DEFS = {
-  select: { label: 'Auswählen', icon: <ToolIcon><path d="M5 3l13 8-6 2-2 6z" fill="currentColor" stroke="none"/></ToolIcon> },
-  pan: { label: 'Verschieben', icon: <ToolIcon><path d="M9 11V5a2 2 0 0 1 4 0v6"/><path d="M9 11V8a2 2 0 0 0-4 0v6c0 4 3 7 7 7s7-3 7-7v-3a2 2 0 0 0-4 0v-1a2 2 0 0 0-4 0"/></ToolIcon> },
-  pen: { label: 'Stift', icon: <Icons.Edit size={18}/> },
-  highlight: { label: 'Marker', icon: <ToolIcon><path d="M4 15l7-7 5 5-7 7H4z"/><path d="M13 6l2-2 5 5-2 2"/></ToolIcon> },
-  eraser: { label: 'Radierer', icon: <ToolIcon><path d="M20 20H7l-4-4 9-9 8 8z"/><path d="M16 16l-7-7"/></ToolIcon> },
-  note: { label: 'Notiz', icon: <ToolIcon><path d="M4 4h16v16H4z" rx="3"/><path d="M9 9h6M9 13h4"/></ToolIcon> },
-  rect: { label: 'Rechteck', icon: <ToolIcon><rect x="4" y="6" width="16" height="12" rx="2"/></ToolIcon> },
-  circle: { label: 'Kreis', icon: <ToolIcon><circle cx="12" cy="12" r="7"/></ToolIcon> },
-  arrow: { label: 'Pfeil', icon: <Icons.ArrowRight size={18}/> },
-  text: { label: 'Text', icon: <ToolIcon><path d="M5 5h14"/><path d="M12 5v14"/></ToolIcon> },
-  image: { label: 'Bild', icon: <ToolIcon><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5L4 20"/></ToolIcon> },
-  frame: { label: 'Frame', icon: <ToolIcon><path d="M5 7H3M5 17H3M19 7h2M19 17h2M7 5V3M17 5V3M7 21v-2M17 21v-2"/><rect x="5" y="5" width="14" height="14" rx="1"/></ToolIcon> },
-  sticker: { label: 'Sticker', icon: <ToolIcon><path d="M15 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h9l6-6V6a3 3 0 0 0-3-3z"/><path d="M15 21v-4a2 2 0 0 1 2-2h4"/></ToolIcon> },
-  connector: { label: 'Verbinder', icon: <ToolIcon><circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 7l10 10"/></ToolIcon> },
-  comment: { label: 'Kommentar', icon: <ToolIcon><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></ToolIcon> },
-  more: { label: 'Mehr', icon: <Icons.Plus size={18}/> },
+  select:    { label: 'Auswählen (V)',  icon: <ToolIcon><path d="M5 3l13 8-6 2-2 6z" fill="currentColor" stroke="none"/></ToolIcon> },
+  pan:       { label: 'Verschieben (H)',icon: <ToolIcon><path d="M9 11V5a2 2 0 0 1 4 0v6"/><path d="M9 11V8a2 2 0 0 0-4 0v6c0 4 3 7 7 7s7-3 7-7v-3a2 2 0 0 0-4 0v-1a2 2 0 0 0-4 0"/></ToolIcon> },
+  pen:       { label: 'Stift (P)',      icon: <Icons.Edit size={18}/> },
+  highlight: { label: 'Marker (M)',     icon: <ToolIcon><path d="M4 15l7-7 5 5-7 7H4z"/><path d="M13 6l2-2 5 5-2 2"/></ToolIcon> },
+  eraser:    { label: 'Radierer (E)',   icon: <ToolIcon><path d="M20 20H7l-4-4 9-9 8 8z"/><path d="M16 16l-7-7"/></ToolIcon> },
+  note:      { label: 'Notiz (N)',      icon: <ToolIcon><path d="M4 4h16v16H4z" rx="3"/><path d="M9 9h6M9 13h4"/></ToolIcon> },
+  rect:      { label: 'Rechteck (R)',   icon: <ToolIcon><rect x="4" y="6" width="16" height="12" rx="2"/></ToolIcon> },
+  circle:    { label: 'Kreis (C)',      icon: <ToolIcon><circle cx="12" cy="12" r="7"/></ToolIcon> },
+  arrow:     { label: 'Pfeil (A)',      icon: <Icons.ArrowRight size={18}/> },
+  text:      { label: 'Text (T)',       icon: <ToolIcon><path d="M5 5h14"/><path d="M12 5v14"/></ToolIcon> },
+  image:     { label: 'Bild (I)',       icon: <ToolIcon><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9.5" r="1.5"/><path d="M21 15l-5-5L4 20"/></ToolIcon> },
+  frame:     { label: 'Frame (F)',      icon: <ToolIcon><path d="M5 7H3M5 17H3M19 7h2M19 17h2M7 5V3M17 5V3M7 21v-2M17 21v-2"/><rect x="5" y="5" width="14" height="14" rx="1"/></ToolIcon> },
+  sticker:   { label: 'Sticker (S)',    icon: <ToolIcon><path d="M15 3H6a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3h9l6-6V6a3 3 0 0 0-3-3z"/><path d="M15 21v-4a2 2 0 0 1 2-2h4"/></ToolIcon> },
+  connector: { label: 'Verbinder',      icon: <ToolIcon><circle cx="5" cy="6" r="2"/><circle cx="19" cy="18" r="2"/><path d="M7 7l10 10"/></ToolIcon> },
+  comment:   { label: 'Kommentar',      icon: <ToolIcon><path d="M21 15a2 2 0 0 1-2 2H8l-5 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></ToolIcon> },
+  more:      { label: 'Vorlagen',       icon: <Icons.Plus size={18}/> },
 };
 
 const TOOL_ROWS = ['select', 'pan', 'pen', 'highlight', 'eraser', 'note', 'divider', 'rect', 'circle', 'arrow', 'text', 'image', 'frame', 'sticker', 'connector', 'divider', 'comment', 'more'];
+
+/* ─── helpers ─────────────────────────────────────────────────────────────── */
 
 function getWorldPoint(evt, canvas, pan, zoom) {
   const rect = canvas.getBoundingClientRect();
@@ -68,6 +97,41 @@ function toScreen(x, y, pan, zoom) {
   return { x: x * zoom + pan.x, y: y * zoom + pan.y };
 }
 
+/* Smooth stroke with quadratic Bézier curves */
+function drawSmoothStroke(ctx, stroke) {
+  const pts = stroke.points;
+  if (!pts?.length) return;
+  ctx.save();
+  ctx.globalAlpha = stroke.alpha ?? 1;
+  ctx.strokeStyle = stroke.color;
+  ctx.lineWidth = stroke.width;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+  if (pts.length === 1) {
+    ctx.beginPath();
+    ctx.arc(pts[0].x, pts[0].y, stroke.width / 2, 0, Math.PI * 2);
+    ctx.fillStyle = stroke.color;
+    ctx.fill();
+  } else if (pts.length === 2) {
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    ctx.lineTo(pts[1].x, pts[1].y);
+    ctx.stroke();
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
+    for (let i = 1; i < pts.length - 1; i++) {
+      const mx = (pts[i].x + pts[i + 1].x) / 2;
+      const my = (pts[i].y + pts[i + 1].y) / 2;
+      ctx.quadraticCurveTo(pts[i].x, pts[i].y, mx, my);
+    }
+    const last = pts[pts.length - 1];
+    ctx.lineTo(last.x, last.y);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
 function drawBoard(ctx, board, pan, zoom) {
   const dpr = window.devicePixelRatio || 1;
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -76,22 +140,10 @@ function drawBoard(ctx, board, pan, zoom) {
   ctx.translate(pan.x, pan.y);
   ctx.scale(zoom, zoom);
 
-  for (const stroke of board.strokes) {
-    if (!stroke.points?.length) continue;
-    ctx.save();
-    ctx.globalAlpha = stroke.alpha ?? 1;
-    ctx.strokeStyle = stroke.color;
-    ctx.lineWidth = stroke.width;
-    ctx.lineCap = 'round';
-    ctx.lineJoin = 'round';
-    ctx.beginPath();
-    ctx.moveTo(stroke.points[0].x, stroke.points[0].y);
-    for (let i = 1; i < stroke.points.length; i += 1) ctx.lineTo(stroke.points[i].x, stroke.points[i].y);
-    if (stroke.points.length === 1) ctx.lineTo(stroke.points[0].x + 0.01, stroke.points[0].y + 0.01);
-    ctx.stroke();
-    ctx.restore();
-  }
+  /* strokes — smooth bezier */
+  for (const stroke of board.strokes) drawSmoothStroke(ctx, stroke);
 
+  /* shapes */
   for (const shape of board.shapes) {
     ctx.save();
     ctx.strokeStyle = shape.color;
@@ -173,23 +225,29 @@ function findSelection(board, x, y, zoom) {
   return null;
 }
 
+/* ─── TemplatesPanel ──────────────────────────────────────────────────────── */
+
 function TemplatesPanel({ onClose, onInsert }) {
   return (
-    <div style={{ position: 'absolute', right: 18, top: 70, bottom: 110, width: 320, background: 'white', borderRadius: 14, border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 8px 28px rgba(15,23,42,0.12), 0 1px 3px rgba(15,23,42,0.06)', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 30 }}>
+    <div style={{ position: 'absolute', right: 18, top: 70, bottom: 110, width: 330, background: 'white', borderRadius: 14, border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 8px 28px rgba(15,23,42,0.12), 0 1px 3px rgba(15,23,42,0.06)', display: 'flex', flexDirection: 'column', overflow: 'hidden', zIndex: 30 }}>
       <div style={{ padding: '14px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: '1px solid rgba(15,23,42,0.06)' }}>
-        <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>Erstelle Vorlagen und Diagramme</div>
+        <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>Vorlagen &amp; Diagramme</div>
         <button onClick={onClose} style={{ background: 'none', border: 'none', padding: 4, cursor: 'pointer', color: '#94a3b8', display: 'flex' }}><Icons.X size={14}/></button>
       </div>
-      <div style={{ padding: 14 }}>
-        <div style={{ background: '#fafbfc', border: '1px solid rgba(15,23,42,0.06)', borderRadius: 10, padding: '10px 12px', fontSize: 12.5, color: '#94a3b8', minHeight: 80 }}>
-          Wähle eine Vorlage und füge sie direkt auf das Board ein.
-        </div>
-      </div>
-      <div style={{ padding: '0 14px 14px', overflowY: 'auto', flex: 1 }}>
+      <div style={{ padding: '0 10px 10px', overflowY: 'auto', flex: 1 }}>
         {TEMPLATES.map((template) => (
-          <div key={template.id} onClick={() => onInsert(template.id)} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 8px', borderRadius: 8, cursor: 'pointer' }}>
-            <div style={{ width: 36, height: 36, borderRadius: 8, background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, flexShrink: 0 }}>{template.icon}</div>
-            <div style={{ fontSize: 12.5, color: '#0f172a' }}><span style={{ fontWeight: 600 }}>{template.name}</span> <span style={{ color: '#64748b' }}>{template.desc}</span></div>
+          <div
+            key={template.id}
+            onClick={() => onInsert(template.id)}
+            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '9px 8px', borderRadius: 8, cursor: 'pointer', transition: 'background 0.1s' }}
+            onMouseEnter={e => e.currentTarget.style.background = '#f8fafc'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <div style={{ width: 38, height: 38, borderRadius: 9, background: 'linear-gradient(135deg, #eef2ff, #e0e7ff)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 19, flexShrink: 0 }}>{template.icon}</div>
+            <div style={{ fontSize: 12.5, color: '#0f172a', lineHeight: 1.4 }}>
+              <span style={{ fontWeight: 600 }}>{template.name}</span><br/>
+              <span style={{ color: '#64748b', fontSize: 11.5 }}>{template.desc}</span>
+            </div>
           </div>
         ))}
       </div>
@@ -197,21 +255,67 @@ function TemplatesPanel({ onClose, onInsert }) {
   );
 }
 
+/* ─── StickersPanel ───────────────────────────────────────────────────────── */
+
 function StickersPanel({ onClose, onPick }) {
+  const [activeCategory, setActiveCategory] = useState(0);
   return (
-    <div style={{ position: 'absolute', bottom: 78, left: '50%', transform: 'translateX(-50%)', background: 'white', borderRadius: 14, border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 8px 28px rgba(15,23,42,0.12)', padding: 12, width: 280, zIndex: 30 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
-        <div style={{ fontSize: 12, fontWeight: 600, color: '#0f172a' }}>Sticker</div>
-        <button onClick={onClose} style={{ background: 'none', border: 'none', padding: 2, cursor: 'pointer', color: '#94a3b8', display: 'flex' }}><Icons.X size={12}/></button>
+    <div style={{ position: 'absolute', bottom: 82, left: '50%', transform: 'translateX(-50%)', background: 'white', borderRadius: 16, border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 8px 28px rgba(15,23,42,0.14)', width: 340, zIndex: 30, overflow: 'hidden' }}>
+      {/* header */}
+      <div style={{ padding: '10px 12px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ fontSize: 12.5, fontWeight: 600, color: '#0f172a' }}>Sticker einfügen</div>
+        <button onClick={onClose} style={{ background: 'none', border: 'none', padding: 2, cursor: 'pointer', color: '#94a3b8', display: 'flex' }}><Icons.X size={13}/></button>
       </div>
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 4 }}>
-        {STICKERS.map((sticker) => (
-          <button key={sticker} onClick={() => onPick(sticker)} style={{ padding: 6, background: 'transparent', border: '1px solid transparent', borderRadius: 6, fontSize: 18, cursor: 'pointer' }}>{sticker}</button>
+      {/* category tabs */}
+      <div style={{ display: 'flex', gap: 2, padding: '0 10px 8px', overflowX: 'auto' }}>
+        {STICKER_CATEGORIES.map((cat, i) => (
+          <button
+            key={cat.name}
+            onClick={() => setActiveCategory(i)}
+            style={{ padding: '4px 10px', borderRadius: 999, border: 'none', fontSize: 11.5, fontWeight: 500, cursor: 'pointer', whiteSpace: 'nowrap', background: activeCategory === i ? '#0f172a' : '#f1f5f9', color: activeCategory === i ? 'white' : '#475569', fontFamily: 'inherit' }}
+          >
+            {cat.name}
+          </button>
+        ))}
+      </div>
+      {/* grid */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(8, 1fr)', gap: 2, padding: '0 10px 12px' }}>
+        {STICKER_CATEGORIES[activeCategory].items.map((sticker) => (
+          <button
+            key={sticker}
+            onClick={() => onPick(sticker)}
+            style={{ padding: '7px 4px', background: 'transparent', border: '1px solid transparent', borderRadius: 8, fontSize: 20, cursor: 'pointer', lineHeight: 1, transition: 'background 0.1s' }}
+            onMouseEnter={e => e.currentTarget.style.background = '#f1f5f9'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            {sticker}
+          </button>
         ))}
       </div>
     </div>
   );
 }
+
+/* ─── PenSizePicker ───────────────────────────────────────────────────────── */
+
+function PenSizePicker({ penSizeId, onChange }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'white', borderRadius: 999, padding: '6px 12px', border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 12px rgba(15,23,42,0.06)' }}>
+      {PEN_SIZES.map((ps) => (
+        <button
+          key={ps.id}
+          onClick={() => onChange(ps.id)}
+          title={ps.label}
+          style={{ width: 28, height: 28, borderRadius: '50%', border: penSizeId === ps.id ? '2.5px solid #0f172a' : '1.5px solid #cbd5e1', background: penSizeId === ps.id ? '#f8fafc' : 'transparent', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+        >
+          <div style={{ width: ps.dot, height: ps.dot, borderRadius: '50%', background: '#334155' }} />
+        </button>
+      ))}
+    </div>
+  );
+}
+
+/* ─── Main Whiteboard Component ───────────────────────────────────────────── */
 
 const Whiteboard = () => {
   const docId = useMemo(() => new URLSearchParams(window.location.search).get('id'), []);
@@ -235,6 +339,7 @@ const Whiteboard = () => {
   const [savedAt, setSavedAt] = useState(null);
   const [tool, setTool] = useState('pen');
   const [color, setColor] = useState('#0f172a');
+  const [penSizeId, setPenSizeId] = useState('normal');
   const [board, setBoard] = useState(DEFAULT_BOARD);
   const [history, setHistory] = useState([]);
   const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -266,6 +371,7 @@ const Whiteboard = () => {
 
   useEffect(() => { redraw(); }, [board, pan, zoom, redraw]);
 
+  /* auth + load */
   useEffect(() => {
     (async () => {
       const session = await window.requireAuth();
@@ -283,14 +389,14 @@ const Whiteboard = () => {
                 const payload = JSON.parse(await blob.text());
                 setTitle(payload.title || row.name || 'Ohne Namen');
                 setBoard({
-                  strokes: payload.strokes || [],
-                  shapes: payload.shapes || [],
-                  texts: payload.texts || [],
-                  notes: payload.notes || [],
-                  emojis: payload.emojis || [],
-                  frames: payload.frames || [],
+                  strokes:  payload.strokes  || [],
+                  shapes:   payload.shapes   || [],
+                  texts:    payload.texts    || [],
+                  notes:    payload.notes    || [],
+                  emojis:   payload.emojis   || [],
+                  frames:   payload.frames   || [],
                   comments: payload.comments || [],
-                  images: payload.images || [],
+                  images:   payload.images   || [],
                 });
               } catch {}
             }
@@ -301,6 +407,7 @@ const Whiteboard = () => {
     })();
   }, [docId]);
 
+  /* canvas resize */
   useEffect(() => {
     if (loading) return undefined;
     const canvas = canvasRef.current;
@@ -317,6 +424,31 @@ const Whiteboard = () => {
     return () => ro.disconnect();
   }, [loading, redraw]);
 
+  /* ── scroll-wheel zoom (zoom towards cursor) ── */
+  useEffect(() => {
+    if (loading) return undefined;
+    const canvas = canvasRef.current;
+    if (!canvas) return undefined;
+    const onWheel = (e) => {
+      e.preventDefault();
+      const rect = canvas.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const factor = e.deltaY < 0 ? 1.1 : 1 / 1.1;
+      setZoom((prevZoom) => {
+        const newZoom = Math.min(4, Math.max(0.15, prevZoom * factor));
+        setPan((prevPan) => ({
+          x: mx - (mx - prevPan.x) * (newZoom / prevZoom),
+          y: my - (my - prevPan.y) * (newZoom / prevZoom),
+        }));
+        return newZoom;
+      });
+    };
+    canvas.addEventListener('wheel', onWheel, { passive: false });
+    return () => canvas.removeEventListener('wheel', onWheel);
+  }, [loading]);
+
+  /* save */
   const save = useCallback(async () => {
     if (!user) return null;
     setSaving(true);
@@ -348,6 +480,7 @@ const Whiteboard = () => {
     }
   }, [clientId, docRow, title, user]);
 
+  /* autosave */
   useEffect(() => {
     if (loading || !user) return undefined;
     window.clearTimeout(autosaveRef.current);
@@ -355,8 +488,12 @@ const Whiteboard = () => {
     return () => window.clearTimeout(autosaveRef.current);
   }, [board, title, loading, save, user]);
 
+  /* keyboard shortcuts */
   useEffect(() => {
     const onKeyDown = (event) => {
+      const tag = document.activeElement?.tagName?.toLowerCase();
+      const isEditing = tag === 'input' || tag === 'textarea';
+
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'z') {
         event.preventDefault();
         setHistory((prev) => {
@@ -364,22 +501,35 @@ const Whiteboard = () => {
           setBoard(prev[prev.length - 1]);
           return prev.slice(0, -1);
         });
+        return;
       }
       if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 's') {
         event.preventDefault();
         save();
+        return;
       }
-      if ((event.key === 'Delete' || event.key === 'Backspace') && selected) {
+      if ((event.key === 'Delete' || event.key === 'Backspace') && selected && !isEditing) {
         mutateBoard((draft) => {
           draft[selected.kind] = draft[selected.kind].filter((item) => item.id !== selected.id);
         });
         setSelected(null);
+        return;
+      }
+      if (!isEditing && !event.ctrlKey && !event.metaKey && !event.altKey) {
+        const mapped = SHORTCUT_MAP[event.key.toLowerCase()];
+        if (mapped) {
+          if (mapped === 'sticker') { setShowStickers((p) => !p); return; }
+          if (mapped === 'image') { fileInputRef.current?.click(); return; }
+          setTool(mapped);
+          setShowShapePicker(false);
+        }
       }
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [mutateBoard, save, selected]);
 
+  /* template insert */
   const insertTemplate = useCallback((templateId) => {
     const canvas = canvasRef.current;
     const cx = ((canvas?.offsetWidth || 1000) / 2 - panRef.current.x) / zoomRef.current;
@@ -387,27 +537,77 @@ const Whiteboard = () => {
     pushHistory();
     mutateBoard((draft) => {
       if (templateId === 'mindmap') {
-        draft.notes.push({ id: randomId('note'), x: cx - 220, y: cy - 110, width: 180, height: 120, text: 'Mikro-Klausur\nThema: Marktversagen', ...STICKY_THEMES[0] });
-        draft.notes.push({ id: randomId('note'), x: cx + 40, y: cy - 20, width: 160, height: 120, text: 'Externe Effekte\n(VL07, S. 12)', ...STICKY_THEMES[1] });
-        draft.texts.push({ id: randomId('text'), x: cx - 60, y: cy + 110, width: 150, height: 38, text: 'Hauptthema', color: '#4f46e5', bubble: true });
-        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx - 10, y1: cy + 110, x2: cx + 100, y2: cy + 10, color: '#94a3b8', width: 2 });
+        draft.notes.push({ id: randomId('note'), x: cx - 220, y: cy - 110, width: 180, height: 120, text: 'Hauptthema\nHier eingeben', ...STICKY_THEMES[0] });
+        draft.notes.push({ id: randomId('note'), x: cx + 40, y: cy - 120, width: 160, height: 100, text: 'Unterthema 1', ...STICKY_THEMES[1] });
+        draft.notes.push({ id: randomId('note'), x: cx + 40, y: cy + 10, width: 160, height: 100, text: 'Unterthema 2', ...STICKY_THEMES[2] });
+        draft.notes.push({ id: randomId('note'), x: cx + 40, y: cy + 140, width: 160, height: 100, text: 'Unterthema 3', ...STICKY_THEMES[3] });
+        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx - 30, y1: cy - 50, x2: cx + 40, y2: cy - 70, color: '#94a3b8', width: 2 });
+        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx - 30, y1: cy - 30, x2: cx + 40, y2: cy + 60, color: '#94a3b8', width: 2 });
+        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx - 30, y1: cy - 10, x2: cx + 40, y2: cy + 190, color: '#94a3b8', width: 2 });
       }
       if (templateId === 'flow') {
-        draft.frames.push({ id: randomId('frame'), x: cx - 240, y: cy - 110, width: 520, height: 250, title: 'Ablauf' });
-        draft.texts.push({ id: randomId('text'), x: cx - 170, y: cy - 10, width: 120, height: 38, text: 'Start', color: '#0f172a', bubble: true });
-        draft.texts.push({ id: randomId('text'), x: cx + 50, y: cy - 10, width: 120, height: 38, text: 'Ende', color: '#0f172a', bubble: true });
-        draft.shapes.push({ id: randomId('shape'), type: 'arrow', x1: cx - 40, y1: cy + 5, x2: cx + 50, y2: cy + 5, color: '#6366f1', width: 2.5 });
+        draft.frames.push({ id: randomId('frame'), x: cx - 280, y: cy - 130, width: 580, height: 270, title: 'Flussdiagramm' });
+        draft.texts.push({ id: randomId('text'), x: cx - 220, y: cy - 20, width: 110, height: 38, text: 'Start', color: '#0f172a', bubble: true });
+        draft.texts.push({ id: randomId('text'), x: cx - 60, y: cy - 20, width: 120, height: 38, text: 'Schritt 1', color: '#0f172a', bubble: true });
+        draft.texts.push({ id: randomId('text'), x: cx + 100, y: cy - 20, width: 120, height: 38, text: 'Schritt 2', color: '#0f172a', bubble: true });
+        draft.texts.push({ id: randomId('text'), x: cx + 230, y: cy - 20, width: 110, height: 38, text: 'Ende', color: '#0f172a', bubble: true });
+        draft.shapes.push({ id: randomId('shape'), type: 'arrow', x1: cx - 100, y1: cy, x2: cx - 60, y2: cy, color: '#6366f1', width: 2.5 });
+        draft.shapes.push({ id: randomId('shape'), type: 'arrow', x1: cx + 68, y1: cy, x2: cx + 100, y2: cy, color: '#6366f1', width: 2.5 });
+        draft.shapes.push({ id: randomId('shape'), type: 'arrow', x1: cx + 228, y1: cy, x2: cx + 230, y2: cy, color: '#6366f1', width: 2.5 });
       }
       if (templateId === 'matrix') {
-        draft.frames.push({ id: randomId('frame'), x: cx - 240, y: cy - 150, width: 480, height: 300, title: 'Eisenhower-Matrix' });
-        draft.shapes.push({ id: randomId('shape'), type: 'rect', x1: cx - 240, y1: cy - 150, x2: cx + 240, y2: cy + 150, color: '#cbd5e1', width: 2 });
-        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx, y1: cy - 150, x2: cx, y2: cy + 150, color: '#cbd5e1', width: 2 });
-        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx - 240, y1: cy, x2: cx + 240, y2: cy, color: '#cbd5e1', width: 2 });
+        const hw = 240, hh = 160;
+        draft.frames.push({ id: randomId('frame'), x: cx - hw, y: cy - hh, width: hw * 2, height: hh * 2, title: 'Eisenhower-Matrix' });
+        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx, y1: cy - hh, x2: cx, y2: cy + hh, color: '#94a3b8', width: 2 });
+        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx - hw, y1: cy, x2: cx + hw, y2: cy, color: '#94a3b8', width: 2 });
+        draft.texts.push({ id: randomId('text'), x: cx - hw + 10, y: cy - hh + 8, width: 120, height: 28, text: '① Wichtig + Dringend', color: '#ef4444', bubble: false });
+        draft.texts.push({ id: randomId('text'), x: cx + 10, y: cy - hh + 8, width: 120, height: 28, text: '② Wichtig + Nicht dringend', color: '#3b82f6', bubble: false });
+        draft.texts.push({ id: randomId('text'), x: cx - hw + 10, y: cy + 8, width: 120, height: 28, text: '③ Nicht wichtig + Dringend', color: '#f59e0b', bubble: false });
+        draft.texts.push({ id: randomId('text'), x: cx + 10, y: cy + 8, width: 120, height: 28, text: '④ Nicht wichtig + Nicht dringend', color: '#94a3b8', bubble: false });
       }
       if (templateId === 'cards') {
-        draft.notes.push({ id: randomId('note'), x: cx - 210, y: cy - 70, width: 160, height: 110, text: 'Begriff', ...STICKY_THEMES[2] });
-        draft.notes.push({ id: randomId('note'), x: cx + 20, y: cy - 70, width: 160, height: 110, text: 'Definition', ...STICKY_THEMES[3] });
-        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx - 40, y1: cy - 10, x2: cx + 20, y2: cy - 10, color: '#94a3b8', width: 2 });
+        draft.notes.push({ id: randomId('note'), x: cx - 220, y: cy - 80, width: 170, height: 120, text: 'Begriff\n\nHier eingeben', ...STICKY_THEMES[2] });
+        draft.notes.push({ id: randomId('note'), x: cx + 30, y: cy - 80, width: 170, height: 120, text: 'Definition\n\nHier eingeben', ...STICKY_THEMES[3] });
+        draft.shapes.push({ id: randomId('shape'), type: 'arrow', x1: cx - 40, y1: cy - 20, x2: cx + 30, y2: cy - 20, color: '#94a3b8', width: 2 });
+      }
+      if (templateId === 'swot') {
+        const sw = 200, sh = 140;
+        draft.frames.push({ id: randomId('frame'), x: cx - sw - 10, y: cy - sh - 10, width: (sw + 10) * 2, height: (sh + 10) * 2, title: 'SWOT-Analyse' });
+        draft.notes.push({ id: randomId('note'), x: cx - sw - 4, y: cy - sh - 4, width: sw, height: sh, text: '💪 Stärken\n\n•', ...STICKY_THEMES[3] });
+        draft.notes.push({ id: randomId('note'), x: cx + 14, y: cy - sh - 4, width: sw, height: sh, text: '⚠️ Schwächen\n\n•', ...STICKY_THEMES[0] });
+        draft.notes.push({ id: randomId('note'), x: cx - sw - 4, y: cy + 14, width: sw, height: sh, text: '🚀 Chancen\n\n•', ...STICKY_THEMES[1] });
+        draft.notes.push({ id: randomId('note'), x: cx + 14, y: cy + 14, width: sw, height: sh, text: '❌ Risiken\n\n•', ...STICKY_THEMES[0] });
+      }
+      if (templateId === 'timeline') {
+        draft.frames.push({ id: randomId('frame'), x: cx - 320, y: cy - 100, width: 660, height: 220, title: 'Zeitleiste' });
+        draft.shapes.push({ id: randomId('shape'), type: 'arrow', x1: cx - 280, y1: cy + 20, x2: cx + 300, y2: cy + 20, color: '#6366f1', width: 3 });
+        [-200, -100, 0, 100, 200].forEach((offset, i) => {
+          draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx + offset, y1: cy - 40, x2: cx + offset, y2: cy + 20, color: '#94a3b8', width: 1.5 });
+          draft.notes.push({ id: randomId('note'), x: cx + offset - 55, y: cy - 100, width: 110, height: 56, text: `Ereignis ${i + 1}`, ...STICKY_THEMES[i % STICKY_THEMES.length] });
+        });
+      }
+      if (templateId === 'cornell') {
+        const fw = 580, fh = 420;
+        draft.frames.push({ id: randomId('frame'), x: cx - fw / 2, y: cy - fh / 2, width: fw, height: fh, title: 'Cornell-Notizen' });
+        draft.texts.push({ id: randomId('text'), x: cx - fw / 2 + 8, y: cy - fh / 2 + 8, width: 150, height: 28, text: '🔑 Schlüsselwörter', color: '#4f46e5', bubble: false });
+        draft.texts.push({ id: randomId('text'), x: cx - fw / 2 + 168, y: cy - fh / 2 + 8, width: 200, height: 28, text: '📝 Notizen / Mitschrift', color: '#0f172a', bubble: false });
+        draft.texts.push({ id: randomId('text'), x: cx - fw / 2 + 8, y: cy + 80, width: fw - 16, height: 28, text: '💡 Zusammenfassung', color: '#0f172a', bubble: false });
+        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx - fw / 2 + 158, y1: cy - fh / 2, x2: cx - fw / 2 + 158, y2: cy + 70, color: '#cbd5e1', width: 1.5 });
+        draft.shapes.push({ id: randomId('shape'), type: 'connector', x1: cx - fw / 2, y1: cy + 70, x2: cx + fw / 2, y2: cy + 70, color: '#cbd5e1', width: 1.5 });
+      }
+      if (templateId === 'kanban') {
+        const cols = [
+          { title: '📋 Offen', theme: STICKY_THEMES[0], items: ['Aufgabe 1', 'Aufgabe 2'] },
+          { title: '⚙️ In Arbeit', theme: STICKY_THEMES[1], items: ['Aufgabe 3'] },
+          { title: '✅ Erledigt', theme: STICKY_THEMES[3], items: ['Aufgabe 4'] },
+        ];
+        cols.forEach((col, ci) => {
+          const colX = cx - 300 + ci * 220;
+          draft.frames.push({ id: randomId('frame'), x: colX, y: cy - 200, width: 200, height: 400, title: col.title });
+          col.items.forEach((item, ii) => {
+            draft.notes.push({ id: randomId('note'), x: colX + 10, y: cy - 180 + ii * 130, width: 180, height: 110, text: item, ...col.theme });
+          });
+        });
       }
     });
     setShowTemplates(false);
@@ -415,11 +615,11 @@ const Whiteboard = () => {
 
   const placeSticker = useCallback((emoji) => {
     const canvas = canvasRef.current;
-    const x = ((canvas?.offsetWidth || 1000) / 2 - panRef.current.x) / zoomRef.current + (Math.random() - 0.5) * 180;
-    const y = ((canvas?.offsetHeight || 700) / 2 - panRef.current.y) / zoomRef.current + (Math.random() - 0.5) * 120;
+    const x = ((canvas?.offsetWidth || 1000) / 2 - panRef.current.x) / zoomRef.current + (Math.random() - 0.5) * 200;
+    const y = ((canvas?.offsetHeight || 700) / 2 - panRef.current.y) / zoomRef.current + (Math.random() - 0.5) * 140;
     pushHistory();
     mutateBoard((draft) => {
-      draft.emojis.push({ id: randomId('emoji'), x, y, emoji, rotate: (Math.random() - 0.5) * 30 });
+      draft.emojis.push({ id: randomId('emoji'), x, y, emoji, rotate: (Math.random() - 0.5) * 28 });
     });
     setShowStickers(false);
   }, [mutateBoard, pushHistory]);
@@ -457,6 +657,8 @@ const Whiteboard = () => {
     moveRef.current = { active: true, kind, id: item.id, startX: world.x, startY: world.y, origin: clone(item) };
     setSelected({ kind, id: item.id });
   }, [tool]);
+
+  /* ── pointer events ── */
 
   const onPointerDown = useCallback((event) => {
     const canvas = canvasRef.current;
@@ -518,9 +720,14 @@ const Whiteboard = () => {
     }
     if (tool === 'pen' || tool === 'highlight') {
       pushHistory();
-      drawRef.current = { active: true, stroke: { id: randomId('stroke'), tool, color, alpha: tool === 'highlight' ? 0.3 : 1, width: tool === 'highlight' ? 12 : 3, points: [world] } };
+      const ps = PEN_SIZES.find((p) => p.id === penSizeId) || PEN_SIZES[1];
+      const width = tool === 'highlight' ? Math.max(ps.size * 3, 14) : ps.size;
+      drawRef.current = {
+        active: true,
+        stroke: { id: randomId('stroke'), tool, color, alpha: tool === 'highlight' ? 0.28 : 1, width, points: [world] },
+      };
     }
-  }, [color, mutateBoard, pushHistory, tool]);
+  }, [color, mutateBoard, penSizeId, pushHistory, tool]);
 
   const onPointerMove = useCallback((event) => {
     const canvas = canvasRef.current;
@@ -551,10 +758,21 @@ const Whiteboard = () => {
     }
     if (drawRef.current.active) {
       const world = getWorldPoint(event, canvas, panRef.current, zoomRef.current);
-      drawRef.current.stroke.points.push(world);
-      const preview = clone(boardRef.current);
-      preview.strokes.push(drawRef.current.stroke);
-      drawBoard(canvas.getContext('2d'), preview, panRef.current, zoomRef.current);
+      const pts = drawRef.current.stroke.points;
+      /* point subsampling — only record if moved ≥ 3px in world space */
+      if (!pts.length || dist2(pts[pts.length - 1], world) >= 3 / zoomRef.current) {
+        drawRef.current.stroke.points.push(world);
+      }
+      /* live preview — draw directly without full state clone */
+      const ctx = canvas.getContext('2d');
+      drawBoard(ctx, boardRef.current, panRef.current, zoomRef.current);
+      const dpr = window.devicePixelRatio || 1;
+      ctx.save();
+      ctx.scale(dpr, dpr);
+      ctx.translate(panRef.current.x, panRef.current.y);
+      ctx.scale(zoomRef.current, zoomRef.current);
+      drawSmoothStroke(ctx, drawRef.current.stroke);
+      ctx.restore();
     }
   }, [mutateBoard, redraw]);
 
@@ -577,6 +795,7 @@ const Whiteboard = () => {
     }
   }, [color, mutateBoard]);
 
+  /* share */
   const shareUrl = (() => {
     const url = new URL(window.location.href);
     if (docRow?.id) url.searchParams.set('id', docRow.id);
@@ -596,12 +815,21 @@ const Whiteboard = () => {
 
   if (loading) return <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>Whiteboard wird geladen…</div>;
 
+  /* ─── render ── */
   return (
     <div style={{ height: '100vh', overflow: 'hidden', position: 'relative', background: '#fafaf7' }}>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImagePick} style={{ display: 'none' }} />
 
+      {/* canvas layer */}
       <div className="dot-paper" style={{ position: 'absolute', inset: 0, backgroundColor: '#fafaf7' }}>
-        <canvas ref={canvasRef} onPointerDown={onPointerDown} onPointerMove={onPointerMove} onPointerUp={onPointerUp} onPointerCancel={onPointerUp} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', touchAction: 'none', cursor: tool === 'pan' ? 'grab' : tool === 'select' ? 'default' : 'crosshair' }} />
+        <canvas
+          ref={canvasRef}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerCancel={onPointerUp}
+          style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', touchAction: 'none', cursor: tool === 'pan' ? 'grab' : tool === 'select' ? 'default' : tool === 'eraser' ? 'cell' : 'crosshair' }}
+        />
 
         {board.frames.map((frame) => {
           const p = toScreen(frame.x, frame.y, pan, zoom);
@@ -648,10 +876,15 @@ const Whiteboard = () => {
 
         {board.emojis.map((emoji) => {
           const p = toScreen(emoji.x, emoji.y, pan, zoom);
-          return <div key={emoji.id} onPointerDown={(e) => startOverlayMove(e, 'emojis', emoji)} style={{ position: 'absolute', left: p.x, top: p.y, fontSize: 32 * zoom, transform: `rotate(${emoji.rotate}deg)`, filter: 'drop-shadow(2px 3px 4px rgba(15,23,42,0.15))' }}>{emoji.emoji}</div>;
+          return (
+            <div key={emoji.id} onPointerDown={(e) => startOverlayMove(e, 'emojis', emoji)} style={{ position: 'absolute', left: p.x, top: p.y, fontSize: 32 * zoom, transform: `rotate(${emoji.rotate}deg)`, filter: 'drop-shadow(2px 3px 4px rgba(15,23,42,0.15))', cursor: 'grab', userSelect: 'none' }}>
+              {emoji.emoji}
+            </div>
+          );
         })}
       </div>
 
+      {/* top-left: logo + title */}
       <div style={{ position: 'absolute', top: 14, left: 14, display: 'flex', alignItems: 'center', gap: 8, background: 'white', borderRadius: 10, padding: '6px 10px 6px 8px', border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 1px 2px rgba(15,23,42,0.04)', zIndex: 20 }}>
         <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 8, paddingRight: 8, borderRight: '1px solid #e2e8f0', textDecoration: 'none' }}>
           <Icons.Logo size={22} />
@@ -662,6 +895,7 @@ const Whiteboard = () => {
         {savedAt && <span style={{ fontSize: 11, color: '#94a3b8' }}>{savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>}
       </div>
 
+      {/* top-right: user + zoom + share */}
       <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', alignItems: 'center', gap: 8, zIndex: 20 }}>
         <button style={{ background: 'white', border: '1px solid rgba(15,23,42,0.08)', padding: '6px 10px', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#475569', fontFamily: 'inherit' }}>
           <Avatar name={user?.email || 'Du'} color="#06b6d4" size={22} />
@@ -680,16 +914,31 @@ const Whiteboard = () => {
         </button>
       </div>
 
+      {/* templates panel / button */}
       {showTemplates && <TemplatesPanel onClose={() => setShowTemplates(false)} onInsert={insertTemplate} />}
-      {!showTemplates && <div style={{ position: 'absolute', right: 30, top: 380, display: 'flex', alignItems: 'center', gap: 8, zIndex: 15 }}><span style={{ fontSize: 22 }}>✨</span><button onClick={() => setShowTemplates(true)} style={{ background: 'white', border: '1px solid rgba(15,23,42,0.08)', padding: '8px 14px', borderRadius: 999, fontSize: 13, color: '#0f172a', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 8px rgba(15,23,42,0.06)' }}>Mit einer Vorlage beginnen <span style={{ color: '#94a3b8' }}>›</span></button></div>}
+      {!showTemplates && (
+        <div style={{ position: 'absolute', right: 30, top: 380, display: 'flex', alignItems: 'center', gap: 8, zIndex: 15 }}>
+          <span style={{ fontSize: 22 }}>✨</span>
+          <button onClick={() => setShowTemplates(true)} style={{ background: 'white', border: '1px solid rgba(15,23,42,0.08)', padding: '8px 14px', borderRadius: 999, fontSize: 13, color: '#0f172a', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 8px rgba(15,23,42,0.06)' }}>
+            Vorlagen <span style={{ color: '#94a3b8' }}>›</span>
+          </button>
+        </div>
+      )}
+
       {showStickers && <StickersPanel onClose={() => setShowStickers(false)} onPick={placeSticker} />}
 
+      {/* bottom centre: toolbar */}
       <div style={{ position: 'absolute', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 25, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+
+        {/* colour + pen-size strip — shown for pen / highlight */}
         {(tool === 'pen' || tool === 'highlight') && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 999, padding: '6px 10px', border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 12px rgba(15,23,42,0.06)' }}>
-            {PASTELS.concat(PALETTE).map((swatch) => (
-              <button key={swatch} onClick={() => setColor(swatch)} style={{ width: 18, height: 18, borderRadius: '50%', background: swatch, border: color === swatch ? '2px solid #0f172a' : '1px solid rgba(15,23,42,0.1)', cursor: 'pointer', padding: 0 }} />
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+            <PenSizePicker penSizeId={penSizeId} onChange={setPenSizeId} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 999, padding: '6px 10px', border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 12px rgba(15,23,42,0.06)' }}>
+              {PASTELS.concat(PALETTE).map((swatch) => (
+                <button key={swatch} onClick={() => setColor(swatch)} style={{ width: swatch === '#ffffff' ? 18 : 18, height: 18, borderRadius: '50%', background: swatch, border: color === swatch ? '2.5px solid #0f172a' : swatch === '#ffffff' ? '1px solid #cbd5e1' : '1px solid rgba(15,23,42,0.1)', cursor: 'pointer', padding: 0, flexShrink: 0 }} />
+              ))}
+            </div>
           </div>
         )}
 
@@ -734,21 +983,31 @@ const Whiteboard = () => {
         </div>
       </div>
 
+      {/* bottom-right: zoom + undo + save */}
       <div style={{ position: 'absolute', bottom: 16, right: 16, display: 'flex', gap: 6, zIndex: 20 }}>
+        <button
+          onClick={() => setHistory((prev) => { if (!prev.length) return prev; setBoard(prev[prev.length - 1]); return prev.slice(0, -1); })}
+          title="Rückgängig (Ctrl+Z)"
+          style={{ width: 30, height: 30, background: 'white', border: '1px solid rgba(15,23,42,0.06)', borderRadius: 8, cursor: 'pointer', color: history.length ? '#475569' : '#cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+        >
+          <ToolIcon size={14}><polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 .49-4.5"/></ToolIcon>
+        </button>
         <div style={{ background: 'white', border: '1px solid rgba(15,23,42,0.06)', borderRadius: 8, display: 'flex', alignItems: 'center', boxShadow: '0 1px 2px rgba(15,23,42,0.04)' }}>
-          <button onClick={() => setZoom((prev) => Math.max(0.2, prev - 0.1))} style={{ padding: 7, background: 'none', border: 'none', cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }}>-</button>
+          <button onClick={() => setZoom((prev) => Math.max(0.15, prev - 0.1))} style={{ padding: 7, background: 'none', border: 'none', cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, lineHeight: 1 }}>-</button>
           <span style={{ fontSize: 11.5, color: '#475569', fontFamily: 'JetBrains Mono', minWidth: 36, textAlign: 'center' }}>{Math.round(zoom * 100)}%</span>
           <button onClick={() => setZoom((prev) => Math.min(4, prev + 0.1))} style={{ padding: 7, background: 'none', border: 'none', cursor: 'pointer', color: '#475569', display: 'flex' }}><Icons.Plus size={13}/></button>
         </div>
-        <button onClick={() => save()} style={{ width: 30, height: 30, background: 'white', border: '1px solid rgba(15,23,42,0.06)', borderRadius: 8, cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Speichern"><Icons.Doc size={14}/></button>
+        <button onClick={() => save()} style={{ width: 30, height: 30, background: 'white', border: '1px solid rgba(15,23,42,0.06)', borderRadius: 8, cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', justifyContent: 'center' }} title="Speichern (Ctrl+S)"><Icons.Doc size={14}/></button>
       </div>
 
+      {/* bottom-left: centre-view */}
       <div style={{ position: 'absolute', bottom: 16, left: 16, zIndex: 20 }}>
         <button onClick={() => { setPan({ x: 0, y: 0 }); setZoom(1); }} style={{ background: 'white', border: '1px solid rgba(15,23,42,0.06)', padding: 8, borderRadius: 8, cursor: 'pointer', color: '#475569', display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, fontFamily: 'inherit', boxShadow: '0 1px 2px rgba(15,23,42,0.04)' }} title="Board zentrieren">
           <ToolIcon size={14}><path d="M12 2L2 7l10 5 10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></ToolIcon>
         </button>
       </div>
 
+      {/* share modal */}
       {shareOpen && (
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.36)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
           <div style={{ width: 520, background: 'white', borderRadius: 24, boxShadow: '0 24px 60px rgba(15,23,42,0.22)', padding: 20 }}>
