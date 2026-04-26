@@ -160,15 +160,15 @@ const BentoVisual = ({ kind }) => {
 };
 
 const BentoCard = ({ feature }) => {
+  const isSm = feature.size === 'sm';
   const sizeMap = {
     lg: { gridColumn: 'span 2', gridRow: 'span 2', minHeight: 320 },
     md: { gridColumn: 'span 2', gridRow: 'span 1', minHeight: 260 },
-    sm: { gridColumn: 'span 1', gridRow: 'span 1', minHeight: 230 },
+    sm: { gridColumn: 'span 1', gridRow: 'span 1', minHeight: 340 },
   };
   return (
     <div className={`bento-${feature.size}`} style={{
       ...sizeMap[feature.size],
-      position: 'relative',
       background: 'white',
       borderRadius: 18,
       border: '1px solid rgba(15,23,42,0.07)',
@@ -177,6 +177,9 @@ const BentoCard = ({ feature }) => {
       overflow: 'hidden',
       transition: 'transform 0.25s ease, box-shadow 0.25s ease',
       cursor: 'default',
+      position: 'relative',
+      display: isSm ? 'flex' : 'block',
+      flexDirection: isSm ? 'column' : undefined,
     }}
     onMouseEnter={e => {
       e.currentTarget.style.transform = 'translateY(-3px)';
@@ -187,7 +190,8 @@ const BentoCard = ({ feature }) => {
       e.currentTarget.style.boxShadow = '0 1px 2px rgba(15,23,42,0.04), 0 2px 10px rgba(15,23,42,0.04)';
     }}
     >
-      <div style={{ position: 'relative', zIndex: 2, maxWidth: feature.size === 'lg' ? '50%' : '90%' }}>
+      {/* Text area */}
+      <div style={{ position: isSm ? 'relative' : 'relative', zIndex: 2, maxWidth: feature.size === 'lg' ? '50%' : '100%', flexShrink: 0 }}>
         <div style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
           padding: '4px 10px', borderRadius: 999,
@@ -200,25 +204,33 @@ const BentoCard = ({ feature }) => {
         </div>
         <div style={{
           fontFamily: 'Caveat', fontWeight: 600,
-          fontSize: feature.size === 'lg' ? 42 : 32,
+          fontSize: feature.size === 'lg' ? 42 : isSm ? 28 : 32,
           color: '#0f172a',
-          lineHeight: 1.05,
-          marginTop: 12,
+          lineHeight: 1.1,
+          marginTop: 10,
           letterSpacing: '-0.01em',
         }}>
           {feature.title}
         </div>
         <div style={{
-          fontSize: feature.size === 'lg' ? 15 : 13.5,
+          fontSize: feature.size === 'lg' ? 15 : 13,
           color: '#64748b',
-          marginTop: 8,
+          marginTop: 6,
           lineHeight: 1.5,
-          maxWidth: 340,
+          maxWidth: feature.size === 'lg' ? 340 : '100%',
         }}>
           {feature.subtitle}
         </div>
       </div>
-      <BentoVisual kind={feature.visual}/>
+
+      {/* Visual area — for sm: in flow (flex child), for lg/md: absolute */}
+      {isSm ? (
+        <div style={{ flex: 1, position: 'relative', marginTop: 16, minHeight: 140 }}>
+          <BentoVisual kind={feature.visual}/>
+        </div>
+      ) : (
+        <BentoVisual kind={feature.visual}/>
+      )}
     </div>
   );
 };
@@ -419,59 +431,208 @@ const AISpotlight = () => (
   </section>
 );
 
-const Pricing = () => (
-  <section id="preis" style={{ maxWidth: 1200, margin: '100px auto', padding: '0 24px' }}>
-    <div style={{ textAlign: 'center', marginBottom: 60 }}>
-      <div style={{ fontFamily: 'Caveat', fontSize: 22, color: '#6366f1', fontWeight: 600 }}>Preise</div>
-      <h2 style={{ fontFamily: 'Instrument Sans', fontSize: 44, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em', marginTop: 4 }}>
-        Ein Plan für alle.
-      </h2>
-    </div>
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 32, maxWidth: 860, margin: '0 auto' }}>
-      {/* Free Plan */}
-      <div style={{ background: 'white', borderRadius: 24, padding: 40, border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 4px 20px rgba(15,23,42,0.03)', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: '#f1f5f9', borderRadius: 999, fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 20, alignSelf: 'flex-start' }}>
-          <Icons.Bookmark size={14}/> Free
+// ─── Policy Modal (shown before Stripe checkout) ──────────────
+const PolicyModal = ({ onClose, onConfirm, loading }) => (
+  <div onClick={onClose} style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', zIndex: 9000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+    <div onClick={e => e.stopPropagation()} style={{ background: 'white', borderRadius: 24, padding: '36px 40px', maxWidth: 540, width: '100%', boxShadow: '0 30px 80px rgba(15,23,42,0.22)', position: 'relative' }}>
+      {/* Header */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24 }}>
+        <div style={{ width: 44, height: 44, borderRadius: 14, background: 'linear-gradient(135deg,#312e81,#6366f1)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
+          <Icons.Bolt size={20}/>
         </div>
-        <div style={{ fontFamily: 'Instrument Sans', fontSize: 42, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>
-          0 € <span style={{ fontSize: 16, color: '#64748b', fontWeight: 500 }}>/Monat</span>
+        <div>
+          <div style={{ fontFamily: 'Instrument Sans', fontSize: 20, fontWeight: 700, color: '#0f172a' }}>StudyFlow Pro</div>
+          <div style={{ fontSize: 13, color: '#64748b' }}>Monatsabo · Jederzeit kündbar</div>
         </div>
-        <div style={{ fontSize: 14, color: '#64748b', marginBottom: 32 }}>Für den einfachen Start ins Semester.</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 40, flex: 1 }}>
-          {['Bis zu 10 Lernsets', '3 AI-Analysen pro Monat', 'Basis-Lernstatistiken', 'Spaced Repetition (SM-2)'].map(f => (
-            <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#334155' }}>
-              <span style={{ color: '#94a3b8', display: 'flex' }}><Icons.Check size={16}/></span> {f}
-            </div>
-          ))}
-        </div>
-        <a href="login.html" className="btn-ghost" style={{ width: '100%', justifyContent: 'center', padding: '12px 0', fontSize: 15 }}>Kostenlos starten</a>
       </div>
-      
-      {/* Pro Plan */}
-      <div style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)', borderRadius: 24, padding: 40, color: 'white', boxShadow: '0 20px 40px rgba(49, 46, 129, 0.2)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
-        <div style={{ position: 'absolute', top: 0, right: 0, background: '#6366f1', color: 'white', fontSize: 11, fontWeight: 700, padding: '6px 36px', transform: 'translate(30%, 20px) rotate(45deg)', letterSpacing: '0.05em', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>BELIEBT</div>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: '#c7d2fe', marginBottom: 20, alignSelf: 'flex-start' }}>
-          <Icons.Bolt size={14}/> Pro
-        </div>
-        <div style={{ fontFamily: 'Instrument Sans', fontSize: 42, fontWeight: 600, color: 'white', marginBottom: 8 }}>
-          5,99 € <span style={{ fontSize: 16, color: '#a5b4fc', fontWeight: 500 }}>/Monat</span>
-        </div>
-        <div style={{ fontSize: 14, color: '#c7d2fe', marginBottom: 32 }}>Für Power-User & Lerngruppen.</div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 40, flex: 1 }}>
-          {['Unbegrenzte Lernsets', 'Unbegrenzte AI & Vision AI', 'Live-Kollaboration mit Freunden', 'Detaillierte Lern-Analytics', 'Prioritäts-Support'].map(f => (
-            <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#e0e7ff' }}>
-              <span style={{ color: '#6366f1', display: 'flex' }}><Icons.Check size={16}/></span> {f}
+
+      {/* Price box */}
+      <div style={{ background: '#f8fafc', borderRadius: 14, padding: '16px 20px', marginBottom: 24, display: 'flex', alignItems: 'baseline', gap: 8 }}>
+        <span style={{ fontFamily: 'Instrument Sans', fontSize: 36, fontWeight: 700, color: '#0f172a' }}>5,99 €</span>
+        <span style={{ fontSize: 15, color: '#64748b' }}>/ Monat · inkl. MwSt.</span>
+      </div>
+
+      {/* Policies */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 28 }}>
+        {[
+          {
+            icon: '🔄',
+            title: 'Automatische Verlängerung',
+            text: 'Das Abo verlängert sich monatlich um 5,99 € bis zur Kündigung. Du kannst jederzeit in den Einstellungen kündigen — dein Zugriff bleibt bis Periodenende aktiv.',
+          },
+          {
+            icon: '↩️',
+            title: '14 Tage Widerrufsrecht',
+            text: 'Nach EU-Recht hast du 14 Tage nach Kaufdatum ein gesetzliches Widerrufsrecht. Schreib uns an support@studyflow.app für eine vollständige Rückerstattung — keine Fragen.',
+          },
+          {
+            icon: '🔒',
+            title: 'Sichere Zahlung via Stripe',
+            text: 'Zahlungsdaten werden ausschliesslich von Stripe verarbeitet. Wir speichern keine Kartendaten.',
+          },
+        ].map(p => (
+          <div key={p.title} style={{ display: 'flex', gap: 12 }}>
+            <span style={{ fontSize: 18, flexShrink: 0 }}>{p.icon}</span>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#1e293b', marginBottom: 3 }}>{p.title}</div>
+              <div style={{ fontSize: 12.5, color: '#64748b', lineHeight: 1.5 }}>{p.text}</div>
             </div>
-          ))}
-        </div>
-        <a href="login.html" className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '12px 0', fontSize: 15, background: 'white', color: '#1e1b4b' }}>Pro aktivieren</a>
+          </div>
+        ))}
+      </div>
+
+      {/* Actions */}
+      <button
+        onClick={onConfirm}
+        disabled={loading}
+        style={{ width: '100%', padding: '14px 0', background: loading ? '#e2e8f0' : 'linear-gradient(135deg,#312e81,#6366f1)', color: loading ? '#94a3b8' : 'white', border: 'none', borderRadius: 14, fontSize: 15, fontWeight: 600, cursor: loading ? 'default' : 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8, transition: 'all 0.15s', marginBottom: 10 }}>
+        {loading
+          ? <span style={{ display: 'flex', gap: 5 }}>{[0,1,2].map(i => <span key={i} style={{ width: 6, height: 6, borderRadius: '50%', background: '#94a3b8', display: 'inline-block' }}/>)}</span>
+          : <><Icons.Bolt size={15}/> Jetzt kaufen · 5,99 €/Monat</>
+        }
+      </button>
+      <button onClick={onClose} style={{ width: '100%', padding: '11px 0', background: 'none', border: '1px solid #e2e8f0', borderRadius: 14, fontSize: 14, color: '#64748b', cursor: 'pointer', fontFamily: 'inherit' }}>
+        Abbrechen
+      </button>
+      <div style={{ marginTop: 14, textAlign: 'center', fontSize: 11.5, color: '#94a3b8', lineHeight: 1.5 }}>
+        Mit dem Kauf stimmst du unseren <a href="#" style={{ color: '#6366f1' }}>AGB</a> und der <a href="#" style={{ color: '#6366f1' }}>Datenschutzerklärung</a> zu.
       </div>
     </div>
-    <div style={{ textAlign: 'center', marginTop: 32, fontSize: 14, color: '#64748b' }}>
-      Hast du eine Uni-Mailadresse? <a href="login.html" style={{ color: '#6366f1', fontWeight: 500, textDecoration: 'underline' }}>Hol dir Pro kostenlos.</a>
-    </div>
-  </section>
+  </div>
 );
+
+const SUPABASE_URL = 'https://rbvzfqpgwmzefrdnexhq.supabase.co';
+const SUPABASE_ANON = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJidnpmcXBnd216ZWZyZG5leGhxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDI4MjEwNzIsImV4cCI6MjA1ODM5NzA3Mn0.i7-J42s9uLPHXifEpuI0I0XPP7FgD8e4d0_hF1Vvyeg';
+
+const Pricing = () => {
+  const [showPolicy, setShowPolicy] = React.useState(false);
+  const [checkoutLoading, setCheckoutLoading] = React.useState(false);
+  const [checkoutError, setCheckoutError] = React.useState('');
+
+  const handleProClick = async () => {
+    setShowPolicy(true);
+    setCheckoutError('');
+  };
+
+  const handleConfirmPurchase = async () => {
+    setCheckoutLoading(true);
+    setCheckoutError('');
+    try {
+      // Check if user is logged in
+      const sb = window.supabase
+        ? window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON)
+        : null;
+
+      let token = null;
+      if (sb) {
+        const { data: { session } } = await sb.auth.getSession();
+        token = session?.access_token;
+      }
+
+      if (!token) {
+        // Not logged in — send to login with redirect hint
+        window.location.href = 'login.html?redirect=pro';
+        return;
+      }
+
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/stripe-checkout`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err || 'Fehler beim Checkout');
+      }
+
+      const { url } = await res.json();
+      if (url) window.location.href = url;
+      else throw new Error('Keine Checkout-URL erhalten');
+    } catch (e) {
+      setCheckoutError(e.message || 'Unbekannter Fehler');
+      setCheckoutLoading(false);
+    }
+  };
+
+  return (
+    <section id="preis" style={{ maxWidth: 1200, margin: '100px auto', padding: '0 24px' }}>
+      {showPolicy && (
+        <PolicyModal
+          onClose={() => { setShowPolicy(false); setCheckoutLoading(false); }}
+          onConfirm={handleConfirmPurchase}
+          loading={checkoutLoading}
+        />
+      )}
+
+      <div style={{ textAlign: 'center', marginBottom: 60 }}>
+        <div style={{ fontFamily: 'Caveat', fontSize: 22, color: '#6366f1', fontWeight: 600 }}>Preise</div>
+        <h2 style={{ fontFamily: 'Instrument Sans', fontSize: 44, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em', marginTop: 4 }}>
+          Ein Plan für alle.
+        </h2>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 32, maxWidth: 860, margin: '0 auto' }}>
+        {/* Free */}
+        <div style={{ background: 'white', borderRadius: 24, padding: 40, border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 4px 20px rgba(15,23,42,0.03)', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: '#f1f5f9', borderRadius: 999, fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 20, alignSelf: 'flex-start' }}>
+            <Icons.Bookmark size={14}/> Free
+          </div>
+          <div style={{ fontFamily: 'Instrument Sans', fontSize: 42, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>
+            0 € <span style={{ fontSize: 16, color: '#64748b', fontWeight: 500 }}>/Monat</span>
+          </div>
+          <div style={{ fontSize: 14, color: '#64748b', marginBottom: 32 }}>Für den einfachen Start ins Semester.</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 40, flex: 1 }}>
+            {['Bis zu 10 Lernsets', '3 AI-Analysen pro Monat', 'Basis-Lernstatistiken', 'Spaced Repetition (SM-2)'].map(f => (
+              <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#334155' }}>
+                <span style={{ color: '#94a3b8', display: 'flex' }}><Icons.Check size={16}/></span> {f}
+              </div>
+            ))}
+          </div>
+          <a href="login.html" className="btn-ghost" style={{ width: '100%', justifyContent: 'center', padding: '12px 0', fontSize: 15 }}>Kostenlos starten</a>
+        </div>
+
+        {/* Pro */}
+        <div style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 100%)', borderRadius: 24, padding: 40, color: 'white', boxShadow: '0 20px 40px rgba(49,46,129,0.2)', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ position: 'absolute', top: 0, right: 0, background: '#6366f1', color: 'white', fontSize: 11, fontWeight: 700, padding: '6px 36px', transform: 'translate(30%, 20px) rotate(45deg)', letterSpacing: '0.05em' }}>BELIEBT</div>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 999, fontSize: 13, fontWeight: 600, color: '#c7d2fe', marginBottom: 20, alignSelf: 'flex-start' }}>
+            <Icons.Bolt size={14}/> Pro
+          </div>
+          <div style={{ fontFamily: 'Instrument Sans', fontSize: 42, fontWeight: 600, color: 'white', marginBottom: 8 }}>
+            5,99 € <span style={{ fontSize: 16, color: '#a5b4fc', fontWeight: 500 }}>/Monat</span>
+          </div>
+          <div style={{ fontSize: 14, color: '#c7d2fe', marginBottom: 32 }}>Für Power-User &amp; Lerngruppen. Automatische Verlängerung, jederzeit kündbar.</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 40, flex: 1 }}>
+            {['Unbegrenzte Lernsets', 'Unbegrenzte AI & Vision AI', 'Live-Kollaboration mit Freunden', 'Detaillierte Lern-Analytics', 'Prioritäts-Support'].map(f => (
+              <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#e0e7ff' }}>
+                <span style={{ color: '#818cf8', display: 'flex' }}><Icons.Check size={16}/></span> {f}
+              </div>
+            ))}
+          </div>
+          {checkoutError && (
+            <div style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.3)', borderRadius: 10, padding: '10px 14px', marginBottom: 12, fontSize: 13, color: '#fca5a5' }}>{checkoutError}</div>
+          )}
+          <button
+            onClick={handleProClick}
+            style={{ width: '100%', justifyContent: 'center', padding: '13px 0', fontSize: 15, background: 'white', color: '#1e1b4b', border: 'none', borderRadius: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 8, transition: 'opacity 0.15s' }}
+            onMouseEnter={e => e.currentTarget.style.opacity = '0.92'}
+            onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
+            <Icons.Bolt size={15}/> Pro aktivieren
+          </button>
+          <div style={{ marginTop: 12, textAlign: 'center', fontSize: 11.5, color: 'rgba(165,180,252,0.7)' }}>
+            Sicher via Stripe · 14 Tage Widerrufsrecht
+          </div>
+        </div>
+      </div>
+
+      <div style={{ textAlign: 'center', marginTop: 32, fontSize: 14, color: '#64748b' }}>
+        Hast du eine Uni-Mailadresse? <a href="login.html" style={{ color: '#6366f1', fontWeight: 500, textDecoration: 'underline' }}>Hol dir Pro kostenlos.</a>
+      </div>
+    </section>
+  );
+};
 
 const Footer = () => (
   <footer style={{ maxWidth: 1200, margin: '80px auto 40px', padding: '0 24px', borderTop: '1px solid rgba(15,23,42,0.08)', paddingTop: 40 }}>

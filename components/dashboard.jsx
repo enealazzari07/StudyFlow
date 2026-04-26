@@ -1631,27 +1631,21 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
   const levelCircumference = 2 * Math.PI * levelRadius;
   const levelDashoffset = levelCircumference * (1 - levelPct);
 
-  // Torn masking tape at top center — jagged left/right edges like ripped from a roll
+  // Masking tape strip — same style as the "Klausur" sticky note (.tape from globals.css)
   const Tape = ({ color }) => (
-    <div style={{ position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)', zIndex: 2, pointerEvents: 'none' }}>
-      <svg width="68" height="26" viewBox="0 0 68 26" fill="none">
-        {/* Main body with torn left & right edges */}
-        <path
-          d="M7 0 L5 2 L8 5 L5 8 L7 11 L5 14 L7 17 L5 20 L7 23 L8 26
-             L60 26 L62 23 L61 20 L63 17 L61 14 L63 11 L61 8 L63 5 L61 2 L60 0
-             Z"
-          fill={color} opacity="0.45"
-        />
-        {/* Lighter torn edges to add depth */}
-        <path d="M7 0 L5 2 L8 5 L5 8 L7 11 L5 14 L7 17 L5 20 L7 23 L8 26 L12 26 L12 0 Z"
-          fill={color} opacity="0.15"/>
-        <path d="M60 0 L62 23 L61 20 L63 17 L61 14 L63 11 L61 8 L63 5 L61 2 L60 0 L56 0 L56 26 L60 26 Z"
-          fill={color} opacity="0.15"/>
-        {/* Horizontal texture lines */}
-        <line x1="12" y1="9" x2="56" y2="9" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.28"/>
-        <line x1="12" y1="16" x2="56" y2="16" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.18"/>
-      </svg>
-    </div>
+    <div style={{
+      position: 'absolute',
+      width: 52, height: 18,
+      background: color + '8C',
+      top: -8, left: '50%',
+      transform: 'translateX(-50%) rotate(-2deg)',
+      borderLeft: '1px dashed rgba(255,255,255,0.6)',
+      borderRight: '1px dashed rgba(255,255,255,0.6)',
+      boxShadow: '0 1px 3px rgba(15,23,42,0.1)',
+      zIndex: 2,
+      pointerEvents: 'none',
+      borderRadius: 2,
+    }}/>
   );
 
   // Wavy underline SVG for notebook feel
