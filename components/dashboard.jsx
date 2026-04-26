@@ -1306,9 +1306,132 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
   const levelCircumference = 2 * Math.PI * levelRadius;
   const levelDashoffset = levelCircumference * (1 - levelPct);
 
+  // Notebook sticker SVG — round badge with icon
+  const Sticker = ({ color, bg, icon, rotate = 0 }) => (
+    <div style={{
+      position: 'absolute', top: -14, left: '50%', transform: `translateX(-50%) rotate(${rotate}deg)`,
+      width: 28, height: 28, borderRadius: '50%',
+      background: bg,
+      border: `2px solid ${color}`,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      boxShadow: `0 2px 6px ${color}44, 0 1px 2px rgba(0,0,0,0.1)`,
+      zIndex: 2, flexShrink: 0,
+      color,
+    }}>{icon}</div>
+  );
+
+  // Wavy underline SVG for notebook feel
+  const WavyLine = ({ color }) => (
+    <svg width="100%" height="6" viewBox="0 0 120 6" preserveAspectRatio="none" style={{ display: 'block', marginTop: 4 }}>
+      <path d="M0 3 Q 10 0.5 20 3 T 40 3 T 60 3 T 80 3 T 100 3 T 120 3" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.5"/>
+    </svg>
+  );
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      {/* Obere Reihe: 4 kleine Stats */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+      {/* Notebook-Karten: Aktivität, Wochenziel, Level */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, paddingTop: 14 }}>
+
+        {/* Aktivität — blau */}
+        <div style={{ position: 'relative', transform: 'rotate(-1deg)' }}>
+          <Sticker color="#2563eb" bg="#dbeafe" rotate={-8} icon={<Icons.Bolt size={13}/>}/>
+          <div style={{
+            background: '#eff6ff',
+            borderRadius: 14,
+            padding: '18px 16px 14px',
+            border: '1.5px solid #bfdbfe',
+            boxShadow: '0 2px 8px rgba(37,99,235,0.08), 2px 4px 0 rgba(37,99,235,0.06)',
+          }}>
+            <div style={{ fontFamily: 'Caveat', fontSize: 16, fontWeight: 600, color: '#1d4ed8', marginBottom: 2 }}>Aktivität</div>
+            <WavyLine color="#3b82f6"/>
+            <div style={{ marginTop: 10, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
+              <div>
+                <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 700, color: '#1e40af', lineHeight: 1 }}>{streak || 0}</div>
+                <div style={{ fontFamily: 'Caveat', fontSize: 14, color: '#3b82f6' }}>Tage Streak</div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, marginBottom: 4 }}>
+                {cells.map((cell, i) => (
+                  <div key={i} title={`${cell.dateStr}\n${cell.count} Karten`}
+                    style={{ width: 9, height: 9, borderRadius: 2,
+                      background: cell.v === 0 ? '#bfdbfe' : `rgba(37,99,235,${cell.v + 0.1})`,
+                      cursor: 'help' }}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Wochenziel — grün */}
+        <div style={{ position: 'relative', transform: 'rotate(0.5deg)' }}>
+          <Sticker color="#16a34a" bg="#dcfce7" rotate={5} icon={<Icons.Check size={13}/>}/>
+          <div style={{
+            background: '#f0fdf4',
+            borderRadius: 14,
+            padding: '18px 16px 14px',
+            border: '1.5px solid #bbf7d0',
+            boxShadow: '0 2px 8px rgba(22,163,74,0.08), 2px 4px 0 rgba(22,163,74,0.06)',
+          }}>
+            <div style={{ fontFamily: 'Caveat', fontSize: 16, fontWeight: 600, color: '#15803d', marginBottom: 2 }}>Wochenziel</div>
+            <WavyLine color="#22c55e"/>
+            <div style={{ marginTop: 10 }}>
+              <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, marginBottom: 8 }}>
+                <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 700, color: '#166534', lineHeight: 1 }}>{weekReviews}</div>
+                <div style={{ fontFamily: 'Caveat', fontSize: 15, color: '#16a34a', marginBottom: 2 }}>/ {weeklyGoal} Karten</div>
+              </div>
+              <div style={{ height: 8, background: '#bbf7d0', borderRadius: 999, overflow: 'hidden' }}>
+                <div style={{ width: `${goalPct}%`, height: '100%', borderRadius: 999, transition: 'width 0.4s ease',
+                  background: goalPct >= 100 ? '#16a34a' : 'linear-gradient(90deg, #4ade80, #16a34a)' }}/>
+              </div>
+              <div style={{ fontFamily: 'Caveat', fontSize: 13, color: '#15803d', marginTop: 5 }}>
+                {goalPct >= 100 ? '🎉 Ziel erreicht!' : `Noch ${Math.max(0, weeklyGoal - weekReviews)} bis zum Ziel`}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Level — gold */}
+        <div style={{ position: 'relative', transform: 'rotate(-0.8deg)' }}>
+          <Sticker color="#d97706" bg="#fef3c7" rotate={3} icon={<Icons.Star size={12}/>}/>
+          <div style={{
+            background: '#fffbeb',
+            borderRadius: 14,
+            padding: '18px 16px 14px',
+            border: '1.5px solid #fde68a',
+            boxShadow: '0 2px 8px rgba(217,119,6,0.1), 2px 4px 0 rgba(217,119,6,0.06)',
+          }}>
+            <div style={{ fontFamily: 'Caveat', fontSize: 16, fontWeight: 600, color: '#b45309', marginBottom: 2 }}>Fortschritt</div>
+            <WavyLine color="#f59e0b"/>
+            <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <div>
+                <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 700, color: '#b45309', lineHeight: 1 }}>Level {level}</div>
+                <div style={{ fontFamily: 'Caveat', fontSize: 13, color: '#d97706', marginTop: 2 }}>
+                  {totalXP === 0 ? 'Fang an zu lernen!' : `${xpToNext} XP bis Level ${level + 1}`}
+                </div>
+              </div>
+              {/* Gold ring */}
+              <div style={{ position: 'relative', width: 52, height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <svg width="52" height="52" style={{ transform: 'rotate(-90deg)' }}>
+                  <circle cx="26" cy="26" r={levelRadius} stroke="#fde68a" strokeWidth="4.5" fill="none"/>
+                  <circle cx="26" cy="26" r={levelRadius} stroke="#f59e0b" strokeWidth="4.5" fill="none"
+                    strokeDasharray={levelCircumference}
+                    strokeDashoffset={levelDashoffset}
+                    strokeLinecap="round"
+                    style={{ transition: 'stroke-dashoffset 0.6s ease', filter: 'drop-shadow(0 0 4px rgba(245,158,11,0.5))' }}
+                  />
+                </svg>
+                <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                  <div style={{ fontSize: 8, fontWeight: 700, color: '#d97706', letterSpacing: '0.06em', lineHeight: 1 }}>LVL</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: '#92400e', lineHeight: 1 }}>{level}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Kleine Stats — 4 Boxen */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 10 }}>
         {[
           { label: 'Fällig heute', value: stats.dueToday || '0', sub: 'Karten' },
@@ -1322,71 +1445,6 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
             <div style={{ fontSize: 11, color: 'var(--text-lighter)', marginTop: 3 }}>{s.sub}</div>
           </div>
         ))}
-      </div>
-
-      {/* Untere Reihe: 3 große Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 10 }}>
-        {/* Block 1: Aktivität Heatmap */}
-        <div style={{ background: 'var(--bg-panel)', borderRadius: 12, padding: '14px 16px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <div style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Aktivität</div>
-            <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: 'var(--text-main)', letterSpacing: '-0.02em', lineHeight: 1 }}>{streak || 0} <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-lighter)', letterSpacing: 'normal' }}>Tage</span></div>
-            <div style={{ fontSize: 11, color: 'var(--text-lighter)', marginTop: 2 }}>letzte 28 Tage</div>
-          </div>
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 4 }}>
-            {cells.map((cell, i) => (
-              <div key={i} title={`${cell.dateStr}\n${cell.count} Karten geübt`} style={{ width: 10, height: 10, borderRadius: 2, background: cell.v === 0 ? 'var(--bg-active)' : `rgba(99,102,241,${cell.v})`, cursor: 'help' }} />
-            ))}
-          </div>
-        </div>
-
-        {/* Block 2: Wochenziel */}
-        <div style={{ background: 'var(--bg-panel)', borderRadius: 12, padding: '14px 16px', border: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: 8 }}>
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-            <div style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Wochenziel</div>
-            <div style={{ fontSize: 11, color: 'var(--text-lighter)' }}>{goalPct >= 100 ? 'Ziel erreicht! 🎉' : `Noch ${Math.max(0, weeklyGoal - weekReviews)}`}</div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 8 }}>
-            <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: 'var(--text-main)', letterSpacing: '-0.02em', lineHeight: 1 }}>{weekReviews}</div>
-            <div style={{ fontSize: 12, color: 'var(--text-lighter)', fontWeight: 500 }}>/ {weeklyGoal} Karten</div>
-          </div>
-          <div style={{ height: 6, background: 'var(--bg-active)', borderRadius: 999, overflow: 'hidden' }}>
-            <div style={{ width: `${goalPct}%`, height: '100%', background: goalPct >= 100 ? '#10b981' : '#6366f1', borderRadius: 999 }} />
-          </div>
-        </div>
-
-        {/* Block 3: Level-System */}
-        <div style={{ background: 'var(--bg-panel)', borderRadius: 12, padding: '14px 16px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            <div style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Gesamt-Fortschritt</div>
-            <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 700, color: '#d97706', letterSpacing: '-0.02em', lineHeight: 1 }}>Level {level}</div>
-            </div>
-            <div style={{ fontSize: 11, color: 'var(--text-lighter)', marginTop: 2 }}>
-              {totalXP === 0
-                ? 'Lern erste Karten!'
-                : <><span style={{ color: 'var(--text-main)', fontWeight: 500 }}>{xpToNext} XP</span> bis Level {level + 1}</>
-              }
-            </div>
-          </div>
-
-          {/* Gold circular progress */}
-          <div style={{ position: 'relative', width: 52, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="52" height="52" style={{ transform: 'rotate(-90deg)' }}>
-              <circle cx="26" cy="26" r={levelRadius} stroke="var(--bg-active)" strokeWidth="4.5" fill="none" />
-              <circle cx="26" cy="26" r={levelRadius} stroke="#f59e0b" strokeWidth="4.5" fill="none"
-                strokeDasharray={levelCircumference}
-                strokeDashoffset={levelDashoffset}
-                strokeLinecap="round"
-                style={{ transition: 'stroke-dashoffset 0.6s ease', filter: 'drop-shadow(0 0 3px rgba(245,158,11,0.4))' }}
-              />
-            </svg>
-            <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0 }}>
-              <div style={{ fontSize: 8, fontWeight: 700, color: '#d97706', letterSpacing: '0.06em', lineHeight: 1 }}>LVL</div>
-              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-main)', lineHeight: 1 }}>{level}</div>
-            </div>
-          </div>
-        </div>
       </div>
     </div>
   );
