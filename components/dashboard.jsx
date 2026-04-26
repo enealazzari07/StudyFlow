@@ -2,7 +2,7 @@
 const { useState, useEffect, useRef } = React;
 
 const AIRFORCE_KEY = 'sk-air-tWdMV6mXgoa1zAfHr8UfGVI9BFzyr5dXE2jdZO4pPApRVrXDyH6W6Bdv6RwmUctq';
-const AI_MODEL = 'claude-sonnet-4-6';
+const AI_MODEL = 'claude-sonnet-4.6';
 const AI_URL = 'https://api.airforce/v1/chat/completions';
 
 // ← Azure App Registration: portal.azure.com → App-Registrierungen → Anwendungs-ID hier eintragen
