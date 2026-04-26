@@ -77,18 +77,17 @@ function createFolderArtDataUri({ filled = false } = {}) {
 const EMPTY_FOLDER_ART = createFolderArtDataUri({ filled: false });
 const FILLED_FOLDER_ART = createFolderArtDataUri({ filled: true });
 
-// ─── Ollama Cloud API für den Chat ───────────────────────────
-const OLLAMA_KEY = 'fa883d72c67d4ab9b9f9400344fdba52.E20c9sxZEyRuklDbvojX7jhO';
-// Wir nutzen hier einen CORS-Proxy, da ollama.com direkte Aufrufe aus dem Browser blockiert
-const OLLAMA_URL = 'https://corsproxy.io/?https://ollama.com/api/chat';
+// ─── Zhipu AI (GLM) API für den Chat ─────────────────────────
+// Der API-Key ist im Zhipu AI Format. Unterstützt direkte Browser-Aufrufe (CORS).
+const ZHIPU_KEY = 'fa883d72c67d4ab9b9f9400344fdba52.E20c9sxZEyRuklDbvojX7jhO';
+const ZHIPU_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
 
 async function callChatAI(messages, model) {
-  const res = await fetch(OLLAMA_URL, {
+  const res = await fetch(ZHIPU_URL, {
     method: 'POST',
     headers: { 
-      'Authorization': `Bearer ${OLLAMA_KEY}`, 
-      'Content-Type': 'application/json',
-      'Accept': 'application/json'
+      'Authorization': `Bearer ${ZHIPU_KEY}`, 
+      'Content-Type': 'application/json'
     },
     body: JSON.stringify({ model, messages, stream: false }),
   });
@@ -98,7 +97,7 @@ async function callChatAI(messages, model) {
     throw new Error(`API ${res.status}: ${txt.slice(0,120)}`);
   }
   const data = await res.json();
-  return data.message?.content || '';
+  return data.choices[0].message.content || '';
 }
 
 async function callAI(messages, model = AI_MODEL) {
@@ -1117,7 +1116,7 @@ const SUGGESTIONS = [
 ];
 
 const MODELS = [
-  { id: 'gemma4', label: 'Gemma 4' },
+  { id: 'glm-4', label: 'GLM-4 (Zhipu)' },
   { id: 'gpt-4o-mini', label: 'GPT-4o Mini' },
   { id: 'claude-sonnet-4.6', label: 'Sonnet 4.6' },
 ];
@@ -1129,7 +1128,7 @@ const FlowAIPage = ({ onClose }) => {
   const [activeChatId, setActiveChatId] = React.useState(chats[0].id);
   const [input, setInput] = React.useState('');
   const [loading, setLoading] = React.useState(false);
-  const [model, setModel] = React.useState('gemma4');
+  const [model, setModel] = React.useState('glm-4');
   const [showModelDropdown, setShowModelDropdown] = React.useState(false);
   const messagesEndRef = React.useRef(null);
   const inputRef = React.useRef(null);
