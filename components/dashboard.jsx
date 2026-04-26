@@ -1149,14 +1149,13 @@ const FlowAIPage = ({ onClose }) => {
   const CHAT_COLORS = ['#6366f1','#10b981','#f59e0b','#ec4899','#06b6d4','#8b5cf6'];
 
   return (
-    <>
+    <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
     <style>{`
       @keyframes flowPulse { 0%,100%{opacity:0.25;transform:scale(0.75)} 50%{opacity:1;transform:scale(1)} }
       @keyframes flowFadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
       .flow-msg { animation: flowFadeIn 0.25s ease; }
       .flow-chat-item:hover { background: rgba(255,255,255,0.07) !important; }
     `}</style>
-    <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
 
       {/* ── Left: dark notebook cover ── */}
       <div style={{ width: 238, flexShrink: 0, background: '#141d2e', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
@@ -1327,7 +1326,7 @@ const FlowAIPage = ({ onClose }) => {
           </div>
         </div>
       </div>
-    </>
+    </div>
   );
 };
 
