@@ -79,12 +79,17 @@ const FILLED_FOLDER_ART = createFolderArtDataUri({ filled: true });
 
 // ─── Ollama Cloud API für den Chat ───────────────────────────
 const OLLAMA_KEY = 'fa883d72c67d4ab9b9f9400344fdba52.E20c9sxZEyRuklDbvojX7jhO';
-const OLLAMA_URL = 'https://ollama.com/api/chat';
+// Wir nutzen hier einen CORS-Proxy, da ollama.com direkte Aufrufe aus dem Browser blockiert
+const OLLAMA_URL = 'https://corsproxy.io/?https://ollama.com/api/chat';
 
 async function callChatAI(messages, model) {
   const res = await fetch(OLLAMA_URL, {
     method: 'POST',
-    headers: { 'Authorization': `Bearer ${OLLAMA_KEY}`, 'Content-Type': 'application/json' },
+    headers: { 
+      'Authorization': `Bearer ${OLLAMA_KEY}`, 
+      'Content-Type': 'application/json',
+      'Accept': 'application/json'
+    },
     body: JSON.stringify({ model, messages, stream: false }),
   });
   if (!res.ok) {
@@ -1580,10 +1585,10 @@ const SetCard = ({ set, onDelete }) => {
         <div style={{ fontSize: 11.5, color: 'var(--text-lighter)' }}>
           {!isDraft ? <span>{set.mastered_cards} / {set.total_cards} gemeistert</span> : <span>Noch leer</span>}
         </div>
-        <a href={`lern-modus.html?id=${set.id}`} onClick={e => e.stopPropagation()}
-          style={{ padding: '6px 14px', background: 'var(--text-main)', color: 'var(--bg-panel)', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 500, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 5 }}>
+        <button onClick={e => { e.preventDefault(); e.stopPropagation(); window.location.href = `lern-modus.html?id=${set.id}`; }}
+          style={{ padding: '6px 14px', background: 'var(--text-main)', color: 'var(--bg-panel)', border: 'none', borderRadius: 8, fontSize: 12, fontFamily: 'inherit', cursor: 'pointer', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 5 }}>
           <Icons.Brain size={12}/> Lernen
-        </a>
+        </button>
       </div>
     </a>
   );
