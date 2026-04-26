@@ -104,7 +104,7 @@ const EditingCard = ({ card }) => {
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+      <div className="card-content" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
         <div>
           <div style={{ fontSize: 10, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6 }}>Frage</div>
           <div style={{ fontFamily: 'Caveat', fontSize: 21, fontWeight: 500, color: '#0f172a', lineHeight: 1.25 }}>
@@ -119,7 +119,7 @@ const EditingCard = ({ card }) => {
       </div>
 
       {card.hasComment && (
-        <div style={{ marginTop: 14, padding: '10px 14px', background: '#fef3c7', borderRadius: 10, display: 'flex', gap: 10, border: '1px solid #fde68a' }}>
+        <div className="mobile-wrap" style={{ marginTop: 14, padding: '10px 14px', background: '#fef3c7', borderRadius: 10, display: 'flex', gap: 10, border: '1px solid #fde68a' }}>
           <Avatar name="Noah W" color="#10b981" size={24}/>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 12, fontWeight: 500, color: '#0f172a' }}>
@@ -139,7 +139,7 @@ const EditingCard = ({ card }) => {
 };
 
 const ActivityPanel = () => (
-  <aside style={{ width: 300, flexShrink: 0, padding: 20, background: 'white', borderLeft: '1px solid rgba(15,23,42,0.06)', display: 'flex', flexDirection: 'column', gap: 20 }}>
+  <aside className="activity-panel" style={{ width: 300, flexShrink: 0, padding: 20, background: 'white', borderLeft: '1px solid rgba(15,23,42,0.06)', display: 'flex', flexDirection: 'column', gap: 20 }}>
     <div>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
         <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>Aktivität</div>
@@ -211,8 +211,8 @@ const Collab = () => (
   <div className="dot-paper" style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
     <style>{`@keyframes blink { 50% { opacity: 0; } }`}</style>
     <Header/>
-    <div style={{ display: 'flex', flex: 1, minHeight: 0 }}>
-      <main style={{ flex: 1, padding: '28px 32px 100px', position: 'relative' }}>
+    <div className="collab-layout" style={{ display: 'flex', flex: 1, minHeight: 0 }}>
+      <main className="px-mobile" style={{ flex: 1, padding: '28px 32px 100px', position: 'relative' }}>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 12, marginBottom: 4 }}>
           <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 26, fontWeight: 600, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
             Gemeinsam bearbeiten

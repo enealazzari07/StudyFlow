@@ -187,12 +187,12 @@ const AIUpload = () => {
         <div style={{ fontSize: 12, color: '#64748b' }}>{recentDocs.length} Dokumente</div>
       </header>
 
-      <div style={{ maxWidth: 780, margin: '0 auto', padding: '48px 32px 80px', position: 'relative' }}>
+      <div className="px-mobile" style={{ maxWidth: 780, margin: '0 auto', padding: '48px 32px 80px', position: 'relative' }}>
         <div style={{ textAlign: 'center', marginBottom: 36, position: 'relative' }}>
-          <div style={{ position: 'absolute', top: -10, left: 60, transform: 'rotate(-12deg)' }}>
+          <div className="hide-mobile" style={{ position: 'absolute', top: -10, left: 60, transform: 'rotate(-12deg)' }}>
             <Doodles.Sparkle color="#f59e0b" size={18}/>
           </div>
-          <div style={{ position: 'absolute', top: 10, right: 80, transform: 'rotate(8deg)' }}>
+          <div className="hide-mobile" style={{ position: 'absolute', top: 10, right: 80, transform: 'rotate(8deg)' }}>
             <Doodles.Star color="#6366f1" size={22}/>
           </div>
           <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 36, fontWeight: 600, color: '#0f172a', margin: 0, letterSpacing: '-0.02em' }}>
@@ -253,7 +253,7 @@ const AIUpload = () => {
           </div>
         ) : (
           <div style={{ background: 'white', borderRadius: 20, padding: 24, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 2px 8px rgba(15,23,42,0.04)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <div className="mobile-col" style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
               <div style={{ width: 48, height: 58, background: '#eef2ff', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#6366f1', flexShrink: 0 }}>
                 <Icons.Doc size={24}/>
               </div>
@@ -305,7 +305,7 @@ const AIUpload = () => {
                 <div style={{ fontSize: 13, color: '#475569', marginTop: 8 }}>
                   Das Dokument wurde gespeichert und ist bereit für die Verarbeitung.
                 </div>
-                <div style={{ display: 'flex', gap: 10, marginTop: 18 }}>
+                <div className="mobile-wrap" style={{ display: 'flex', gap: 10, marginTop: 18 }}>
                   <a href="dashboard.html" className="btn-primary" style={{ padding: '10px 18px', flex: 1, justifyContent: 'center', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
                     <Icons.Home size={14}/> Dashboard
                   </a>
@@ -317,7 +317,7 @@ const AIUpload = () => {
                     <div style={{ marginTop: 18, background: 'white', padding: 14, borderRadius: 10, border: '1px solid rgba(15,23,42,0.04)' }}>
                       <div style={{ fontSize: 13.5, fontWeight: 600, color: '#0f172a', marginBottom: 10 }}>Vorschau: Karteikarten für Lernset speichern</div>
 
-                              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 }}>
+                              <div className="mobile-col" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 10 }}>
                                 <div style={{ fontSize: 13, color: '#64748b', paddingRight: 10 }}>
                                   Füge hier die KI-Ausgabe ein. <strong>Tipp:</strong> Tabellen (<code>| Frage | Antwort |</code>) oder <code>Frage: ... Antwort: ...</code> werden perfekt erkannt!
                                 </div>
@@ -330,7 +330,7 @@ const AIUpload = () => {
                               </div>
                               <textarea value={rawAIOutput || generatedCards.map((g)=>`Frage: ${g.front}\nAntwort: ${g.back}`).join('\n\n')} onChange={e=>setRawAIOutput(e.target.value)} placeholder="| Frage | Antwort |&#10;|---|---|&#10;| Was ist das BIP? | Das Bruttoinlandsprodukt... |" style={{ width: '100%', minHeight: 140, padding: 12, borderRadius: 8, border: '1px solid #e2e8f0', marginBottom: 10, fontFamily: 'inherit', fontSize: 13, resize: 'vertical' }} />
 
-                              <div style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
+                              <div className="mobile-wrap" style={{ display: 'flex', gap: 8, marginBottom: 12 }}>
                                 <button onClick={() => {
                                   const parsed = parseRawToCards(rawAIOutput || generatedCards.map((g)=>`Frage: ${g.front}\nAntwort: ${g.back}`).join('\n\n'));
                                   if (parsed.length === 0) return alert('Keine Karten gefunden — bitte Format prüfen.');
@@ -344,7 +344,7 @@ const AIUpload = () => {
                               ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                           {generatedCards.map((g, idx) => (
-                            <div key={idx} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'start' }}>
+                            <div key={idx} className="card-content" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 8, alignItems: 'start' }}>
                               <textarea value={g.front} onChange={e => {
                                 const copy = [...generatedCards]; copy[idx] = { ...copy[idx], front: e.target.value }; setGeneratedCards(copy);
                               }} style={{ padding: 8, borderRadius: 8, border: '1px solid #e2e8f0', minHeight: 56 }} />
@@ -359,7 +359,7 @@ const AIUpload = () => {
                             </div>
                           ))}
 
-                          <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+                          <div className="mobile-wrap" style={{ display: 'flex', gap: 8, marginTop: 8 }}>
                             <button onClick={async () => {
                               if (generatedCards.length === 0) return;
                               setSaving(true);
@@ -417,7 +417,7 @@ const AIUpload = () => {
                       </label>
                     ))}
 
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#fafaf7', borderRadius: 10, border: '1px solid rgba(15,23,42,0.04)' }}>
+                    <div className="mobile-wrap" style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 14px', background: '#fafaf7', borderRadius: 10, border: '1px solid rgba(15,23,42,0.04)' }}>
                       <div style={{ color: '#6366f1' }}><Icons.Cards size={16}/></div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13.5, fontWeight: 500, color: '#0f172a' }}>Karteikarten</div>

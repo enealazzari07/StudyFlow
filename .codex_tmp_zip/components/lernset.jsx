@@ -25,7 +25,7 @@ const Header = () => (
         <Icons.ArrowLeft size={14}/> Dashboard
       </a>
       <div style={{ height: 20, width: 1, background: '#e2e8f0' }}></div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
+      <div className="hide-mobile" style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
         <Icons.Folder size={14}/> Sommersemester 26
         <Icons.Chevron size={11}/>
         <span style={{ color: '#0f172a', fontWeight: 500 }}>Mikroökonomie II</span>
@@ -46,8 +46,8 @@ const Header = () => (
 );
 
 const SetHero = () => (
-  <section style={{ padding: '36px 32px 24px', position: 'relative' }}>
-    <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
+  <section className="px-mobile" style={{ padding: '36px 32px 24px', position: 'relative' }}>
+    <div className="mobile-col" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 24 }}>
       <div style={{ maxWidth: 560 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ fontSize: 44, lineHeight: 1 }}>📊</div>
@@ -80,7 +80,7 @@ const SetHero = () => (
     </div>
 
     {/* Progress card */}
-    <div style={{ marginTop: 28, background: 'white', border: '1px solid rgba(15,23,42,0.06)', borderRadius: 14, padding: 20, display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: 24, alignItems: 'center' }}>
+    <div className="card-content" style={{ marginTop: 28, background: 'white', border: '1px solid rgba(15,23,42,0.06)', borderRadius: 14, padding: 20, display: 'grid', gridTemplateColumns: '1.2fr 1fr 1fr 1fr', gap: 24, alignItems: 'center' }}>
       <div>
         <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>Fortschritt</div>
         <div style={{ display: 'flex', alignItems: 'baseline', gap: 6, marginTop: 2 }}>
@@ -115,7 +115,7 @@ const CardRow = ({ card, index, focused, onFocus }) => {
   return (
     <div
       onClick={onFocus}
-      style={{
+      className="card-content" style={{
         background: 'white',
         border: focused ? '1.5px solid #818cf8' : '1px solid rgba(15,23,42,0.06)',
         borderRadius: 12,
@@ -156,9 +156,9 @@ const CardsList = () => {
   const [filter, setFilter] = useState('all');
 
   return (
-    <section style={{ padding: '8px 32px 100px' }}>
+    <section className="px-mobile" style={{ padding: '8px 32px 100px' }}>
       {/* Controls */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+      <div className="mobile-wrap" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <h2 style={{ fontFamily: 'Instrument Sans', fontSize: 18, fontWeight: 600, color: '#0f172a', margin: 0 }}>Alle Karten</h2>
           <span style={{ fontSize: 13, color: '#94a3b8' }}>· 142</span>
@@ -185,7 +185,7 @@ const CardsList = () => {
 
       {/* AI tip sticky note */}
       <div style={{ position: 'relative', marginBottom: 16 }}>
-        <div style={{ background: 'linear-gradient(135deg, #eef2ff, white)', border: '1px solid #c7d2fe', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div className="mobile-wrap" style={{ background: 'linear-gradient(135deg, #eef2ff, white)', border: '1px solid #c7d2fe', borderRadius: 12, padding: '14px 18px', display: 'flex', alignItems: 'center', gap: 14 }}>
           <div style={{ width: 36, height: 36, borderRadius: 10, background: 'linear-gradient(135deg, #6366f1, #818cf8)', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <Icons.Sparkles size={18}/>
           </div>

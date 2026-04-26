@@ -166,7 +166,7 @@ const BentoCard = ({ feature }) => {
     sm: { gridColumn: 'span 1', gridRow: 'span 1', minHeight: 230 },
   };
   return (
-    <div style={{
+    <div className={`bento-${feature.size}`} style={{
       ...sizeMap[feature.size],
       position: 'relative',
       background: 'white',
@@ -241,7 +241,7 @@ const Nav = () => (
       <Icons.Logo size={30}/>
       <div style={{ fontFamily: 'Caveat', fontSize: 26, fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>StudyFlow</div>
     </a>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 28, fontSize: 14, color: '#475569' }}>
+    <div className="nav-links" style={{ display: 'flex', alignItems: 'center', gap: 28, fontSize: 14, color: '#475569' }}>
       <a href="#features">Features</a>
       <a href="changelog.html">Changelog</a>
       <a href="#preis">Preise</a>
@@ -259,7 +259,7 @@ const Nav = () => (
 const Hero = () => (
   <section style={{ maxWidth: 1200, margin: '80px auto 60px', padding: '0 24px', position: 'relative' }}>
     {/* Sticky note floating top-left */}
-    <div style={{ position: 'absolute', top: -30, left: 40, zIndex: 2 }}>
+    <div className="hide-mobile" style={{ position: 'absolute', top: -30, left: 40, zIndex: 2 }}>
       <StickyNote color="yellow" rotate={-6} tape>
         <div style={{ fontFamily: 'Caveat', fontSize: 18, color: '#0f172a', lineHeight: 1.2, maxWidth: 140 }}>
           Klausur in <span style={{ textDecoration: 'line-through', color: '#64748b' }}>3 Wochen</span> <span style={{ color: '#dc2626' }}>10 Tagen</span>!
@@ -267,10 +267,10 @@ const Hero = () => (
       </StickyNote>
     </div>
     {/* Doodle top-right */}
-    <div style={{ position: 'absolute', top: 20, right: 80, transform: 'rotate(12deg)', zIndex: 2 }}>
+    <div className="hide-mobile" style={{ position: 'absolute', top: 20, right: 80, transform: 'rotate(12deg)', zIndex: 2 }}>
       <Doodles.Star color="#6366f1" size={28}/>
     </div>
-    <div style={{ position: 'absolute', top: 60, right: 40, transform: 'rotate(-6deg)', zIndex: 2 }}>
+    <div className="hide-mobile" style={{ position: 'absolute', top: 60, right: 40, transform: 'rotate(-6deg)', zIndex: 2 }}>
       <Doodles.Sparkle color="#f59e0b" size={18}/>
     </div>
 
@@ -279,7 +279,7 @@ const Hero = () => (
         <Icons.Sparkles size={12}/>
         Jetzt mit Flow AI — dein Lernbuddy
       </div>
-      <h1 style={{
+      <h1 className="hero-title" style={{
         fontFamily: 'Instrument Sans',
         fontSize: 72,
         fontWeight: 600,
@@ -292,7 +292,7 @@ const Hero = () => (
       }}>
         Lern smarter.<br/>
         <span style={{ position: 'relative', display: 'inline-block' }}>
-          <span style={{ fontFamily: 'Caveat', fontWeight: 600, color: '#6366f1', fontSize: 80 }}>Nicht härter.</span>
+          <span className="hero-subtitle" style={{ fontFamily: 'Caveat', fontWeight: 600, color: '#6366f1', fontSize: 80 }}>Nicht härter.</span>
           <span style={{ position: 'absolute', left: -4, right: -4, bottom: 8 }}>
             <Doodles.Underline color="#818cf8" w={380}/>
           </span>
@@ -305,7 +305,7 @@ const Hero = () => (
         Karteikarten, Dokumente und ein AI-Lernbuddy an einem Ort.<br/>
         Zusammen mit deinen Lerngruppen — in Echtzeit.
       </p>
-      <div style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 36 }}>
+      <div className="mobile-wrap" style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 36 }}>
         <a href="dashboard.html" className="btn-primary" style={{ padding: '14px 24px', fontSize: 15 }}>
           Kostenlos starten
           <Icons.ArrowRight size={16}/>
@@ -330,7 +330,7 @@ const BentoGrid = () => (
         Alles was du zum Lernen brauchst.
       </div>
     </div>
-    <div style={{
+    <div className="bento-grid" style={{
       display: 'grid',
       gridTemplateColumns: 'repeat(4, 1fr)',
       gridAutoRows: 'minmax(230px, auto)',
@@ -354,8 +354,8 @@ const AISpotlight = () => (
       {/* dots in bg */}
       <div style={{ position: 'absolute', inset: 0, opacity: 0.15, backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '22px 22px' }}></div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center', position: 'relative' }}>
-        <div>
+      <div className="ai-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 60, alignItems: 'center', position: 'relative' }}>
+        <div className="ai-grid-text">
           <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', borderRadius: 999, background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', fontSize: 12, fontWeight: 500 }}>
             <Icons.Sparkles size={14}/>
             Flow AI
@@ -380,7 +380,7 @@ const AISpotlight = () => (
         </div>
 
         {/* Chat preview */}
-        <div style={{
+        <div className="ai-grid-preview" style={{
           background: 'rgba(255,255,255,0.05)',
           border: '1px solid rgba(255,255,255,0.12)',
           borderRadius: 18,
@@ -427,7 +427,7 @@ const Pricing = () => (
         Ein Plan für alle.
       </h2>
     </div>
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(320px, 1fr))', gap: 32, maxWidth: 860, margin: '0 auto' }}>
+    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 32, maxWidth: 860, margin: '0 auto' }}>
       {/* Free Plan */}
       <div style={{ background: 'white', borderRadius: 24, padding: 40, border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 4px 20px rgba(15,23,42,0.03)', display: 'flex', flexDirection: 'column' }}>
         <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '6px 12px', background: '#f1f5f9', borderRadius: 999, fontSize: 13, fontWeight: 600, color: '#475569', marginBottom: 20, alignSelf: 'flex-start' }}>
@@ -475,7 +475,7 @@ const Pricing = () => (
 
 const Footer = () => (
   <footer style={{ maxWidth: 1200, margin: '80px auto 40px', padding: '0 24px', borderTop: '1px solid rgba(15,23,42,0.08)', paddingTop: 40 }}>
-    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 40 }}>
+    <div className="footer-layout" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 40 }}>
       <div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <Icons.Logo size={26}/>
@@ -483,7 +483,7 @@ const Footer = () => (
         </div>
         <div style={{ fontSize: 13, color: '#64748b', marginTop: 8, maxWidth: 300 }}>Made with ☕ &amp; late nights. Aus der Schweiz.</div>
       </div>
-      <div style={{ display: 'flex', gap: 60, fontSize: 13 }}>
+      <div className="footer-links" style={{ display: 'flex', gap: 60, fontSize: 13 }}>
         {[
           ['Produkt', ['Features', 'AI', 'Changelog', 'Preise', 'Roadmap']],
           ['Rechtliches', ['Datenschutz', 'AGB', 'Impressum']],

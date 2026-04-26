@@ -114,19 +114,19 @@
       if (checking) return null;
 
       return (
-        <div className="dot-paper" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }}>
+        <div className="dot-paper auth-container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }}>
           <a href="Landing.html" style={{ position: 'absolute', top: 24, left: 28, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
             <Icons.ArrowLeft size={14}/> Zurück
           </a>
 
-          <div style={{ position: 'absolute', top: 80, left: 80 }}>
+          <div className="hide-mobile" style={{ position: 'absolute', top: 80, left: 80 }}>
             <StickyNote color="pink" rotate={-5} tape>
               <div style={{ fontFamily: 'Caveat', fontSize: 18, color: '#831843', lineHeight: 1.2, maxWidth: 130 }}>
                 Neu hier? 👋<br/>Erst mal kostenlos!
               </div>
             </StickyNote>
           </div>
-          <div style={{ position: 'absolute', bottom: 80, right: 90 }}>
+          <div className="hide-mobile" style={{ position: 'absolute', bottom: 80, right: 90 }}>
             <StickyNote color="green" rotate={4}>
               <div style={{ fontFamily: 'Caveat', fontSize: 16, color: '#14532d', lineHeight: 1.2, maxWidth: 120 }}>
                 Tipp: Mit Uni-Mail gibt's Pro gratis 🎓
@@ -134,13 +134,13 @@
             </StickyNote>
           </div>
 
-          <div style={{ width: 420, position: 'relative' }}>
+          <div style={{ width: '100%', maxWidth: 420, position: 'relative' }}>
             <div style={{ position: 'absolute', top: -36, left: 0, right: 0, display: 'flex', justifyContent: 'center', gap: 8, alignItems: 'center' }}>
               <Icons.Logo size={36}/>
               <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 600, color: '#0f172a' }}>StudyFlow</div>
             </div>
 
-            <div style={{ background: 'white', borderRadius: 20, padding: 36, boxShadow: '0 4px 16px rgba(15,23,42,0.06), 0 20px 60px rgba(15,23,42,0.08)', border: '1px solid rgba(15,23,42,0.06)', marginTop: 60 }}>
+            <div className="auth-card" style={{ background: 'white', borderRadius: 20, padding: 36, boxShadow: '0 4px 16px rgba(15,23,42,0.06), 0 20px 60px rgba(15,23,42,0.08)', border: '1px solid rgba(15,23,42,0.06)', marginTop: 60 }}>
               <div style={{ textAlign: 'center', marginBottom: 28 }}>
                 <div style={{ fontFamily: 'Instrument Sans', fontSize: 24, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em' }}>
                   {mode === 'signin' ? 'Willkommen zurück' : 'Konto erstellen'}

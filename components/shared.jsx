@@ -263,7 +263,7 @@ const AIAssistant = ({ defaultOpen = false, context = "" }) => {
 
       {/* Panel */}
       {open && (
-        <div style={{
+        <div className="ai-assistant-panel" style={{
           position: 'fixed', bottom: 28, right: 28, zIndex: 80,
           width: 380, height: 520,
           background: '#fafaf7',
@@ -370,7 +370,7 @@ const Flashcard = ({ front, back, flipped, onFlip, w = 560, h = 340, rotate = 0 
   <div
     className={`flashcard ${flipped ? 'flipped' : ''}`}
     onClick={onFlip}
-    style={{ width: w, height: h, cursor: 'pointer', transform: `rotate(${rotate}deg)` }}
+    style={{ width: w, height: h, maxWidth: '100%', cursor: 'pointer', transform: `rotate(${rotate}deg)` }}
   >
     <div className="flashcard-inner">
       <div className="flashcard-face" style={{
@@ -402,3 +402,53 @@ const Flashcard = ({ front, back, flipped, onFlip, w = 560, h = 340, rotate = 0 
 
 // Export to window so other babel scripts can use
 Object.assign(window, { Icon, Icons, Doodles, DotPaper, StickyNote, Dock, Avatar, CollabAvatars, LiveCursor, AIAssistant, Flashcard, AVATAR_COLORS });
+
+if (typeof document !== 'undefined') {
+  const responsiveStyles = document.createElement('style');
+  responsiveStyles.innerHTML = `
+    /* Responsive Layout & Fixes */
+    html, body { max-width: 100vw; overflow-x: hidden; }
+    * { box-sizing: border-box; }
+    img, svg { max-width: 100%; }
+    
+    @media (max-width: 1024px) {
+      .bento-grid { grid-template-columns: repeat(2, 1fr) !important; }
+      .bento-lg, .bento-md { grid-column: span 2 !important; }
+      .bento-sm { grid-column: span 1 !important; }
+    }
+    
+    @media (max-width: 768px) {
+      .hide-mobile { display: none !important; }
+      .mobile-col { flex-direction: column !important; align-items: flex-start !important; }
+      .mobile-wrap { flex-wrap: wrap !important; }
+      .px-mobile { padding-left: 16px !important; padding-right: 16px !important; }
+      
+      header, nav { padding-left: 16px !important; padding-right: 16px !important; }
+      section { padding-left: 16px !important; padding-right: 16px !important; }
+      
+      .bento-grid { grid-template-columns: 1fr !important; }
+      .bento-lg, .bento-md, .bento-sm { grid-column: span 1 !important; grid-row: auto !important; }
+      
+      .hero-title { font-size: 44px !important; line-height: 1.1 !important; }
+      .hero-subtitle { font-size: 52px !important; }
+      
+      .ai-grid { grid-template-columns: 1fr !important; gap: 32px !important; }
+      .ai-grid-text { order: 1; }
+      .ai-grid-preview { order: 2; }
+      
+      .footer-layout { flex-direction: column !important; gap: 32px !important; }
+      .footer-links { gap: 32px !important; flex-wrap: wrap !important; }
+      
+      .collab-layout { flex-direction: column !important; }
+      .activity-panel { width: 100% !important; border-left: none !important; border-top: 1px solid rgba(15,23,42,0.06); }
+      .card-content { grid-template-columns: 1fr !important; gap: 8px !important; }
+      
+      .nav-links { display: none !important; }
+      .flashcard { width: 100% !important; height: auto !important; aspect-ratio: 4/3; min-height: 300px; }
+      .header-info { display: none !important; }
+      
+      .ai-assistant-panel { width: calc(100% - 32px) !important; height: calc(100vh - 100px) !important; max-height: 520px !important; bottom: 80px !important; right: 16px !important; }
+    }
+  `;
+  document.head.appendChild(responsiveStyles);
+}

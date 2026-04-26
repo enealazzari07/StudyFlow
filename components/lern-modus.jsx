@@ -96,15 +96,9 @@ const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
     if (!dragRef.current.active) return;
     dragRef.current.active = false;
     const diff = e.clientX - dragRef.current.startX;
-    if (diff > 120) {
-      setDragX(window.innerWidth); // Karte nach rechts rausfliegen lassen
-      setTimeout(() => onGrade(card, 3), 320);
-    } else if (diff < -120) {
-      setDragX(-window.innerWidth); // Karte nach links rausfliegen lassen
-      setTimeout(() => onGrade(card, 1), 320);
-    } else {
-      setDragX(0); // Zurückfedern
-    }
+    if (diff > 120) onGrade(card, 3); // Gut / Richtig
+    else if (diff < -120) onGrade(card, 1); // Nochmal / Falsch
+    else setDragX(0); // Zurückfedern
   };
 
   const grades = [
@@ -134,7 +128,7 @@ const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
         zIndex: 100,
       }} />
 
-      <div style={{ width: 600, position: 'relative' }}>
+      <div style={{ width: '100%', maxWidth: 600, position: 'relative' }}>
         <div style={{ position: 'absolute', inset: 0, background: 'white', borderRadius: 20, transform: 'rotate(-1.5deg) translateY(8px)', opacity: 0.6, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 2px 8px rgba(15,23,42,0.04)' }}></div>
         <div style={{ position: 'absolute', inset: 0, background: 'white', borderRadius: 20, transform: 'rotate(0.8deg) translateY(4px)', opacity: 0.85, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 2px 8px rgba(15,23,42,0.06)' }}></div>
         <div
@@ -145,16 +139,15 @@ const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
           style={{
             position: 'relative',
             transform: `translateX(${dragX}px) rotate(${dragX * 0.05}deg)`,
-            opacity: Math.max(0, 1 - Math.abs(dragX) / (window.innerWidth * 0.6)),
-            transition: dragRef.current.active ? 'none' : 'transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.32s ease',
+            transition: dragRef.current.active ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
             touchAction: flipped ? 'none' : 'auto',
             cursor: flipped ? (dragRef.current.active ? 'grabbing' : 'grab') : 'pointer',
             userSelect: dragRef.current.active ? 'none' : 'auto',
           }}
         >
-          <Flashcard front={card.front} back={card.back} flipped={flipped} onFlip={() => {
+          <Flashcard front={card.front} back={card.back} flipped={flipped} onFlip={(e) => {
             if (!hasDragged.current) setFlipped(!flipped);
-          }} w={600} h={360}/>
+          }} w="100%" h="clamp(240px, 50vh, 360px)"/>
           
         </div>
       </div>
@@ -164,7 +157,7 @@ const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
       </div>
 
       {flipped ? (
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div className="mobile-wrap" style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
           {grades.map(b => (
             <button key={b.g} onClick={() => onGrade(card, b.g)} style={{
               padding: '12px 24px',
@@ -225,8 +218,8 @@ const QuizMode = ({ sessionCards, reviewed, onGrade }) => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: '32px 0' }}>
-      <div style={{ width: 640, background: 'white', borderRadius: 20, padding: 36, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
+    <div className="px-mobile" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: '32px 0' }}>
+      <div style={{ width: '100%', maxWidth: 640, background: 'white', borderRadius: 20, padding: 'clamp(20px, 5vw, 36px)', border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <div style={{ fontSize: 11, color: '#6366f1', fontWeight: 600, letterSpacing: '0.08em' }}>FRAGE {reviewed + 1} / {sessionCards.length}</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#10b981', fontWeight: 600, background: '#d1fae5', padding: '4px 8px', borderRadius: 6 }}>
@@ -305,8 +298,8 @@ const TypingMode = ({ sessionCards, reviewed, onGrade }) => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: '32px 0' }}>
-      <div style={{ width: 640, background: 'white', borderRadius: 20, padding: 36, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
+    <div className="px-mobile" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: '32px 0' }}>
+      <div style={{ width: '100%', maxWidth: 640, background: 'white', borderRadius: 20, padding: 'clamp(20px, 5vw, 36px)', border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
         <div style={{ fontSize: 11, color: '#6366f1', fontWeight: 600, letterSpacing: '0.08em' }}>FRAGE {reviewed + 1} / {sessionCards.length}</div>
         <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 500, color: '#0f172a', marginTop: 10, lineHeight: 1.2 }}>
           {card.front}
@@ -483,7 +476,7 @@ const LernModus = () => {
         <a href={backHref} style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b', fontSize: 13 }}>
           <Icons.X size={16}/> Beenden
         </a>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+        <div className="header-info" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ fontSize: 13, color: '#0f172a', fontWeight: 500 }}>{studySet?.title || 'Lernen'}</div>
           <span style={{ color: '#cbd5e1' }}>·</span>
           <div style={{ fontSize: 13, color: '#64748b' }}>{sessionCards.length} Karten</div>
@@ -511,7 +504,7 @@ const LernModus = () => {
         <ModeSwitcher mode={mode} setMode={setMode}/>
       </div>
 
-      <div style={{ maxWidth: 800, margin: '0 auto', padding: '0 32px 100px' }}>
+      <div className="px-mobile" style={{ maxWidth: 800, margin: '0 auto', padding: '0 32px 100px' }}>
         {done ? (
           <DoneScreen reviewed={reviewed} setTitle={studySet?.title}/>
         ) : (
