@@ -77,6 +77,25 @@ function createFolderArtDataUri({ filled = false } = {}) {
 const EMPTY_FOLDER_ART = createFolderArtDataUri({ filled: false });
 const FILLED_FOLDER_ART = createFolderArtDataUri({ filled: true });
 
+// ─── Poe API für den Chat ────────────────────────────────────
+const POE_KEY = 'sk-poe-ZgOKzf0Z1bATPOJBDz2o4_vLRNqmnMPGpPFJ7iVWL6E';
+const POE_URL = 'https://api.poe.com/v1/chat/completions';
+
+async function callChatAI(messages, model) {
+  const res = await fetch(POE_URL, {
+    method: 'POST',
+    headers: { 'Authorization': `Bearer ${POE_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, messages }),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    if (res.status === 429) throw new Error('RATE_LIMIT');
+    throw new Error(`API ${res.status}: ${txt.slice(0,120)}`);
+  }
+  const data = await res.json();
+  return data.choices[0].message.content || '';
+}
+
 async function callAI(messages, model = AI_MODEL) {
   const res = await fetch(AI_URL, {
     method: 'POST',
@@ -1093,8 +1112,9 @@ const SUGGESTIONS = [
 ];
 
 const MODELS = [
-  { id: 'claude-sonnet-4.6', label: 'Sonnet 4.6' },
+  { id: 'gpt-5.4-nano', label: 'GPT-5.4 Nano' },
   { id: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+  { id: 'claude-sonnet-4.6', label: 'Sonnet 4.6' },
 ];
 
 const FlowAIPage = ({ onClose }) => {
@@ -1104,7 +1124,7 @@ const FlowAIPage = ({ onClose }) => {
   const [activeChatId, setActiveChatId] = React.useState(chats[0].id);
   const [input, setInput] = React.useState('');
   const [loading, setLoading] = React.useState(false);
-  const [model, setModel] = React.useState('claude-sonnet-4.6');
+  const [model, setModel] = React.useState('gpt-5.4-nano');
   const [showModelDropdown, setShowModelDropdown] = React.useState(false);
   const messagesEndRef = React.useRef(null);
   const inputRef = React.useRef(null);
@@ -1137,7 +1157,7 @@ const FlowAIPage = ({ onClose }) => {
     setLoading(true);
 
     try {
-      const res = await callAI([
+      const res = await callChatAI([
         { role: 'system', content: 'Du bist Flow, eine freundliche KI-Lernassistentin für StudyFlow. Antworte auf Deutsch, präzise und motivierend. Helfe beim Lernen, Erklären von Konzepten, Erstellen von Karteikarten und Quiz. Antworte kurz und strukturiert.' },
         ...activeChat.messages.filter(m => m.role !== 'ai' || activeChat.messages.indexOf(m) > 0).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text })),
         { role: 'user', content: t },
