@@ -247,104 +247,308 @@ const EXTENSIONS = [
   },
 ];
 
+// ─── OneNote Integration Modal ────────────────────────────────
+const OneNoteModal = ({ onClose }) => {
+  const [clientId, setClientId] = useState(localStorage.getItem('sf_ms_client_id') || '');
+  const [step, setStep] = useState(localStorage.getItem('sf_ms_client_id') ? 'setup' : 'setup');
+  const [msalApp, setMsalApp] = useState(null);
+  const [account, setAccount] = useState(null);
+  const [notebooks, setNotebooks] = useState([]);
+  const [selNotebook, setSelNotebook] = useState(null);
+  const [sections, setSections] = useState([]);
+  const [selSection, setSelSection] = useState(null);
+  const [summary, setSummary] = useState('');
+  const [summarizing, setSummarizing] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  const SCOPES = ['Notes.Read', 'Notes.Read.All', 'openid', 'profile', 'User.Read'];
+
+  const buildMsal = async (id) => {
+    if (!window.msal) { setError('MSAL nicht geladen — Seite neu laden.'); return null; }
+    const app = new window.msal.PublicClientApplication({
+      auth: {
+        clientId: id,
+        authority: 'https://login.microsoftonline.com/common',
+        redirectUri: window.location.origin + window.location.pathname,
+      },
+      cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true },
+    });
+    await app.initialize();
+    return app;
+  };
+
+  const getToken = async (app, acc) => {
+    try {
+      const r = await app.acquireTokenSilent({ scopes: SCOPES, account: acc });
+      return r.accessToken;
+    } catch {
+      const r = await app.acquireTokenPopup({ scopes: SCOPES, account: acc });
+      return r.accessToken;
+    }
+  };
+
+  const loadNotebooks = async (app, acc) => {
+    setLoading(true);
+    try {
+      const token = await getToken(app, acc);
+      const res = await fetch('https://graph.microsoft.com/v1.0/me/onenote/notebooks?$orderby=lastModifiedDateTime desc', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      if (data.error) throw new Error(data.error.message);
+      setNotebooks(data.value || []);
+    } catch (e) { setError(e.message); }
+    setLoading(false);
+  };
+
+  const handleConnect = async () => {
+    const id = clientId.trim();
+    if (!id) { setError('Bitte Azure Client-ID eingeben.'); return; }
+    localStorage.setItem('sf_ms_client_id', id);
+    setError(''); setLoading(true);
+    try {
+      const app = await buildMsal(id);
+      if (!app) { setLoading(false); return; }
+      const result = await app.loginPopup({ scopes: SCOPES });
+      setMsalApp(app); setAccount(result.account); setStep('connected');
+      await loadNotebooks(app, result.account);
+    } catch (e) {
+      if (e.errorCode !== 'user_cancelled') setError('Verbindung fehlgeschlagen: ' + (e.message || e.errorCode || e));
+    }
+    setLoading(false);
+  };
+
+  const handleNotebook = async (nb) => {
+    setSelNotebook(nb); setSections([]); setSelSection(null); setSummary('');
+    setLoading(true);
+    try {
+      const token = await getToken(msalApp, account);
+      const res = await fetch(`https://graph.microsoft.com/v1.0/me/onenote/notebooks/${nb.id}/sections`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await res.json();
+      setSections(data.value || []);
+    } catch (e) { setError(e.message); }
+    setLoading(false);
+  };
+
+  const handleSummarize = async (sec) => {
+    setSelSection(sec); setSummarizing(true); setSummary(''); setError('');
+    try {
+      const token = await getToken(msalApp, account);
+      const pRes = await fetch(`https://graph.microsoft.com/v1.0/me/onenote/sections/${sec.id}/pages?$top=10&$orderby=lastModifiedDateTime desc`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const pData = await pRes.json();
+      const pageList = pData.value || [];
+      const texts = await Promise.all(pageList.slice(0, 6).map(async pg => {
+        const r = await fetch(`https://graph.microsoft.com/v1.0/me/onenote/pages/${pg.id}/content`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const html = await r.text();
+        const el = document.createElement('div');
+        el.innerHTML = html;
+        const text = (el.textContent || el.innerText || '').replace(/\s+/g, ' ').trim();
+        return `## ${pg.title || 'Ohne Titel'}\n${text.slice(0, 1200)}`;
+      }));
+      const combined = texts.join('\n\n').slice(0, 8000);
+      const aiRes = await fetch(AI_URL, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${AIRFORCE_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: AI_MODEL,
+          messages: [
+            { role: 'system', content: 'Du bist ein intelligenter Lernassistent. Fasse die folgenden OneNote-Seiten klar und lernfreundlich zusammen. Nutze Überschriften und Bullet Points. Hebe Definitionen und Schlüsselkonzepte hervor. Antworte auf Deutsch.' },
+            { role: 'user', content: `Fasse den OneNote-Abschnitt "${sec.displayName}" zusammen:\n\n${combined}` },
+          ],
+        }),
+      });
+      const aiData = await aiRes.json();
+      setSummary(aiData.choices?.[0]?.message?.content || 'Keine Antwort erhalten.');
+    } catch (e) { setError('KI-Fehler: ' + e.message); }
+    setSummarizing(false);
+  };
+
+  const handleDisconnect = () => {
+    localStorage.removeItem('sf_ms_client_id');
+    setStep('setup'); setAccount(null); setNotebooks([]);
+    setSections([]); setSummary(''); setSelNotebook(null); setSelSection(null);
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 580, maxHeight: '88vh', display: 'flex', flexDirection: 'column', boxShadow: '0 30px 80px rgba(15,23,42,0.22)' }} onClick={e => e.stopPropagation()}>
+
+        {/* Header */}
+        <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: '#f5e6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📓</div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>Microsoft OneNote</div>
+            <div style={{ fontSize: 12, color: '#94a3b8' }}>Notizbücher verbinden &amp; mit KI zusammenfassen</div>
+          </div>
+          {account && <div style={{ fontSize: 11, color: '#16a34a', background: '#dcfce7', padding: '3px 10px', borderRadius: 999, fontWeight: 500 }}>✓ {account.name || account.username}</div>}
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, display: 'flex' }}><Icons.X size={16}/></button>
+        </div>
+
+        <div style={{ overflowY: 'auto', flex: 1, padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#dc2626' }}>⚠️ {error}</div>}
+
+          {/* SETUP STEP */}
+          {step === 'setup' && (
+            <>
+              <div style={{ background: '#f8fafc', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0' }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 12 }}>📋 Einmalige Azure-Einrichtung (~3 Min.)</div>
+                {[
+                  { n: '1', t: 'Gehe zu', link: 'portal.azure.com', href: 'https://portal.azure.com' },
+                  { n: '2', t: 'App-Registrierungen → Neue Registrierung' },
+                  { n: '3', t: 'Plattform: Single-Page-Anwendung (SPA)' },
+                  { n: '4', t: `Umleitungs-URI: ${window.location.origin + window.location.pathname}` },
+                  { n: '5', t: 'API-Berechtigungen: Notes.Read (delegiert) hinzufügen' },
+                  { n: '6', t: 'Anwendungs-(Client-)ID unten einfügen' },
+                ].map(item => (
+                  <div key={item.n} style={{ display: 'flex', gap: 8, marginBottom: 7, fontSize: 12, color: '#475569', alignItems: 'flex-start' }}>
+                    <span style={{ fontWeight: 700, color: '#7719AA', minWidth: 18, marginTop: 1 }}>{item.n}.</span>
+                    <span>{item.t} {item.link && <a href={item.href} target="_blank" rel="noreferrer" style={{ color: '#6366f1', fontWeight: 500 }}>{item.link} ↗</a>}</span>
+                  </div>
+                ))}
+              </div>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 500, color: '#475569', display: 'block', marginBottom: 6 }}>Azure Application (Client) ID</label>
+                <input value={clientId} onChange={e => { setClientId(e.target.value); setError(''); }} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" className="input-paper" style={{ fontFamily: 'JetBrains Mono', fontSize: 12 }}/>
+              </div>
+              <button onClick={handleConnect} disabled={loading || !clientId.trim()} className="btn-primary" style={{ justifyContent: 'center', padding: '11px 0', opacity: loading || !clientId.trim() ? 0.6 : 1 }}>
+                {loading ? 'Verbinden…' : <><Icons.Share size={14}/> Mit Microsoft verbinden</>}
+              </button>
+            </>
+          )}
+
+          {/* CONNECTED — Notebooks list */}
+          {step === 'connected' && !selNotebook && (
+            <>
+              <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>Deine Notizbücher</div>
+              {loading ? <div style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: 24 }}>Lade…</div>
+              : notebooks.length === 0 ? <div style={{ color: '#94a3b8', fontSize: 13 }}>Keine Notizbücher gefunden.</div>
+              : notebooks.map(nb => (
+                <div key={nb.id} onClick={() => handleNotebook(nb)}
+                  style={{ padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, background: 'white', transition: 'all 0.15s' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#7719AA'; e.currentTarget.style.background = '#fdf4ff'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = 'white'; }}>
+                  <span style={{ fontSize: 22 }}>📒</span>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a' }}>{nb.displayName}</div>
+                    <div style={{ fontSize: 11, color: '#94a3b8' }}>Zuletzt geändert: {new Date(nb.lastModifiedDateTime).toLocaleDateString('de-DE')}</div>
+                  </div>
+                  <Icons.Chevron size={12} color="#94a3b8"/>
+                </div>
+              ))}
+              <div style={{ paddingTop: 4, borderTop: '1px solid #f1f5f9' }}>
+                <button onClick={handleDisconnect} style={{ background: 'none', border: '1px solid #fecaca', borderRadius: 8, padding: '6px 12px', fontSize: 11, color: '#dc2626', cursor: 'pointer', fontFamily: 'inherit' }}>Konto trennen</button>
+              </div>
+            </>
+          )}
+
+          {/* CONNECTED — Sections list */}
+          {step === 'connected' && selNotebook && !selSection && !summary && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button onClick={() => { setSelNotebook(null); setSections([]); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366f1', fontSize: 12, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>← Zurück</button>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{selNotebook.displayName}</div>
+              </div>
+              <div style={{ fontSize: 12, color: '#64748b' }}>Wähle einen Abschnitt um eine KI-Zusammenfassung zu erstellen:</div>
+              {loading ? <div style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: 16 }}>Lade Abschnitte…</div>
+              : sections.map(sec => (
+                <div key={sec.id} style={{ padding: '11px 16px', border: '1px solid #e2e8f0', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <span style={{ fontSize: 16 }}>📑</span>
+                    <span style={{ fontSize: 13, color: '#0f172a' }}>{sec.displayName}</span>
+                  </div>
+                  <button onClick={() => handleSummarize(sec)} className="btn-primary" style={{ padding: '6px 14px', fontSize: 12 }}>
+                    <Icons.Sparkles size={12}/> Zusammenfassen
+                  </button>
+                </div>
+              ))}
+            </>
+          )}
+
+          {/* SUMMARY */}
+          {(summarizing || (selSection && summary)) && (
+            <>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <button onClick={() => { setSelSection(null); setSummary(''); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366f1', fontSize: 12, fontFamily: 'inherit' }}>← Zurück</button>
+                <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{selSection?.displayName}</div>
+              </div>
+              {summarizing ? (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: 32 }}>
+                  <div style={{ fontSize: 28 }}>🧠</div>
+                  <div style={{ fontSize: 13, color: '#7719AA', fontWeight: 500 }}>KI liest deine Notizen…</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8' }}>Das kann einen Moment dauern</div>
+                </div>
+              ) : (
+                <div style={{ background: '#fdf4ff', borderRadius: 12, padding: 20, border: '1px solid #e9d5ff', fontSize: 13, color: '#334155', lineHeight: 1.75, whiteSpace: 'pre-wrap', maxHeight: 360, overflowY: 'auto' }}>
+                  {summary}
+                </div>
+              )}
+              {summary && (
+                <div style={{ display: 'flex', gap: 8 }}>
+                  <button onClick={() => navigator.clipboard.writeText(summary)} className="btn-ghost" style={{ flex: 1, justifyContent: 'center' }}>Kopieren</button>
+                  <button onClick={() => handleSummarize(selSection)} className="btn-primary" style={{ flex: 1, justifyContent: 'center' }}><Icons.Sparkles size={12}/> Neu generieren</button>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// ─── Extensions Panel ─────────────────────────────────────────
 const ExtensionsPanel = () => {
+  const [showOneNote, setShowOneNote] = useState(false);
   const [connected, setConnected] = useState({});
-  const makeBaseUrl = 'https://eu2.make.com/1840378/scenarios';
+  const isOneNoteLinked = !!localStorage.getItem('sf_ms_client_id');
 
   const handleConnect = (ext) => {
-    if (ext.makeScenarioId) {
-      window.open(`${makeBaseUrl}/${ext.makeScenarioId}/edit`, '_blank');
-      setConnected(prev => ({ ...prev, [ext.id]: true }));
-    } else {
-      window.open('https://make.com', '_blank');
-    }
+    if (ext.id === 'onenote') { setShowOneNote(true); return; }
+    if (ext.makeScenarioId) window.open(`https://eu2.make.com/1840378/scenarios/${ext.makeScenarioId}/edit`, '_blank');
+    else window.open('https://make.com', '_blank');
+    setConnected(prev => ({ ...prev, [ext.id]: true }));
   };
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {showOneNote && <OneNoteModal onClose={() => setShowOneNote(false)} />}
+
       <div>
         <h2 style={{ fontFamily: 'Instrument Sans', fontSize: 18, fontWeight: 600, color: 'var(--text-main)', margin: '0 0 4px' }}>Erweiterungen</h2>
-        <div style={{ fontSize: 13, color: 'var(--text-light)' }}>
-          Verbinde StudyFlow mit deinen Lieblingstools über{' '}
-          <a href="https://make.com" target="_blank" rel="noreferrer" style={{ color: '#6366f1', textDecoration: 'none', fontWeight: 500 }}>Make.com</a>.
-          Die Szenarien für OneNote und Teams sind bereits eingerichtet.
-        </div>
+        <div style={{ fontSize: 13, color: 'var(--text-light)' }}>Verbinde StudyFlow mit deinen Tools. OneNote ermöglicht direkte KI-Zusammenfassungen deiner Notizen.</div>
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
         {EXTENSIONS.map(ext => {
-          const isConnected = connected[ext.id] || ext.connected;
-          const hasMake = !!ext.makeScenarioId;
+          const isConnected = ext.id === 'onenote' ? isOneNoteLinked : (connected[ext.id] || ext.connected);
           return (
-            <div key={ext.id} style={{
-              background: 'var(--bg-panel)',
-              border: `1px solid ${isConnected ? ext.color + '44' : 'var(--border-light)'}`,
-              borderRadius: 14,
-              padding: 18,
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 10,
-              transition: 'box-shadow 0.15s',
-            }}>
+            <div key={ext.id} style={{ background: 'var(--bg-panel)', border: `1px solid ${isConnected ? ext.color + '44' : 'var(--border-light)'}`, borderRadius: 14, padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: ext.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
-                    {ext.icon}
-                  </div>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: ext.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{ext.icon}</div>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{ext.name}</div>
-                    {hasMake && (
-                      <div style={{ fontSize: 10, color: '#6366f1', fontWeight: 500, marginTop: 1, display: 'flex', alignItems: 'center', gap: 3 }}>
-                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#6366f1', display: 'inline-block' }}/>
-                        Make.com Szenario
-                      </div>
-                    )}
+                    {ext.id === 'onenote' && <div style={{ fontSize: 10, color: '#7719AA', fontWeight: 500, marginTop: 1 }}>KI-Zusammenfassung</div>}
                   </div>
                 </div>
-                {isConnected && (
-                  <span style={{ fontSize: 10, background: '#dcfce7', color: '#16a34a', padding: '2px 8px', borderRadius: 999, fontWeight: 600 }}>AKTIV</span>
-                )}
+                {isConnected && <span style={{ fontSize: 10, background: '#dcfce7', color: '#16a34a', padding: '2px 8px', borderRadius: 999, fontWeight: 600 }}>VERBUNDEN</span>}
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-light)', lineHeight: 1.5 }}>{ext.desc}</div>
-              <button
-                onClick={() => handleConnect(ext)}
-                style={{
-                  marginTop: 'auto',
-                  padding: '7px 14px',
-                  borderRadius: 8,
-                  border: isConnected ? `1px solid ${ext.color}44` : '1px solid var(--border-light)',
-                  background: isConnected ? ext.bg : 'white',
-                  color: isConnected ? ext.color : 'var(--text-main)',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  cursor: 'pointer',
-                  fontFamily: 'inherit',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 6,
-                  transition: 'all 0.15s',
-                }}
-              >
-                {isConnected ? <><Icons.Check size={12}/> Konfigurieren</> : hasMake ? <><Icons.Share size={12}/> Verbinden</> : '+ Make.com einrichten'}
+              <button onClick={() => handleConnect(ext)} style={{ marginTop: 'auto', padding: '7px 14px', borderRadius: 8, border: isConnected ? `1px solid ${ext.color}44` : '1px solid var(--border-light)', background: isConnected ? ext.bg : 'white', color: isConnected ? ext.color : 'var(--text-main)', fontSize: 12, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}>
+                {ext.id === 'onenote'
+                  ? isConnected ? <><Icons.Sparkles size={12}/> OneNote öffnen</> : <><Icons.Share size={12}/> Verbinden</>
+                  : isConnected ? <><Icons.Check size={12}/> Konfigurieren</> : '+ Einrichten'}
               </button>
             </div>
           );
         })}
-      </div>
-
-      <div style={{ background: 'linear-gradient(135deg, #eef2ff, #f5f3ff)', borderRadius: 14, padding: 18, border: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', gap: 14 }}>
-        <div style={{ fontSize: 28 }}>⚡</div>
-        <div>
-          <div style={{ fontSize: 13, fontWeight: 600, color: '#312e81', marginBottom: 3 }}>Eigene Automatisierung über Make.com</div>
-          <div style={{ fontSize: 12, color: '#4338ca' }}>
-            Erstelle benutzerdefinierte Workflows: z.B. Karten aus E-Mails importieren, Lernstatistiken in Airtable speichern oder Zusammenfassungen per Telegram erhalten.
-          </div>
-        </div>
-        <a href="https://eu2.make.com/1840378/scenarios" target="_blank" rel="noreferrer"
-          style={{ marginLeft: 'auto', flexShrink: 0, padding: '8px 16px', background: '#4f46e5', color: 'white', borderRadius: 8, fontSize: 12, fontWeight: 500, textDecoration: 'none', whiteSpace: 'nowrap' }}>
-          Make.com öffnen →
-        </a>
       </div>
     </div>
   );
