@@ -1088,7 +1088,7 @@ const SUGGESTIONS = [
   { icon: <Icons.Doc size={13}/>,      text: 'Fass mein letztes Dokument zusammen' },
 ];
 
-const FlowAIPanel = ({ onClose }) => {
+const FlowAIPage = ({ onClose }) => {
   const [chats, setChats] = React.useState(() => [
     makeChat('Willkommen', 'Hi! Ich bin Flow — deine KI-Lernassistentin. 👋\nFrag mich alles: ich erkläre Konzepte, erstelle Karten oder mache Quiz mit dir.'),
   ]);
@@ -1149,43 +1149,35 @@ const FlowAIPanel = ({ onClose }) => {
   const CHAT_COLORS = ['#6366f1','#10b981','#f59e0b','#ec4899','#06b6d4','#8b5cf6'];
 
   return (
-    <aside style={{
-      width: 380, flexShrink: 0,
-      margin: '14px 14px 14px 0',
-      background: 'var(--bg-panel)',
-      borderRadius: 18,
-      border: '1px solid var(--border-light)',
-      boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.04)',
-      display: 'flex',
-      flexDirection: 'column',
-      overflow: 'hidden',
-      height: 'calc(100vh - 28px)',
-    }}>
-      {/* Header */}
-      <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-        <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
-          <Icons.Sparkles size={17}/>
-        </div>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: 'Instrument Sans', fontWeight: 600, fontSize: 15, color: 'var(--text-main)' }}>Flow AI</div>
-          <div style={{ fontSize: 11, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', display: 'inline-block' }}/>
-            Bereit zu helfen
+    <>
+    <style>{`
+      @keyframes pulse { 0%,100%{opacity:0.3;transform:scale(0.8)} 50%{opacity:1;transform:scale(1)} }
+    `}</style>
+    <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
+
+      {/* Left: Chat history list */}
+      <div style={{ width: 260, flexShrink: 0, borderRight: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-panel)' }}>
+        {/* List header */}
+        <div style={{ padding: '18px 16px 12px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+          <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
+            <Icons.Sparkles size={17}/>
+          </div>
+          <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ fontFamily: 'Instrument Sans', fontWeight: 600, fontSize: 15, color: 'var(--text-main)' }}>Flow AI</div>
+            <div style={{ fontSize: 11, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', display: 'inline-block' }}/>
+              Bereit zu helfen
+            </div>
           </div>
         </div>
-        <button onClick={newChat} title="Neuer Chat" style={{ padding: '6px 10px', background: 'var(--bg-active)', border: '1px solid var(--border-light)', borderRadius: 8, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontFamily: 'inherit', fontWeight: 500 }}>
-          <Icons.Plus size={12}/> Neu
-        </button>
-        <button onClick={onClose} style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-lighter)', borderRadius: 6, display: 'flex' }}>
-          <Icons.X size={16}/>
-        </button>
-      </div>
-
-      {/* Body: chat list left + messages right */}
-      <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
-
-        {/* Chat-Liste */}
-        <div style={{ width: 116, flexShrink: 0, borderRight: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '8px 6px', gap: 2 }}>
+        {/* New chat button */}
+        <div style={{ padding: '10px 12px', flexShrink: 0 }}>
+          <button onClick={newChat} style={{ width: '100%', padding: '8px 12px', background: 'linear-gradient(135deg,#6366f1,#818cf8)', border: 'none', borderRadius: 10, cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, fontFamily: 'inherit', fontWeight: 500 }}>
+            <Icons.Plus size={13}/> Neuer Chat
+          </button>
+        </div>
+        {/* Chat list */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 10px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
           {chats.map((c, i) => {
             const isAct = c.id === activeChatId;
             const col = CHAT_COLORS[i % CHAT_COLORS.length];
@@ -1193,25 +1185,37 @@ const FlowAIPanel = ({ onClose }) => {
               <div key={c.id} onClick={() => setActiveChatId(c.id)}
                 onMouseEnter={e => { if (!isAct) e.currentTarget.style.background = 'var(--bg-hover)'; }}
                 onMouseLeave={e => { if (!isAct) e.currentTarget.style.background = isAct ? 'var(--bg-active)' : 'transparent'; }}
-                style={{ padding: '8px 8px', borderRadius: 8, cursor: 'pointer', background: isAct ? 'var(--bg-active)' : 'transparent', transition: 'background 0.1s', border: isAct ? '1px solid var(--border-light)' : '1px solid transparent' }}>
-                <div style={{ width: 20, height: 20, borderRadius: 6, background: col + '22', border: `1.5px solid ${col}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 5 }}>
-                  <Icons.Sparkles size={10} style={{ color: col }}/>
+                style={{ padding: '10px 10px', borderRadius: 10, cursor: 'pointer', background: isAct ? 'var(--bg-active)' : 'transparent', transition: 'background 0.1s', border: isAct ? '1px solid var(--border-light)' : '1px solid transparent', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                <div style={{ width: 24, height: 24, borderRadius: 7, background: col + '22', border: `1.5px solid ${col}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                  <Icons.Sparkles size={11} style={{ color: col }}/>
                 </div>
-                <div style={{ fontSize: 11, fontWeight: isAct ? 500 : 400, color: 'var(--text-main)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.3 }}>{c.title}</div>
-                <div style={{ fontSize: 10, color: 'var(--text-lighter)', marginTop: 3 }}>{c.messages.length} Nachr.</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: isAct ? 500 : 400, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-lighter)', marginTop: 2 }}>{c.messages.length} Nachrichten</div>
+                </div>
               </div>
             );
           })}
         </div>
+      </div>
 
-        {/* Aktiver Chat */}
-        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* Right: Active chat on dot-paper */}
+      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden',
+        backgroundImage: 'radial-gradient(circle, var(--border-light) 1.2px, transparent 1.2px)',
+        backgroundSize: '20px 20px',
+      }}>
 
-          {/* Messages */}
-          <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 10px',
-            backgroundImage: 'radial-gradient(circle, var(--border-light) 1px, transparent 1px)',
-            backgroundSize: '16px 16px',
-            display: 'flex', flexDirection: 'column', gap: 10 }}>
+        {/* Chat header */}
+        <div style={{ padding: '14px 20px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0, background: 'rgba(255,255,255,0.7)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)' }}>
+          <div style={{ flex: 1, fontFamily: 'Instrument Sans', fontWeight: 600, fontSize: 15, color: 'var(--text-main)' }}>{activeChat.title}</div>
+          <button onClick={onClose} style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-lighter)', borderRadius: 6, display: 'flex' }}>
+            <Icons.X size={16}/>
+          </button>
+        </div>
+
+        {/* Messages */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '20px 28px 16px',
+          display: 'flex', flexDirection: 'column', gap: 12 }}>
 
             {activeChat.messages.length <= 1 && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
@@ -1298,11 +1302,7 @@ const FlowAIPanel = ({ onClose }) => {
           </div>
         </div>
       </div>
-
-      <style>{`
-        @keyframes pulse { 0%,100%{opacity:0.3;transform:scale(0.8)} 50%{opacity:1;transform:scale(1)} }
-      `}</style>
-    </aside>
+    </>
   );
 };
 
@@ -1557,18 +1557,26 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
   const levelCircumference = 2 * Math.PI * levelRadius;
   const levelDashoffset = levelCircumference * (1 - levelPct);
 
-  // Tape strip at top center (Klebestreifen-Optik)
+  // Torn masking tape at top center — jagged left/right edges like ripped from a roll
   const Tape = ({ color }) => (
-    <div style={{
-      position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
-      width: 44, height: 20, borderRadius: 4,
-      background: color,
-      opacity: 0.55,
-      zIndex: 2,
-      boxShadow: `0 1px 3px ${color}66`,
-    }}>
-      {/* subtle inner lines for tape texture */}
-      <div style={{ position: 'absolute', inset: '4px 6px', borderTop: '1px solid rgba(255,255,255,0.5)', borderBottom: '1px solid rgba(255,255,255,0.3)', borderRadius: 2 }}/>
+    <div style={{ position: 'absolute', top: -13, left: '50%', transform: 'translateX(-50%)', zIndex: 2, pointerEvents: 'none' }}>
+      <svg width="68" height="26" viewBox="0 0 68 26" fill="none">
+        {/* Main body with torn left & right edges */}
+        <path
+          d="M7 0 L5 2 L8 5 L5 8 L7 11 L5 14 L7 17 L5 20 L7 23 L8 26
+             L60 26 L62 23 L61 20 L63 17 L61 14 L63 11 L61 8 L63 5 L61 2 L60 0
+             Z"
+          fill={color} opacity="0.45"
+        />
+        {/* Lighter torn edges to add depth */}
+        <path d="M7 0 L5 2 L8 5 L5 8 L7 11 L5 14 L7 17 L5 20 L7 23 L8 26 L12 26 L12 0 Z"
+          fill={color} opacity="0.15"/>
+        <path d="M60 0 L62 23 L61 20 L63 17 L61 14 L63 11 L61 8 L63 5 L61 2 L60 0 L56 0 L56 26 L60 26 Z"
+          fill={color} opacity="0.15"/>
+        {/* Horizontal texture lines */}
+        <line x1="12" y1="9" x2="56" y2="9" stroke="white" strokeWidth="1.5" strokeLinecap="round" opacity="0.28"/>
+        <line x1="12" y1="16" x2="56" y2="16" stroke="white" strokeWidth="1" strokeLinecap="round" opacity="0.18"/>
+      </svg>
     </div>
   );
 
@@ -1583,10 +1591,10 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
 
       {/* Notebook-Karten: Aktivität, Wochenziel, Level */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, paddingTop: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, paddingTop: 14, alignItems: 'stretch' }}>
 
         {/* Aktivität — blaues Tape */}
-        <div style={{ position: 'relative', transform: 'rotate(-1deg)' }}>
+        <div style={{ position: 'relative', transform: 'rotate(-1deg)', display: 'flex', flexDirection: 'column' }}>
           <Tape color="#3b82f6"/>
           <div style={{
             background: 'var(--bg-panel)',
@@ -1594,6 +1602,8 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
             padding: '18px 16px 14px',
             border: '1px solid var(--border-light)',
             boxShadow: '0 2px 8px rgba(15,23,42,0.05), 2px 3px 0 rgba(15,23,42,0.03)',
+            flex: 1, minHeight: 134,
+            display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
           }}>
             <div style={{ fontFamily: 'Caveat', fontSize: 16, fontWeight: 600, color: '#2563eb', marginBottom: 2 }}>Aktivität</div>
             <WavyLine color="#3b82f6"/>
@@ -1616,7 +1626,7 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
         </div>
 
         {/* Wochenziel — grünes Tape */}
-        <div style={{ position: 'relative', transform: 'rotate(0.5deg)' }}>
+        <div style={{ position: 'relative', transform: 'rotate(0.5deg)', display: 'flex', flexDirection: 'column' }}>
           <Tape color="#22c55e"/>
           <div style={{
             background: 'var(--bg-panel)',
@@ -1624,6 +1634,8 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
             padding: '18px 16px 14px',
             border: '1px solid var(--border-light)',
             boxShadow: '0 2px 8px rgba(15,23,42,0.05), 2px 3px 0 rgba(15,23,42,0.03)',
+            flex: 1, minHeight: 134,
+            display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
           }}>
             <div style={{ fontFamily: 'Caveat', fontSize: 16, fontWeight: 600, color: '#16a34a', marginBottom: 2 }}>Wochenziel</div>
             <WavyLine color="#22c55e"/>
@@ -1644,7 +1656,7 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
         </div>
 
         {/* Level — goldenes Tape */}
-        <div style={{ position: 'relative', transform: 'rotate(-0.8deg)' }}>
+        <div style={{ position: 'relative', transform: 'rotate(-0.8deg)', display: 'flex', flexDirection: 'column' }}>
           <Tape color="#f59e0b"/>
           <div style={{
             background: 'var(--bg-panel)',
@@ -1652,6 +1664,8 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
             padding: '18px 16px 14px',
             border: '1px solid var(--border-light)',
             boxShadow: '0 2px 8px rgba(15,23,42,0.05), 2px 3px 0 rgba(15,23,42,0.03)',
+            flex: 1, minHeight: 134,
+            display: 'flex', flexDirection: 'column', justifyContent: 'space-between',
           }}>
             <div style={{ fontFamily: 'Caveat', fontSize: 16, fontWeight: 600, color: '#d97706', marginBottom: 2 }}>Fortschritt</div>
             <WavyLine color="#f59e0b"/>
@@ -1896,8 +1910,7 @@ const Dashboard = () => {
   const showDocs = active === 'docs';
   const showSettings = active === 'settings';
   const showAI = active === 'ai';
-  // Sets visible alongside AI panel too
-  const showSets = !showDocs && !showSettings;
+  const showSets = !showDocs && !showSettings && !showAI;
 
   return (
     <div className="dot-paper" style={{ height: '100vh', overflow: 'hidden', display: 'flex' }}>
@@ -1942,11 +1955,12 @@ const Dashboard = () => {
       `}</style>
       <Sidebar user={user} profile={profile} sets={sets} active={active} onNav={setActive} onNewSet={() => setShowModal(true)}/>
 
-      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: '18px 22px 14px', minWidth: 0, gap: 16, overflow: 'hidden' }}>
-        <TopBar search={search} onSearch={setSearch} streak={streak}/>
+      <main style={{ flex: 1, display: 'flex', flexDirection: 'column', padding: showAI ? 0 : '18px 22px 14px', minWidth: 0, gap: 16, overflow: 'hidden' }}>
+        {!showAI && <TopBar search={search} onSearch={setSearch} streak={streak}/>}
 
         {showDocs && <DocsPanel userId={user?.id}/>}
         {showSettings && <SettingsPanel user={user} profile={profile} onProfileUpdate={setProfile} darkMode={darkMode} setDarkMode={setDarkMode}/>}
+        {showAI && <FlowAIPage onClose={() => setActive('home')}/>}
 
         {showSets && (
           <>
@@ -1988,8 +2002,6 @@ const Dashboard = () => {
         )}
       </main>
 
-
-      {showAI && <FlowAIPanel onClose={() => setActive('home')}/>}
 
       {!showAI && <AIAssistant/>}
 
