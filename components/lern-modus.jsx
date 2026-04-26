@@ -96,9 +96,15 @@ const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
     if (!dragRef.current.active) return;
     dragRef.current.active = false;
     const diff = e.clientX - dragRef.current.startX;
-    if (diff > 120) onGrade(card, 3); // Gut / Richtig
-    else if (diff < -120) onGrade(card, 1); // Nochmal / Falsch
-    else setDragX(0); // Zurückfedern
+    if (diff > 120) {
+      setDragX(window.innerWidth); // Karte nach rechts rausfliegen lassen
+      setTimeout(() => onGrade(card, 3), 320);
+    } else if (diff < -120) {
+      setDragX(-window.innerWidth); // Karte nach links rausfliegen lassen
+      setTimeout(() => onGrade(card, 1), 320);
+    } else {
+      setDragX(0); // Zurückfedern
+    }
   };
 
   const grades = [
@@ -139,7 +145,8 @@ const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
           style={{
             position: 'relative',
             transform: `translateX(${dragX}px) rotate(${dragX * 0.05}deg)`,
-            transition: dragRef.current.active ? 'none' : 'transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1)',
+            opacity: Math.max(0, 1 - Math.abs(dragX) / (window.innerWidth * 0.6)),
+            transition: dragRef.current.active ? 'none' : 'transform 0.32s cubic-bezier(0.2, 0.8, 0.2, 1), opacity 0.32s ease',
             touchAction: flipped ? 'none' : 'auto',
             cursor: flipped ? (dragRef.current.active ? 'grabbing' : 'grab') : 'pointer',
             userSelect: dragRef.current.active ? 'none' : 'auto',
