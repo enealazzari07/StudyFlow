@@ -5,6 +5,9 @@ const AIRFORCE_KEY = 'sk-air-tWdMV6mXgoa1zAfHr8UfGVI9BFzyr5dXE2jdZO4pPApRVrXDyH6
 const AI_MODEL = 'claude-sonnet-4-6';
 const AI_URL = 'https://api.airforce/v1/chat/completions';
 
+// ← Azure App Registration: portal.azure.com → App-Registrierungen → Anwendungs-ID hier eintragen
+const MS_CLIENT_ID = 'DEINE_AZURE_CLIENT_ID';
+
 // ─── Helpers ─────────────────────────────────────────────────
 function formatFileSize(b) {
   if (b < 1024) return `${b} B`;
@@ -249,8 +252,7 @@ const EXTENSIONS = [
 
 // ─── OneNote Integration Modal ────────────────────────────────
 const OneNoteModal = ({ onClose }) => {
-  const [clientId, setClientId] = useState(localStorage.getItem('sf_ms_client_id') || '');
-  const [step, setStep] = useState(localStorage.getItem('sf_ms_client_id') ? 'setup' : 'setup');
+  const [step, setStep] = useState('idle'); // idle | connecting | connected
   const [msalApp, setMsalApp] = useState(null);
   const [account, setAccount] = useState(null);
   const [notebooks, setNotebooks] = useState([]);
@@ -264,17 +266,20 @@ const OneNoteModal = ({ onClose }) => {
 
   const SCOPES = ['Notes.Read', 'Notes.Read.All', 'openid', 'profile', 'User.Read'];
 
-  const buildMsal = async (id) => {
-    if (!window.msal) { setError('MSAL nicht geladen — Seite neu laden.'); return null; }
+  const getMsal = async () => {
+    if (msalApp) return msalApp;
+    if (!window.msal) throw new Error('MSAL nicht geladen — Seite neu laden.');
+    if (MS_CLIENT_ID === 'DEINE_AZURE_CLIENT_ID') throw new Error('Azure Client-ID nicht konfiguriert. Bitte in dashboard.jsx eintragen.');
     const app = new window.msal.PublicClientApplication({
       auth: {
-        clientId: id,
+        clientId: MS_CLIENT_ID,
         authority: 'https://login.microsoftonline.com/common',
         redirectUri: window.location.origin + window.location.pathname,
       },
       cache: { cacheLocation: 'localStorage', storeAuthStateInCookie: true },
     });
     await app.initialize();
+    setMsalApp(app);
     return app;
   };
 
@@ -303,27 +308,25 @@ const OneNoteModal = ({ onClose }) => {
   };
 
   const handleConnect = async () => {
-    const id = clientId.trim();
-    if (!id) { setError('Bitte Azure Client-ID eingeben.'); return; }
-    localStorage.setItem('sf_ms_client_id', id);
-    setError(''); setLoading(true);
+    setError(''); setStep('connecting');
     try {
-      const app = await buildMsal(id);
-      if (!app) { setLoading(false); return; }
+      const app = await getMsal();
       const result = await app.loginPopup({ scopes: SCOPES });
-      setMsalApp(app); setAccount(result.account); setStep('connected');
+      setAccount(result.account);
+      setStep('connected');
       await loadNotebooks(app, result.account);
     } catch (e) {
-      if (e.errorCode !== 'user_cancelled') setError('Verbindung fehlgeschlagen: ' + (e.message || e.errorCode || e));
+      setStep('idle');
+      if (e.errorCode !== 'user_cancelled') setError(e.message || e.errorCode || String(e));
     }
-    setLoading(false);
   };
 
   const handleNotebook = async (nb) => {
     setSelNotebook(nb); setSections([]); setSelSection(null); setSummary('');
     setLoading(true);
     try {
-      const token = await getToken(msalApp, account);
+      const app = await getMsal();
+      const token = await getToken(app, account);
       const res = await fetch(`https://graph.microsoft.com/v1.0/me/onenote/notebooks/${nb.id}/sections`, {
         headers: { Authorization: `Bearer ${token}` },
       });
@@ -336,23 +339,20 @@ const OneNoteModal = ({ onClose }) => {
   const handleSummarize = async (sec) => {
     setSelSection(sec); setSummarizing(true); setSummary(''); setError('');
     try {
-      const token = await getToken(msalApp, account);
+      const app = await getMsal();
+      const token = await getToken(app, account);
       const pRes = await fetch(`https://graph.microsoft.com/v1.0/me/onenote/sections/${sec.id}/pages?$top=10&$orderby=lastModifiedDateTime desc`, {
         headers: { Authorization: `Bearer ${token}` },
       });
-      const pData = await pRes.json();
-      const pageList = pData.value || [];
+      const pageList = (await pRes.json()).value || [];
       const texts = await Promise.all(pageList.slice(0, 6).map(async pg => {
         const r = await fetch(`https://graph.microsoft.com/v1.0/me/onenote/pages/${pg.id}/content`, {
           headers: { Authorization: `Bearer ${token}` },
         });
-        const html = await r.text();
         const el = document.createElement('div');
-        el.innerHTML = html;
-        const text = (el.textContent || el.innerText || '').replace(/\s+/g, ' ').trim();
-        return `## ${pg.title || 'Ohne Titel'}\n${text.slice(0, 1200)}`;
+        el.innerHTML = await r.text();
+        return `## ${pg.title || 'Ohne Titel'}\n${(el.textContent || '').replace(/\s+/g, ' ').trim().slice(0, 1200)}`;
       }));
-      const combined = texts.join('\n\n').slice(0, 8000);
       const aiRes = await fetch(AI_URL, {
         method: 'POST',
         headers: { Authorization: `Bearer ${AIRFORCE_KEY}`, 'Content-Type': 'application/json' },
@@ -360,25 +360,24 @@ const OneNoteModal = ({ onClose }) => {
           model: AI_MODEL,
           messages: [
             { role: 'system', content: 'Du bist ein intelligenter Lernassistent. Fasse die folgenden OneNote-Seiten klar und lernfreundlich zusammen. Nutze Überschriften und Bullet Points. Hebe Definitionen und Schlüsselkonzepte hervor. Antworte auf Deutsch.' },
-            { role: 'user', content: `Fasse den OneNote-Abschnitt "${sec.displayName}" zusammen:\n\n${combined}` },
+            { role: 'user', content: `Fasse den Abschnitt "${sec.displayName}" zusammen:\n\n${texts.join('\n\n').slice(0, 8000)}` },
           ],
         }),
       });
-      const aiData = await aiRes.json();
-      setSummary(aiData.choices?.[0]?.message?.content || 'Keine Antwort erhalten.');
-    } catch (e) { setError('KI-Fehler: ' + e.message); }
+      setSummary((await aiRes.json()).choices?.[0]?.message?.content || 'Keine Antwort.');
+    } catch (e) { setError('Fehler: ' + e.message); }
     setSummarizing(false);
   };
 
-  const handleDisconnect = () => {
-    localStorage.removeItem('sf_ms_client_id');
-    setStep('setup'); setAccount(null); setNotebooks([]);
+  const handleDisconnect = async () => {
+    try { const app = await getMsal(); if (account) await app.logoutPopup({ account }); } catch {}
+    setStep('idle'); setAccount(null); setNotebooks([]);
     setSections([]); setSummary(''); setSelNotebook(null); setSelSection(null);
   };
 
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.5)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
-      <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 580, maxHeight: '88vh', display: 'flex', flexDirection: 'column', boxShadow: '0 30px 80px rgba(15,23,42,0.22)' }} onClick={e => e.stopPropagation()}>
+      <div style={{ background: 'white', borderRadius: 20, width: '100%', maxWidth: 560, maxHeight: '88vh', display: 'flex', flexDirection: 'column', boxShadow: '0 30px 80px rgba(15,23,42,0.22)' }} onClick={e => e.stopPropagation()}>
 
         {/* Header */}
         <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
@@ -394,80 +393,84 @@ const OneNoteModal = ({ onClose }) => {
         <div style={{ overflowY: 'auto', flex: 1, padding: 22, display: 'flex', flexDirection: 'column', gap: 16 }}>
           {error && <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 10, padding: '10px 14px', fontSize: 12, color: '#dc2626' }}>⚠️ {error}</div>}
 
-          {/* SETUP STEP */}
-          {step === 'setup' && (
-            <>
-              <div style={{ background: '#f8fafc', borderRadius: 12, padding: 16, border: '1px solid #e2e8f0' }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a', marginBottom: 12 }}>📋 Einmalige Azure-Einrichtung (~3 Min.)</div>
-                {[
-                  { n: '1', t: 'Gehe zu', link: 'portal.azure.com', href: 'https://portal.azure.com' },
-                  { n: '2', t: 'App-Registrierungen → Neue Registrierung' },
-                  { n: '3', t: 'Plattform: Single-Page-Anwendung (SPA)' },
-                  { n: '4', t: `Umleitungs-URI: ${window.location.origin + window.location.pathname}` },
-                  { n: '5', t: 'API-Berechtigungen: Notes.Read (delegiert) hinzufügen' },
-                  { n: '6', t: 'Anwendungs-(Client-)ID unten einfügen' },
-                ].map(item => (
-                  <div key={item.n} style={{ display: 'flex', gap: 8, marginBottom: 7, fontSize: 12, color: '#475569', alignItems: 'flex-start' }}>
-                    <span style={{ fontWeight: 700, color: '#7719AA', minWidth: 18, marginTop: 1 }}>{item.n}.</span>
-                    <span>{item.t} {item.link && <a href={item.href} target="_blank" rel="noreferrer" style={{ color: '#6366f1', fontWeight: 500 }}>{item.link} ↗</a>}</span>
-                  </div>
-                ))}
+          {/* IDLE — Connect button */}
+          {step === 'idle' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, padding: '24px 0' }}>
+              <div style={{ width: 72, height: 72, borderRadius: 20, background: '#f5e6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>📓</div>
+              <div style={{ textAlign: 'center' }}>
+                <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 6 }}>OneNote verbinden</div>
+                <div style={{ fontSize: 13, color: '#64748b', maxWidth: 340, lineHeight: 1.6 }}>
+                  Melde dich mit deinem Microsoft-Konto an. StudyFlow kann dann deine Notizbücher lesen und mit KI zusammenfassen.
+                </div>
               </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 500, color: '#475569', display: 'block', marginBottom: 6 }}>Azure Application (Client) ID</label>
-                <input value={clientId} onChange={e => { setClientId(e.target.value); setError(''); }} placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx" className="input-paper" style={{ fontFamily: 'JetBrains Mono', fontSize: 12 }}/>
-              </div>
-              <button onClick={handleConnect} disabled={loading || !clientId.trim()} className="btn-primary" style={{ justifyContent: 'center', padding: '11px 0', opacity: loading || !clientId.trim() ? 0.6 : 1 }}>
-                {loading ? 'Verbinden…' : <><Icons.Share size={14}/> Mit Microsoft verbinden</>}
+              <button onClick={handleConnect} className="btn-primary" style={{ padding: '12px 32px', fontSize: 14, gap: 8 }}>
+                <span style={{ fontSize: 16 }}>🪟</span> Mit Microsoft anmelden
               </button>
-            </>
+              <div style={{ fontSize: 11, color: '#94a3b8', textAlign: 'center' }}>
+                Deine Daten verlassen nicht deinen Browser. Nur Lesezugriff.
+              </div>
+            </div>
           )}
 
-          {/* CONNECTED — Notebooks list */}
+          {/* CONNECTING */}
+          {step === 'connecting' && (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 12, padding: '32px 0' }}>
+              <div style={{ fontSize: 28 }}>🪟</div>
+              <div style={{ fontSize: 13, color: '#475569', fontWeight: 500 }}>Microsoft-Anmeldefenster geöffnet…</div>
+              <div style={{ fontSize: 12, color: '#94a3b8' }}>Bitte im Popup-Fenster anmelden</div>
+            </div>
+          )}
+
+          {/* CONNECTED — Notebooks */}
           {step === 'connected' && !selNotebook && (
             <>
               <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>Deine Notizbücher</div>
-              {loading ? <div style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: 24 }}>Lade…</div>
-              : notebooks.length === 0 ? <div style={{ color: '#94a3b8', fontSize: 13 }}>Keine Notizbücher gefunden.</div>
-              : notebooks.map(nb => (
-                <div key={nb.id} onClick={() => handleNotebook(nb)}
-                  style={{ padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, background: 'white', transition: 'all 0.15s' }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#7719AA'; e.currentTarget.style.background = '#fdf4ff'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = 'white'; }}>
-                  <span style={{ fontSize: 22 }}>📒</span>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a' }}>{nb.displayName}</div>
-                    <div style={{ fontSize: 11, color: '#94a3b8' }}>Zuletzt geändert: {new Date(nb.lastModifiedDateTime).toLocaleDateString('de-DE')}</div>
-                  </div>
-                  <Icons.Chevron size={12} color="#94a3b8"/>
-                </div>
-              ))}
+              {loading
+                ? <div style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: 24 }}>Lade…</div>
+                : notebooks.length === 0
+                  ? <div style={{ color: '#94a3b8', fontSize: 13 }}>Keine Notizbücher gefunden.</div>
+                  : notebooks.map(nb => (
+                    <div key={nb.id} onClick={() => handleNotebook(nb)}
+                      style={{ padding: '12px 16px', border: '1px solid #e2e8f0', borderRadius: 12, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 12, background: 'white', transition: 'all 0.15s' }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#7719AA'; e.currentTarget.style.background = '#fdf4ff'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = '#e2e8f0'; e.currentTarget.style.background = 'white'; }}>
+                      <span style={{ fontSize: 22 }}>📒</span>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500, color: '#0f172a' }}>{nb.displayName}</div>
+                        <div style={{ fontSize: 11, color: '#94a3b8' }}>Zuletzt geändert: {new Date(nb.lastModifiedDateTime).toLocaleDateString('de-DE')}</div>
+                      </div>
+                      <Icons.Chevron size={12} color="#94a3b8"/>
+                    </div>
+                  ))
+              }
               <div style={{ paddingTop: 4, borderTop: '1px solid #f1f5f9' }}>
                 <button onClick={handleDisconnect} style={{ background: 'none', border: '1px solid #fecaca', borderRadius: 8, padding: '6px 12px', fontSize: 11, color: '#dc2626', cursor: 'pointer', fontFamily: 'inherit' }}>Konto trennen</button>
               </div>
             </>
           )}
 
-          {/* CONNECTED — Sections list */}
+          {/* CONNECTED — Sections */}
           {step === 'connected' && selNotebook && !selSection && !summary && (
             <>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button onClick={() => { setSelNotebook(null); setSections([]); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366f1', fontSize: 12, fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 4 }}>← Zurück</button>
+                <button onClick={() => { setSelNotebook(null); setSections([]); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#6366f1', fontSize: 12, fontFamily: 'inherit' }}>← Zurück</button>
                 <div style={{ fontSize: 13, fontWeight: 600, color: '#0f172a' }}>{selNotebook.displayName}</div>
               </div>
-              <div style={{ fontSize: 12, color: '#64748b' }}>Wähle einen Abschnitt um eine KI-Zusammenfassung zu erstellen:</div>
-              {loading ? <div style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: 16 }}>Lade Abschnitte…</div>
-              : sections.map(sec => (
-                <div key={sec.id} style={{ padding: '11px 16px', border: '1px solid #e2e8f0', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <span style={{ fontSize: 16 }}>📑</span>
-                    <span style={{ fontSize: 13, color: '#0f172a' }}>{sec.displayName}</span>
+              <div style={{ fontSize: 12, color: '#64748b' }}>Abschnitt zum Zusammenfassen wählen:</div>
+              {loading
+                ? <div style={{ color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: 16 }}>Lade Abschnitte…</div>
+                : sections.map(sec => (
+                  <div key={sec.id} style={{ padding: '11px 16px', border: '1px solid #e2e8f0', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'space-between', background: 'white' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <span style={{ fontSize: 16 }}>📑</span>
+                      <span style={{ fontSize: 13, color: '#0f172a' }}>{sec.displayName}</span>
+                    </div>
+                    <button onClick={() => handleSummarize(sec)} className="btn-primary" style={{ padding: '6px 14px', fontSize: 12 }}>
+                      <Icons.Sparkles size={12}/> Zusammenfassen
+                    </button>
                   </div>
-                  <button onClick={() => handleSummarize(sec)} className="btn-primary" style={{ padding: '6px 14px', fontSize: 12 }}>
-                    <Icons.Sparkles size={12}/> Zusammenfassen
-                  </button>
-                </div>
-              ))}
+                ))
+              }
             </>
           )}
 
@@ -482,10 +485,10 @@ const OneNoteModal = ({ onClose }) => {
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 10, padding: 32 }}>
                   <div style={{ fontSize: 28 }}>🧠</div>
                   <div style={{ fontSize: 13, color: '#7719AA', fontWeight: 500 }}>KI liest deine Notizen…</div>
-                  <div style={{ fontSize: 12, color: '#94a3b8' }}>Das kann einen Moment dauern</div>
+                  <div style={{ fontSize: 12, color: '#94a3b8' }}>Einen Moment bitte</div>
                 </div>
               ) : (
-                <div style={{ background: '#fdf4ff', borderRadius: 12, padding: 20, border: '1px solid #e9d5ff', fontSize: 13, color: '#334155', lineHeight: 1.75, whiteSpace: 'pre-wrap', maxHeight: 360, overflowY: 'auto' }}>
+                <div style={{ background: '#fdf4ff', borderRadius: 12, padding: 20, border: '1px solid #e9d5ff', fontSize: 13, color: '#334155', lineHeight: 1.75, whiteSpace: 'pre-wrap', maxHeight: 340, overflowY: 'auto' }}>
                   {summary}
                 </div>
               )}
