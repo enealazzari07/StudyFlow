@@ -1151,143 +1151,142 @@ const FlowAIPage = ({ onClose }) => {
   return (
     <>
     <style>{`
-      @keyframes pulse { 0%,100%{opacity:0.3;transform:scale(0.8)} 50%{opacity:1;transform:scale(1)} }
+      @keyframes flowPulse { 0%,100%{opacity:0.25;transform:scale(0.75)} 50%{opacity:1;transform:scale(1)} }
+      @keyframes flowFadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+      .flow-msg { animation: flowFadeIn 0.25s ease; }
+      .flow-chat-item:hover { background: rgba(255,255,255,0.07) !important; }
     `}</style>
     <div style={{ flex: 1, display: 'flex', minHeight: 0, overflow: 'hidden' }}>
 
-      {/* Left: Chat history list */}
-      <div style={{ width: 260, flexShrink: 0, borderRight: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', overflow: 'hidden', background: 'var(--bg-panel)' }}>
-        {/* List header */}
-        <div style={{ padding: '18px 16px 12px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
-            <Icons.Sparkles size={17}/>
-          </div>
-          <div style={{ flex: 1, minWidth: 0 }}>
-            <div style={{ fontFamily: 'Instrument Sans', fontWeight: 600, fontSize: 15, color: 'var(--text-main)' }}>Flow AI</div>
-            <div style={{ fontSize: 11, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', display: 'inline-block' }}/>
-              Bereit zu helfen
+      {/* ── Left: dark notebook cover ── */}
+      <div style={{ width: 238, flexShrink: 0, background: '#141d2e', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+        {/* Logo */}
+        <div style={{ padding: '20px 18px 16px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+            <div style={{ width: 36, height: 36, borderRadius: 12, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(99,102,241,0.4)', flexShrink: 0 }}>
+              <Icons.Sparkles size={18} style={{ color: 'white' }}/>
+            </div>
+            <div>
+              <div style={{ fontFamily: 'Caveat', fontSize: 22, fontWeight: 700, color: 'white', lineHeight: 1.1 }}>Flow AI</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
+                <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', display: 'inline-block' }}/>
+                <span style={{ fontSize: 10.5, color: '#10b981', fontWeight: 500 }}>Online</span>
+              </div>
             </div>
           </div>
-        </div>
-        {/* New chat button */}
-        <div style={{ padding: '10px 12px', flexShrink: 0 }}>
-          <button onClick={newChat} style={{ width: '100%', padding: '8px 12px', background: 'linear-gradient(135deg,#6366f1,#818cf8)', border: 'none', borderRadius: 10, cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13, fontFamily: 'inherit', fontWeight: 500 }}>
+          <button onClick={newChat} style={{ width: '100%', padding: '9px 12px', background: 'rgba(99,102,241,0.22)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 12, cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 13, fontFamily: 'inherit', fontWeight: 500, transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.35)'; }}
+            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.22)'; }}>
             <Icons.Plus size={13}/> Neuer Chat
           </button>
         </div>
+
         {/* Chat list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 10px 10px', display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px', display: 'flex', flexDirection: 'column', gap: 1 }}>
+          <div style={{ fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '0 8px 6px' }}>Verlauf</div>
           {chats.map((c, i) => {
             const isAct = c.id === activeChatId;
             const col = CHAT_COLORS[i % CHAT_COLORS.length];
             return (
-              <div key={c.id} onClick={() => setActiveChatId(c.id)}
-                onMouseEnter={e => { if (!isAct) e.currentTarget.style.background = 'var(--bg-hover)'; }}
-                onMouseLeave={e => { if (!isAct) e.currentTarget.style.background = isAct ? 'var(--bg-active)' : 'transparent'; }}
-                style={{ padding: '10px 10px', borderRadius: 10, cursor: 'pointer', background: isAct ? 'var(--bg-active)' : 'transparent', transition: 'background 0.1s', border: isAct ? '1px solid var(--border-light)' : '1px solid transparent', display: 'flex', alignItems: 'flex-start', gap: 10 }}>
-                <div style={{ width: 24, height: 24, borderRadius: 7, background: col + '22', border: `1.5px solid ${col}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                  <Icons.Sparkles size={11} style={{ color: col }}/>
-                </div>
+              <div key={c.id} className="flow-chat-item" onClick={() => setActiveChatId(c.id)}
+                style={{ padding: '9px 10px', borderRadius: 10, cursor: 'pointer', background: isAct ? 'rgba(99,102,241,0.2)' : 'transparent', border: isAct ? '1px solid rgba(99,102,241,0.35)' : '1px solid transparent', transition: 'all 0.1s', display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ width: 8, height: 8, borderRadius: '50%', background: col, flexShrink: 0, opacity: isAct ? 1 : 0.45, boxShadow: isAct ? `0 0 6px ${col}88` : 'none' }}/>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: isAct ? 500 : 400, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-lighter)', marginTop: 2 }}>{c.messages.length} Nachrichten</div>
+                  <div style={{ fontSize: 13, color: isAct ? 'white' : 'rgba(255,255,255,0.55)', fontWeight: isAct ? 500 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</div>
+                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 1 }}>{c.messages.length} Nachr.</div>
                 </div>
               </div>
             );
           })}
         </div>
+
+        {/* Close button at bottom */}
+        <div style={{ padding: '14px 16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
+          <button onClick={onClose} style={{ width: '100%', padding: '7px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, cursor: 'pointer', color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontFamily: 'inherit', transition: 'all 0.15s' }}
+            onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.65)'; e.currentTarget.style.background = 'rgba(255,255,255,0.09)'; }}
+            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}>
+            <Icons.X size={13}/> Schliessen
+          </button>
+        </div>
       </div>
 
-      {/* Right: Active chat on dot-paper */}
-      <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative',
-        backgroundImage: 'radial-gradient(circle, rgba(99,102,241,0.12) 1.2px, transparent 1.2px)',
-        backgroundSize: '22px 22px',
-        backgroundColor: 'var(--bg-main)',
+      {/* ── Right: cream notebook pages ── */}
+      <div style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column',
+        background: '#f7f3ea',
+        backgroundImage: 'radial-gradient(circle, rgba(99,102,241,0.18) 1px, transparent 1px)',
+        backgroundSize: '24px 24px',
       }}>
-        {/* Thin top bar with title + close */}
-        <div style={{ padding: '12px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <div style={{ width: 22, height: 22, borderRadius: 7, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <Icons.Sparkles size={11} style={{ color: 'white' }}/>
-            </div>
-            <span style={{ fontFamily: 'Instrument Sans', fontWeight: 600, fontSize: 14, color: 'var(--text-main)' }}>{activeChat.title}</span>
-          </div>
-          <button onClick={onClose} style={{ padding: 5, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-lighter)', borderRadius: 6, display: 'flex' }}>
-            <Icons.X size={15}/>
-          </button>
+        {/* Red margin line */}
+        <div style={{ position: 'absolute', left: 72, top: 0, bottom: 0, width: 1.5, background: 'rgba(239,68,68,0.22)', zIndex: 0, pointerEvents: 'none' }}/>
+
+        {/* Title bar */}
+        <div style={{ padding: '14px 20px 10px 88px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, zIndex: 1, position: 'relative' }}>
+          <div style={{ fontFamily: 'Caveat', fontSize: 22, fontWeight: 700, color: '#1e293b', letterSpacing: '0.01em' }}>{activeChat.title}</div>
+          <div style={{ fontSize: 11, color: '#94a3b8' }}>{formatTime(new Date())}</div>
         </div>
 
         {/* Messages */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '8px 60px 140px', display: 'flex', flexDirection: 'column', gap: 20 }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 36px 150px 88px', display: 'flex', flexDirection: 'column', gap: 22, zIndex: 1, position: 'relative' }}>
 
+          {/* Empty state */}
           {activeChat.messages.length <= 1 && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', flex: 1, gap: 24, paddingTop: 40 }}>
+            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 22, minHeight: 240 }}>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ width: 48, height: 48, borderRadius: 16, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px', boxShadow: '0 8px 24px rgba(99,102,241,0.25)' }}>
-                  <Icons.Sparkles size={22} style={{ color: 'white' }}/>
-                </div>
-                <div style={{ fontFamily: 'Instrument Sans', fontSize: 20, fontWeight: 600, color: 'var(--text-main)', marginBottom: 6 }}>Wie kann ich dir heute helfen?</div>
-                <div style={{ fontSize: 13, color: 'var(--text-light)' }}>Frag mich alles rund ums Lernen.</div>
+                <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 700, color: '#1e293b', lineHeight: 1.2, marginBottom: 6 }}>Was kann ich für<br/>dich aufschreiben?</div>
+                <div style={{ fontFamily: 'Caveat', fontSize: 17, color: '#64748b' }}>Deine KI-Lernassistentin ist bereit ✏️</div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8, width: '100%', maxWidth: 480 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, width: '100%', maxWidth: 460 }}>
                 {SUGGESTIONS.map((s, i) => (
-                  <button key={i} onClick={() => send(s.text)} style={{ textAlign: 'left', padding: '11px 13px', background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(8px)', WebkitBackdropFilter: 'blur(8px)', border: '1px solid var(--border-light)', borderRadius: 12, fontSize: 12.5, color: 'var(--text-muted)', fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 8, transition: 'all 0.15s', boxShadow: '0 1px 4px rgba(15,23,42,0.06)' }}
-                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#c7d2fe'; e.currentTarget.style.background = 'rgba(255,255,255,0.97)'; }}
-                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-light)'; e.currentTarget.style.background = 'rgba(255,255,255,0.85)'; }}>
-                    <span style={{ color: '#6366f1', flexShrink: 0 }}>{s.icon}</span> {s.text}
+                  <button key={i} onClick={() => send(s.text)} style={{ textAlign: 'left', padding: '11px 14px', background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(15,23,42,0.1)', borderRadius: 12, fontSize: 12.5, color: '#475569', fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 8, transition: 'all 0.15s', boxShadow: '0 1px 4px rgba(15,23,42,0.06)', lineHeight: 1.4 }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.95)'; e.currentTarget.style.borderColor = '#c7d2fe'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.7)'; e.currentTarget.style.borderColor = 'rgba(15,23,42,0.1)'; }}>
+                    <span style={{ color: '#6366f1', flexShrink: 0, marginTop: 1 }}>{s.icon}</span> {s.text}
                   </button>
                 ))}
               </div>
             </div>
           )}
 
+          {/* Messages */}
           {activeChat.messages.map((m, i) => (
-            <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start', gap: 4 }}>
-              {m.role === 'ai' && (
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                  <div style={{ width: 20, height: 20, borderRadius: 6, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Icons.Sparkles size={11} style={{ color: 'white' }}/>
+            <div key={i} className="flow-msg" style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start', gap: 5 }}>
+              {m.role === 'ai' ? (
+                /* AI: sticky-note style */
+                <div style={{ maxWidth: '74%', position: 'relative' }}>
+                  {/* Tape strip on top */}
+                  <div style={{ position: 'absolute', top: -9, left: '50%', transform: 'translateX(-50%)', width: 44, height: 14, background: 'rgba(99,102,241,0.25)', borderRadius: 3, zIndex: 1 }}/>
+                  <div style={{ background: '#fffef5', borderRadius: '3px 12px 12px 12px', padding: '16px 16px 12px', boxShadow: '2px 4px 16px rgba(15,23,42,0.11), 0 1px 3px rgba(15,23,42,0.07)', border: '1px solid rgba(234,179,8,0.12)', transform: `rotate(${i % 3 === 0 ? -0.4 : i % 3 === 1 ? 0.3 : -0.2}deg)` }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
+                      <div style={{ width: 18, height: 18, borderRadius: 6, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                        <Icons.Sparkles size={10} style={{ color: 'white' }}/>
+                      </div>
+                      <span style={{ fontFamily: 'Caveat', fontSize: 13, fontWeight: 700, color: '#6366f1', letterSpacing: '0.03em' }}>Flow</span>
+                      <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 2 }}>{formatTime(m.time)}</span>
+                    </div>
+                    <div style={{ fontSize: 13.5, lineHeight: 1.7, color: '#1e293b', whiteSpace: 'pre-wrap' }}>{m.text}</div>
                   </div>
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#6366f1', letterSpacing: '0.02em' }}>Flow</span>
-                  <span style={{ fontSize: 10, color: 'var(--text-lighter)' }}>{formatTime(m.time)}</span>
                 </div>
-              )}
-              <div style={{
-                maxWidth: '72%',
-                padding: m.role === 'user' ? '10px 15px' : '12px 16px',
-                borderRadius: m.role === 'user' ? '18px 18px 5px 18px' : '5px 18px 18px 18px',
-                background: m.role === 'user'
-                  ? 'linear-gradient(135deg, #1e293b, #334155)'
-                  : 'rgba(255,255,255,0.88)',
-                backdropFilter: m.role === 'ai' ? 'blur(10px)' : 'none',
-                WebkitBackdropFilter: m.role === 'ai' ? 'blur(10px)' : 'none',
-                color: m.role === 'user' ? 'white' : 'var(--text-main)',
-                fontSize: 13.5, lineHeight: 1.65,
-                boxShadow: m.role === 'ai'
-                  ? '0 2px 12px rgba(15,23,42,0.06), 0 1px 3px rgba(15,23,42,0.04)'
-                  : '0 2px 10px rgba(15,23,42,0.15)',
-                border: m.role === 'ai' ? '1px solid rgba(255,255,255,0.9)' : 'none',
-                whiteSpace: 'pre-wrap',
-              }}>{m.text}</div>
-              {m.role === 'user' && (
-                <div style={{ fontSize: 10, color: 'var(--text-lighter)', paddingRight: 4 }}>{formatTime(m.time)}</div>
+              ) : (
+                /* User: dark ink bubble */
+                <div style={{ maxWidth: '68%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
+                  <div style={{ padding: '10px 16px', borderRadius: '16px 16px 4px 16px', background: '#1e293b', color: 'white', fontSize: 13.5, lineHeight: 1.65, boxShadow: '0 2px 12px rgba(15,23,42,0.2)', whiteSpace: 'pre-wrap' }}>{m.text}</div>
+                  <div style={{ fontSize: 10, color: '#94a3b8' }}>{formatTime(m.time)}</div>
+                </div>
               )}
             </div>
           ))}
 
+          {/* Loading dots */}
           {loading && (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 4 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 2 }}>
-                <div style={{ width: 20, height: 20, borderRadius: 6, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                  <Icons.Sparkles size={11} style={{ color: 'white' }}/>
+            <div className="flow-msg" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}>
+              <div style={{ position: 'relative', maxWidth: '74%' }}>
+                <div style={{ position: 'absolute', top: -9, left: '50%', transform: 'translateX(-50%)', width: 44, height: 14, background: 'rgba(99,102,241,0.25)', borderRadius: 3 }}/>
+                <div style={{ background: '#fffef5', borderRadius: '3px 12px 12px 12px', padding: '16px 20px', boxShadow: '2px 4px 16px rgba(15,23,42,0.11)', border: '1px solid rgba(234,179,8,0.12)', display: 'flex', gap: 6, alignItems: 'center' }}>
+                  {[0,1,2].map(j => (
+                    <div key={j} style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', animation: `flowPulse 1.2s ease-in-out ${j*0.22}s infinite` }}/>
+                  ))}
                 </div>
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#6366f1' }}>Flow</span>
-              </div>
-              <div style={{ padding: '12px 16px', background: 'rgba(255,255,255,0.88)', backdropFilter: 'blur(10px)', WebkitBackdropFilter: 'blur(10px)', borderRadius: '5px 18px 18px 18px', border: '1px solid rgba(255,255,255,0.9)', boxShadow: '0 2px 12px rgba(15,23,42,0.06)', display: 'flex', gap: 5, alignItems: 'center' }}>
-                {[0,1,2].map(j => (
-                  <div key={j} style={{ width: 7, height: 7, borderRadius: '50%', background: '#6366f1', animation: `pulse 1.2s ease-in-out ${j*0.2}s infinite` }}/>
-                ))}
               </div>
             </div>
           )}
@@ -1295,53 +1294,32 @@ const FlowAIPage = ({ onClose }) => {
         </div>
 
         {/* Floating input */}
-        <div style={{ position: 'absolute', bottom: 20, left: 40, right: 40, zIndex: 10 }}>
-          <div style={{
-            background: 'rgba(255,255,255,0.96)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            borderRadius: 20,
-            border: '1px solid rgba(15,23,42,0.1)',
-            boxShadow: '0 8px 32px rgba(15,23,42,0.12), 0 2px 8px rgba(15,23,42,0.06)',
-            padding: '14px 14px 10px 16px',
-          }}>
+        <div style={{ position: 'absolute', bottom: 18, left: 78, right: 28, zIndex: 10 }}>
+          <div style={{ background: 'rgba(255,252,242,0.97)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: 20, border: '1px solid rgba(15,23,42,0.11)', boxShadow: '0 8px 28px rgba(15,23,42,0.13), 0 2px 6px rgba(15,23,42,0.06)', padding: '14px 14px 10px 16px' }}>
             <textarea
               ref={inputRef}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-              placeholder="Wie kann ich dir heute helfen?"
+              placeholder="Schreib etwas…"
               rows={1}
-              style={{
-                width: '100%', padding: 0,
-                border: 'none', outline: 'none',
-                fontFamily: 'inherit', fontSize: 14,
-                background: 'transparent',
-                color: 'var(--text-main)',
-                resize: 'none', lineHeight: 1.5,
-                maxHeight: 120, overflowY: 'auto',
-                display: 'block',
-              }}
+              style={{ width: '100%', padding: 0, border: 'none', outline: 'none', fontFamily: 'inherit', fontSize: 14, background: 'transparent', color: '#1e293b', resize: 'none', lineHeight: 1.55, maxHeight: 120, overflowY: 'auto', display: 'block' }}
               onInput={e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }}
             />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-              {/* Left: new chat */}
-              <button onClick={newChat} title="Neuer Chat" style={{ width: 30, height: 30, borderRadius: 9, background: 'var(--bg-active)', border: '1px solid var(--border-light)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', transition: 'background 0.1s' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-active)'}>
+              <button onClick={newChat} title="Neuer Chat" style={{ width: 30, height: 30, borderRadius: 9, background: 'rgba(15,23,42,0.06)', border: '1px solid rgba(15,23,42,0.09)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', transition: 'all 0.1s' }}
+                onMouseEnter={e => e.currentTarget.style.background = 'rgba(15,23,42,0.1)'}
+                onMouseLeave={e => e.currentTarget.style.background = 'rgba(15,23,42,0.06)'}>
                 <Icons.Plus size={14}/>
               </button>
-              {/* Right: model label + send */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 9, background: 'var(--bg-active)', border: '1px solid var(--border-light)', cursor: 'default' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 9, background: 'rgba(15,23,42,0.06)', border: '1px solid rgba(15,23,42,0.09)' }}>
                   <div style={{ width: 12, height: 12, borderRadius: 3, background: 'linear-gradient(135deg,#6366f1,#818cf8)', flexShrink: 0 }}/>
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>Sonnet 4.6</span>
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2.5 3.5L5 6.5L7.5 3.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <span style={{ fontSize: 12, color: '#475569', fontWeight: 500, whiteSpace: 'nowrap' }}>Sonnet 4.6</span>
+                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2.5 3.5L5 6.5L7.5 3.5" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                 </div>
-                <button
-                  onClick={() => send()}
-                  disabled={!input.trim() || loading}
-                  style={{ width: 32, height: 32, borderRadius: 10, background: input.trim() && !loading ? 'linear-gradient(135deg,#1e293b,#334155)' : 'var(--bg-active)', color: input.trim() && !loading ? 'white' : 'var(--text-lighter)', border: 'none', cursor: input.trim() && !loading ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', flexShrink: 0 }}>
+                <button onClick={() => send()} disabled={!input.trim() || loading}
+                  style={{ width: 32, height: 32, borderRadius: 10, background: input.trim() && !loading ? '#1e293b' : 'rgba(15,23,42,0.08)', color: input.trim() && !loading ? 'white' : '#94a3b8', border: 'none', cursor: input.trim() && !loading ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', flexShrink: 0 }}>
                   <Icons.ArrowRight size={15}/>
                 </button>
               </div>
