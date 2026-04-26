@@ -77,11 +77,11 @@ function createFolderArtDataUri({ filled = false } = {}) {
 const EMPTY_FOLDER_ART = createFolderArtDataUri({ filled: false });
 const FILLED_FOLDER_ART = createFolderArtDataUri({ filled: true });
 
-async function callAI(messages) {
+async function callAI(messages, model = AI_MODEL) {
   const res = await fetch(AI_URL, {
     method: 'POST',
     headers: { 'Authorization': `Bearer ${AIRFORCE_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: AI_MODEL, messages }),
+    body: JSON.stringify({ model, messages }),
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
@@ -1088,6 +1088,12 @@ const SUGGESTIONS = [
   { icon: <Icons.Doc size={13}/>,      text: 'Fass mein letztes Dokument zusammen' },
 ];
 
+const MODELS = [
+  { id: 'claude-sonnet-4.6', label: 'Sonnet 4.6' },
+  { id: 'gpt-4o', label: 'GPT-4o' },
+  { id: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+];
+
 const FlowAIPage = ({ onClose }) => {
   const [chats, setChats] = React.useState(() => [
     makeChat('Willkommen', 'Hi! Ich bin Flow — deine KI-Lernassistentin. 👋\nFrag mich alles: ich erkläre Konzepte, erstelle Karten oder mache Quiz mit dir.'),
@@ -1095,6 +1101,8 @@ const FlowAIPage = ({ onClose }) => {
   const [activeChatId, setActiveChatId] = React.useState(chats[0].id);
   const [input, setInput] = React.useState('');
   const [loading, setLoading] = React.useState(false);
+  const [model, setModel] = React.useState('claude-sonnet-4.6');
+  const [showModelDropdown, setShowModelDropdown] = React.useState(false);
   const messagesEndRef = React.useRef(null);
   const inputRef = React.useRef(null);
 
@@ -1130,7 +1138,7 @@ const FlowAIPage = ({ onClose }) => {
         { role: 'system', content: 'Du bist Flow, eine freundliche KI-Lernassistentin für StudyFlow. Antworte auf Deutsch, präzise und motivierend. Helfe beim Lernen, Erklären von Konzepten, Erstellen von Karteikarten und Quiz. Antworte kurz und strukturiert.' },
         ...activeChat.messages.filter(m => m.role !== 'ai' || activeChat.messages.indexOf(m) > 0).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text })),
         { role: 'user', content: t },
-      ]);
+      ], model);
       const aiMsg = { role: 'ai', text: res, time: new Date() };
       setChats(prev => prev.map(c =>
         c.id === activeChatId ? { ...c, messages: [...c.messages, aiMsg] } : c
@@ -1312,10 +1320,25 @@ const FlowAIPage = ({ onClose }) => {
                 <Icons.Plus size={14}/>
               </button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 9, background: 'rgba(15,23,42,0.06)', border: '1px solid rgba(15,23,42,0.09)' }}>
-                  <div style={{ width: 12, height: 12, borderRadius: 3, background: 'linear-gradient(135deg,#6366f1,#818cf8)', flexShrink: 0 }}/>
-                  <span style={{ fontSize: 12, color: '#475569', fontWeight: 500, whiteSpace: 'nowrap' }}>Sonnet 4.6</span>
-                  <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2.5 3.5L5 6.5L7.5 3.5" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                <div style={{ position: 'relative' }}>
+                  {showModelDropdown && (
+                    <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 8, background: 'white', borderRadius: 12, border: '1px solid rgba(15,23,42,0.09)', boxShadow: '0 4px 20px rgba(15,23,42,0.08)', padding: 6, zIndex: 100, minWidth: 140 }}>
+                      {MODELS.map(m => (
+                        <div key={m.id} onClick={() => { setModel(m.id); setShowModelDropdown(false); }}
+                          style={{ padding: '8px 10px', fontSize: 12, color: model === m.id ? '#6366f1' : '#1e293b', cursor: 'pointer', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'background 0.1s', background: model === m.id ? '#eef2ff' : 'transparent' }}
+                          onMouseEnter={e => { if (model !== m.id) e.currentTarget.style.background = '#f1f5f9'; }}
+                          onMouseLeave={e => { if (model !== m.id) e.currentTarget.style.background = 'transparent'; }}>
+                          {m.label}
+                          {model === m.id && <Icons.Check size={14}/>}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  <div onClick={() => setShowModelDropdown(!showModelDropdown)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 9, background: 'rgba(15,23,42,0.06)', border: '1px solid rgba(15,23,42,0.09)', cursor: 'pointer' }}>
+                    <div style={{ width: 12, height: 12, borderRadius: 3, background: 'linear-gradient(135deg,#6366f1,#818cf8)', flexShrink: 0 }}/>
+                    <span style={{ fontSize: 12, color: '#475569', fontWeight: 500, whiteSpace: 'nowrap' }}>{MODELS.find(m => m.id === model)?.label}</span>
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2.5 3.5L5 6.5L7.5 3.5" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  </div>
                 </div>
                 <button onClick={() => send()} disabled={!input.trim() || loading}
                   style={{ width: 32, height: 32, borderRadius: 10, background: input.trim() && !loading ? '#1e293b' : 'rgba(15,23,42,0.08)', color: input.trim() && !loading ? 'white' : '#94a3b8', border: 'none', cursor: input.trim() && !loading ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', flexShrink: 0 }}>
