@@ -1073,6 +1073,239 @@ const DocsPanel = ({ userId }) => {
   );
 };
 
+// ─── Flow AI Panel ────────────────────────────────────────────
+let _aiChatIdCounter = 1;
+const makeChat = (title, firstMsg) => ({
+  id: _aiChatIdCounter++,
+  title,
+  messages: [{ role: 'ai', text: firstMsg, time: new Date() }],
+});
+
+const SUGGESTIONS = [
+  { icon: <Icons.Cards size={13}/>,    text: 'Erkläre mir das Thema meines aktiven Lernsets' },
+  { icon: <Icons.Brain size={13}/>,    text: 'Quiz mich zu meinen schwachen Karten' },
+  { icon: <Icons.Sparkles size={13}/>, text: 'Erstell 10 neue Karten zu einem Thema' },
+  { icon: <Icons.Doc size={13}/>,      text: 'Fass mein letztes Dokument zusammen' },
+];
+
+const FlowAIPanel = ({ onClose }) => {
+  const [chats, setChats] = React.useState(() => [
+    makeChat('Willkommen', 'Hi! Ich bin Flow — deine KI-Lernassistentin. 👋\nFrag mich alles: ich erkläre Konzepte, erstelle Karten oder mache Quiz mit dir.'),
+  ]);
+  const [activeChatId, setActiveChatId] = React.useState(chats[0].id);
+  const [input, setInput] = React.useState('');
+  const [loading, setLoading] = React.useState(false);
+  const messagesEndRef = React.useRef(null);
+  const inputRef = React.useRef(null);
+
+  const activeChat = chats.find(c => c.id === activeChatId) || chats[0];
+
+  React.useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [activeChat?.messages?.length]);
+
+  const newChat = () => {
+    const c = makeChat('Neuer Chat', 'Neuer Chat gestartet! Was möchtest du wissen oder lernen?');
+    setChats(prev => [c, ...prev]);
+    setActiveChatId(c.id);
+    setInput('');
+    setTimeout(() => inputRef.current?.focus(), 50);
+  };
+
+  const send = async (text) => {
+    const t = (text || input).trim();
+    if (!t || loading) return;
+    setInput('');
+
+    const userMsg = { role: 'user', text: t, time: new Date() };
+    setChats(prev => prev.map(c =>
+      c.id === activeChatId
+        ? { ...c, title: c.messages.length <= 1 ? t.slice(0, 32) : c.title, messages: [...c.messages, userMsg] }
+        : c
+    ));
+    setLoading(true);
+
+    try {
+      const res = await callAI([
+        { role: 'system', content: 'Du bist Flow, eine freundliche KI-Lernassistentin für StudyFlow. Antworte auf Deutsch, präzise und motivierend. Helfe beim Lernen, Erklären von Konzepten, Erstellen von Karteikarten und Quiz. Antworte kurz und strukturiert.' },
+        ...activeChat.messages.filter(m => m.role !== 'ai' || activeChat.messages.indexOf(m) > 0).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text })),
+        { role: 'user', content: t },
+      ]);
+      const aiMsg = { role: 'ai', text: res, time: new Date() };
+      setChats(prev => prev.map(c =>
+        c.id === activeChatId ? { ...c, messages: [...c.messages, aiMsg] } : c
+      ));
+    } catch (e) {
+      const errMsg = { role: 'ai', text: e.message === 'RATE_LIMIT' ? 'Rate limit erreicht — bitte kurz warten und nochmal versuchen.' : 'Verbindungsfehler — bitte erneut versuchen.', time: new Date() };
+      setChats(prev => prev.map(c =>
+        c.id === activeChatId ? { ...c, messages: [...c.messages, errMsg] } : c
+      ));
+    }
+    setLoading(false);
+  };
+
+  const formatTime = (d) => d instanceof Date ? d.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' }) : '';
+
+  const CHAT_COLORS = ['#6366f1','#10b981','#f59e0b','#ec4899','#06b6d4','#8b5cf6'];
+
+  return (
+    <aside style={{
+      width: 380, flexShrink: 0,
+      margin: '14px 14px 14px 0',
+      background: 'var(--bg-panel)',
+      borderRadius: 18,
+      border: '1px solid var(--border-light)',
+      boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 4px 12px rgba(15,23,42,0.04)',
+      display: 'flex',
+      flexDirection: 'column',
+      overflow: 'hidden',
+      height: 'calc(100vh - 28px)',
+    }}>
+      {/* Header */}
+      <div style={{ padding: '16px 18px 12px', borderBottom: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+        <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 }}>
+          <Icons.Sparkles size={17}/>
+        </div>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <div style={{ fontFamily: 'Instrument Sans', fontWeight: 600, fontSize: 15, color: 'var(--text-main)' }}>Flow AI</div>
+          <div style={{ fontSize: 11, color: '#10b981', display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', display: 'inline-block' }}/>
+            Bereit zu helfen
+          </div>
+        </div>
+        <button onClick={newChat} title="Neuer Chat" style={{ padding: '6px 10px', background: 'var(--bg-active)', border: '1px solid var(--border-light)', borderRadius: 8, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, fontFamily: 'inherit', fontWeight: 500 }}>
+          <Icons.Plus size={12}/> Neu
+        </button>
+        <button onClick={onClose} style={{ padding: 6, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-lighter)', borderRadius: 6, display: 'flex' }}>
+          <Icons.X size={16}/>
+        </button>
+      </div>
+
+      {/* Body: chat list left + messages right */}
+      <div style={{ flex: 1, minHeight: 0, display: 'flex', overflow: 'hidden' }}>
+
+        {/* Chat-Liste */}
+        <div style={{ width: 116, flexShrink: 0, borderRight: '1px solid var(--border-light)', display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '8px 6px', gap: 2 }}>
+          {chats.map((c, i) => {
+            const isAct = c.id === activeChatId;
+            const col = CHAT_COLORS[i % CHAT_COLORS.length];
+            return (
+              <div key={c.id} onClick={() => setActiveChatId(c.id)}
+                onMouseEnter={e => { if (!isAct) e.currentTarget.style.background = 'var(--bg-hover)'; }}
+                onMouseLeave={e => { if (!isAct) e.currentTarget.style.background = isAct ? 'var(--bg-active)' : 'transparent'; }}
+                style={{ padding: '8px 8px', borderRadius: 8, cursor: 'pointer', background: isAct ? 'var(--bg-active)' : 'transparent', transition: 'background 0.1s', border: isAct ? '1px solid var(--border-light)' : '1px solid transparent' }}>
+                <div style={{ width: 20, height: 20, borderRadius: 6, background: col + '22', border: `1.5px solid ${col}44`, display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 5 }}>
+                  <Icons.Sparkles size={10} style={{ color: col }}/>
+                </div>
+                <div style={{ fontSize: 11, fontWeight: isAct ? 500 : 400, color: 'var(--text-main)', overflow: 'hidden', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.3 }}>{c.title}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-lighter)', marginTop: 3 }}>{c.messages.length} Nachr.</div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* Aktiver Chat */}
+        <div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+
+          {/* Messages */}
+          <div style={{ flex: 1, overflowY: 'auto', padding: '14px 14px 10px',
+            backgroundImage: 'radial-gradient(circle, var(--border-light) 1px, transparent 1px)',
+            backgroundSize: '16px 16px',
+            display: 'flex', flexDirection: 'column', gap: 10 }}>
+
+            {activeChat.messages.length <= 1 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 8 }}>
+                <div style={{ fontSize: 11, color: 'var(--text-lighter)', fontWeight: 500, marginBottom: 2 }}>Schnellstart</div>
+                {SUGGESTIONS.map((s, i) => (
+                  <button key={i} onClick={() => send(s.text)} style={{ textAlign: 'left', padding: '8px 10px', background: 'var(--bg-panel)', border: '1px solid var(--border-light)', borderRadius: 10, fontSize: 12, color: 'var(--text-muted)', fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 7, transition: 'border-color 0.15s' }}
+                    onMouseEnter={e => e.currentTarget.style.borderColor = '#c7d2fe'}
+                    onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border-light)'}>
+                    <span style={{ color: '#6366f1', flexShrink: 0 }}>{s.icon}</span> {s.text}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {activeChat.messages.map((m, i) => (
+              <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start', gap: 3 }}>
+                {m.role === 'ai' && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, paddingLeft: 2 }}>
+                    <div style={{ width: 18, height: 18, borderRadius: 5, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icons.Sparkles size={10} style={{ color: 'white' }}/>
+                    </div>
+                    <span style={{ fontSize: 10, fontWeight: 600, color: '#6366f1' }}>Flow</span>
+                  </div>
+                )}
+                <div style={{
+                  maxWidth: '88%', padding: '9px 12px',
+                  borderRadius: m.role === 'user' ? '14px 14px 4px 14px' : '14px 14px 14px 4px',
+                  background: m.role === 'user' ? '#1e293b' : 'var(--bg-panel)',
+                  color: m.role === 'user' ? 'white' : 'var(--text-main)',
+                  fontSize: 13, lineHeight: 1.55,
+                  boxShadow: m.role === 'ai' ? '0 1px 3px rgba(15,23,42,0.06)' : 'none',
+                  border: m.role === 'ai' ? '1px solid var(--border-light)' : 'none',
+                  whiteSpace: 'pre-wrap',
+                }}>{m.text}</div>
+                <div style={{ fontSize: 10, color: 'var(--text-lighter)', paddingLeft: m.role === 'ai' ? 4 : 0, paddingRight: m.role === 'user' ? 4 : 0 }}>{formatTime(m.time)}</div>
+              </div>
+            ))}
+
+            {loading && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <div style={{ width: 18, height: 18, borderRadius: 5, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                  <Icons.Sparkles size={10} style={{ color: 'white' }}/>
+                </div>
+                <div style={{ padding: '8px 12px', background: 'var(--bg-panel)', borderRadius: '14px 14px 14px 4px', border: '1px solid var(--border-light)', display: 'flex', gap: 4, alignItems: 'center' }}>
+                  {[0,1,2].map(j => (
+                    <div key={j} style={{ width: 6, height: 6, borderRadius: '50%', background: '#6366f1', opacity: 0.5, animation: `pulse 1.2s ease-in-out ${j*0.2}s infinite` }}/>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div ref={messagesEndRef}/>
+          </div>
+
+          {/* Input */}
+          <div style={{ padding: '10px 12px', borderTop: '1px solid var(--border-light)', background: 'var(--bg-panel)', flexShrink: 0 }}>
+            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={e => setInput(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
+                placeholder="Frag Flow etwas… (Enter senden)"
+                rows={1}
+                style={{
+                  flex: 1, padding: '9px 12px',
+                  border: '1px solid var(--border-focus)',
+                  borderRadius: 10, fontSize: 13,
+                  outline: 'none', fontFamily: 'inherit',
+                  background: 'var(--bg-main)',
+                  color: 'var(--text-main)',
+                  resize: 'none', lineHeight: 1.5,
+                  maxHeight: 100, overflowY: 'auto',
+                }}
+                onInput={e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 100) + 'px'; }}
+              />
+              <button
+                onClick={() => send()}
+                disabled={!input.trim() || loading}
+                style={{ padding: '9px 13px', background: input.trim() && !loading ? '#1e293b' : 'var(--bg-active)', color: input.trim() && !loading ? 'white' : 'var(--text-lighter)', border: 'none', borderRadius: 10, cursor: input.trim() && !loading ? 'pointer' : 'default', display: 'flex', alignItems: 'center', transition: 'all 0.15s', flexShrink: 0 }}>
+                <Icons.ArrowRight size={16}/>
+              </button>
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-lighter)', marginTop: 5, textAlign: 'center' }}>Shift+Enter für Zeilenumbruch</div>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes pulse { 0%,100%{opacity:0.3;transform:scale(0.8)} 50%{opacity:1;transform:scale(1)} }
+      `}</style>
+    </aside>
+  );
+};
+
 // ─── Sidebar ─────────────────────────────────────────────────
 const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
   const [showUserMenu, setShowUserMenu] = useState(false);
@@ -1124,6 +1357,24 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
           ))}
         </div>
       )}
+
+      {/* Tools */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-lighter)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6, padding: '0 8px' }}>Tools</div>
+        {[{ id: 'ai', label: 'Flow AI', icon: <Icons.Sparkles size={15}/> }].map(item => {
+          const isActive = active === item.id;
+          return (
+            <div key={item.id} onClick={() => onNav(item.id)}
+              onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--bg-hover)'; }}
+              onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 8, background: isActive ? '#eef2ff' : 'transparent', color: isActive ? '#4f46e5' : 'var(--text-muted)', fontSize: 13, fontWeight: isActive ? 500 : 400, cursor: 'pointer', transition: 'background 0.1s' }}>
+              {item.icon}
+              <span style={{ flex: 1 }}>{item.label}</span>
+              {isActive && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', flexShrink: 0 }}/>}
+            </div>
+          );
+        })}
+      </div>
 
       <div style={{ marginTop: 'auto', borderTop: '1px solid var(--border-light)', paddingTop: 14 }}>
         <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
@@ -1306,24 +1557,25 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
   const levelCircumference = 2 * Math.PI * levelRadius;
   const levelDashoffset = levelCircumference * (1 - levelPct);
 
-  // Notebook sticker SVG — round badge with icon
-  const Sticker = ({ color, bg, icon, rotate = 0 }) => (
+  // Tape strip at top center (Klebestreifen-Optik)
+  const Tape = ({ color }) => (
     <div style={{
-      position: 'absolute', top: -14, left: '50%', transform: `translateX(-50%) rotate(${rotate}deg)`,
-      width: 28, height: 28, borderRadius: '50%',
-      background: bg,
-      border: `2px solid ${color}`,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      boxShadow: `0 2px 6px ${color}44, 0 1px 2px rgba(0,0,0,0.1)`,
-      zIndex: 2, flexShrink: 0,
-      color,
-    }}>{icon}</div>
+      position: 'absolute', top: -10, left: '50%', transform: 'translateX(-50%)',
+      width: 44, height: 20, borderRadius: 4,
+      background: color,
+      opacity: 0.55,
+      zIndex: 2,
+      boxShadow: `0 1px 3px ${color}66`,
+    }}>
+      {/* subtle inner lines for tape texture */}
+      <div style={{ position: 'absolute', inset: '4px 6px', borderTop: '1px solid rgba(255,255,255,0.5)', borderBottom: '1px solid rgba(255,255,255,0.3)', borderRadius: 2 }}/>
+    </div>
   );
 
   // Wavy underline SVG for notebook feel
   const WavyLine = ({ color }) => (
     <svg width="100%" height="6" viewBox="0 0 120 6" preserveAspectRatio="none" style={{ display: 'block', marginTop: 4 }}>
-      <path d="M0 3 Q 10 0.5 20 3 T 40 3 T 60 3 T 80 3 T 100 3 T 120 3" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.5"/>
+      <path d="M0 3 Q 10 0.5 20 3 T 40 3 T 60 3 T 80 3 T 100 3 T 120 3" stroke={color} strokeWidth="1.5" fill="none" strokeLinecap="round" opacity="0.4"/>
     </svg>
   );
 
@@ -1333,28 +1585,28 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
       {/* Notebook-Karten: Aktivität, Wochenziel, Level */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 14, paddingTop: 14 }}>
 
-        {/* Aktivität — blau */}
+        {/* Aktivität — blaues Tape */}
         <div style={{ position: 'relative', transform: 'rotate(-1deg)' }}>
-          <Sticker color="#2563eb" bg="#dbeafe" rotate={-8} icon={<Icons.Bolt size={13}/>}/>
+          <Tape color="#3b82f6"/>
           <div style={{
-            background: '#eff6ff',
+            background: 'var(--bg-panel)',
             borderRadius: 14,
             padding: '18px 16px 14px',
-            border: '1.5px solid #bfdbfe',
-            boxShadow: '0 2px 8px rgba(37,99,235,0.08), 2px 4px 0 rgba(37,99,235,0.06)',
+            border: '1px solid var(--border-light)',
+            boxShadow: '0 2px 8px rgba(15,23,42,0.05), 2px 3px 0 rgba(15,23,42,0.03)',
           }}>
-            <div style={{ fontFamily: 'Caveat', fontSize: 16, fontWeight: 600, color: '#1d4ed8', marginBottom: 2 }}>Aktivität</div>
+            <div style={{ fontFamily: 'Caveat', fontSize: 16, fontWeight: 600, color: '#2563eb', marginBottom: 2 }}>Aktivität</div>
             <WavyLine color="#3b82f6"/>
             <div style={{ marginTop: 10, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
               <div>
-                <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 700, color: '#1e40af', lineHeight: 1 }}>{streak || 0}</div>
+                <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 700, color: 'var(--text-main)', lineHeight: 1 }}>{streak || 0}</div>
                 <div style={{ fontFamily: 'Caveat', fontSize: 14, color: '#3b82f6' }}>Tage Streak</div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, marginBottom: 4 }}>
                 {cells.map((cell, i) => (
                   <div key={i} title={`${cell.dateStr}\n${cell.count} Karten`}
                     style={{ width: 9, height: 9, borderRadius: 2,
-                      background: cell.v === 0 ? '#bfdbfe' : `rgba(37,99,235,${cell.v + 0.1})`,
+                      background: cell.v === 0 ? 'var(--bg-active)' : `rgba(59,130,246,${cell.v + 0.1})`,
                       cursor: 'help' }}
                   />
                 ))}
@@ -1363,57 +1615,57 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
           </div>
         </div>
 
-        {/* Wochenziel — grün */}
+        {/* Wochenziel — grünes Tape */}
         <div style={{ position: 'relative', transform: 'rotate(0.5deg)' }}>
-          <Sticker color="#16a34a" bg="#dcfce7" rotate={5} icon={<Icons.Check size={13}/>}/>
+          <Tape color="#22c55e"/>
           <div style={{
-            background: '#f0fdf4',
+            background: 'var(--bg-panel)',
             borderRadius: 14,
             padding: '18px 16px 14px',
-            border: '1.5px solid #bbf7d0',
-            boxShadow: '0 2px 8px rgba(22,163,74,0.08), 2px 4px 0 rgba(22,163,74,0.06)',
+            border: '1px solid var(--border-light)',
+            boxShadow: '0 2px 8px rgba(15,23,42,0.05), 2px 3px 0 rgba(15,23,42,0.03)',
           }}>
-            <div style={{ fontFamily: 'Caveat', fontSize: 16, fontWeight: 600, color: '#15803d', marginBottom: 2 }}>Wochenziel</div>
+            <div style={{ fontFamily: 'Caveat', fontSize: 16, fontWeight: 600, color: '#16a34a', marginBottom: 2 }}>Wochenziel</div>
             <WavyLine color="#22c55e"/>
             <div style={{ marginTop: 10 }}>
               <div style={{ display: 'flex', alignItems: 'flex-end', gap: 6, marginBottom: 8 }}>
-                <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 700, color: '#166534', lineHeight: 1 }}>{weekReviews}</div>
+                <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 700, color: 'var(--text-main)', lineHeight: 1 }}>{weekReviews}</div>
                 <div style={{ fontFamily: 'Caveat', fontSize: 15, color: '#16a34a', marginBottom: 2 }}>/ {weeklyGoal} Karten</div>
               </div>
-              <div style={{ height: 8, background: '#bbf7d0', borderRadius: 999, overflow: 'hidden' }}>
+              <div style={{ height: 7, background: 'var(--bg-active)', borderRadius: 999, overflow: 'hidden' }}>
                 <div style={{ width: `${goalPct}%`, height: '100%', borderRadius: 999, transition: 'width 0.4s ease',
                   background: goalPct >= 100 ? '#16a34a' : 'linear-gradient(90deg, #4ade80, #16a34a)' }}/>
               </div>
-              <div style={{ fontFamily: 'Caveat', fontSize: 13, color: '#15803d', marginTop: 5 }}>
+              <div style={{ fontFamily: 'Caveat', fontSize: 13, color: 'var(--text-light)', marginTop: 5 }}>
                 {goalPct >= 100 ? '🎉 Ziel erreicht!' : `Noch ${Math.max(0, weeklyGoal - weekReviews)} bis zum Ziel`}
               </div>
             </div>
           </div>
         </div>
 
-        {/* Level — gold */}
+        {/* Level — goldenes Tape */}
         <div style={{ position: 'relative', transform: 'rotate(-0.8deg)' }}>
-          <Sticker color="#d97706" bg="#fef3c7" rotate={3} icon={<Icons.Star size={12}/>}/>
+          <Tape color="#f59e0b"/>
           <div style={{
-            background: '#fffbeb',
+            background: 'var(--bg-panel)',
             borderRadius: 14,
             padding: '18px 16px 14px',
-            border: '1.5px solid #fde68a',
-            boxShadow: '0 2px 8px rgba(217,119,6,0.1), 2px 4px 0 rgba(217,119,6,0.06)',
+            border: '1px solid var(--border-light)',
+            boxShadow: '0 2px 8px rgba(15,23,42,0.05), 2px 3px 0 rgba(15,23,42,0.03)',
           }}>
-            <div style={{ fontFamily: 'Caveat', fontSize: 16, fontWeight: 600, color: '#b45309', marginBottom: 2 }}>Fortschritt</div>
+            <div style={{ fontFamily: 'Caveat', fontSize: 16, fontWeight: 600, color: '#d97706', marginBottom: 2 }}>Fortschritt</div>
             <WavyLine color="#f59e0b"/>
             <div style={{ marginTop: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
               <div>
-                <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 700, color: '#b45309', lineHeight: 1 }}>Level {level}</div>
-                <div style={{ fontFamily: 'Caveat', fontSize: 13, color: '#d97706', marginTop: 2 }}>
+                <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 700, color: 'var(--text-main)', lineHeight: 1 }}>Level {level}</div>
+                <div style={{ fontFamily: 'Caveat', fontSize: 13, color: 'var(--text-light)', marginTop: 2 }}>
                   {totalXP === 0 ? 'Fang an zu lernen!' : `${xpToNext} XP bis Level ${level + 1}`}
                 </div>
               </div>
               {/* Gold ring */}
               <div style={{ position: 'relative', width: 52, height: 52, flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg width="52" height="52" style={{ transform: 'rotate(-90deg)' }}>
-                  <circle cx="26" cy="26" r={levelRadius} stroke="#fde68a" strokeWidth="4.5" fill="none"/>
+                  <circle cx="26" cy="26" r={levelRadius} stroke="var(--bg-active)" strokeWidth="4.5" fill="none"/>
                   <circle cx="26" cy="26" r={levelRadius} stroke="#f59e0b" strokeWidth="4.5" fill="none"
                     strokeDasharray={levelCircumference}
                     strokeDashoffset={levelDashoffset}
@@ -1423,7 +1675,7 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
                 </svg>
                 <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                   <div style={{ fontSize: 8, fontWeight: 700, color: '#d97706', letterSpacing: '0.06em', lineHeight: 1 }}>LVL</div>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: '#92400e', lineHeight: 1 }}>{level}</div>
+                  <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-main)', lineHeight: 1 }}>{level}</div>
                 </div>
               </div>
             </div>
@@ -1643,6 +1895,8 @@ const Dashboard = () => {
 
   const showDocs = active === 'docs';
   const showSettings = active === 'settings';
+  const showAI = active === 'ai';
+  // Sets visible alongside AI panel too
   const showSets = !showDocs && !showSettings;
 
   return (
@@ -1735,7 +1989,9 @@ const Dashboard = () => {
       </main>
 
 
-      <AIAssistant/>
+      {showAI && <FlowAIPanel onClose={() => setActive('home')}/>}
+
+      {!showAI && <AIAssistant/>}
 
       {showModal && (
         <CreateSetModal userId={user?.id} onClose={() => setShowModal(false)} onCreated={handleSetCreated}/>
