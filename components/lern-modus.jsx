@@ -62,19 +62,17 @@ const ModeSwitcher = ({ mode, setMode }) => (
 );
 
 // ─── Flashcard Mode ───────────────────────────────────────────
-const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
+const FlashcardMode = ({ card, sessionCards, onGrade }) => {
   const [flipped, setFlipped] = useState(false);
   const [dragX, setDragX] = useState(0);
   const dragRef = useRef({ active: false, startX: 0 });
   const hasDragged = useRef(false);
-  const idx = reviewed;
-  const card = sessionCards[idx];
 
   useEffect(() => {
     setFlipped(false);
     setDragX(0);
     dragRef.current.active = false;
-  }, [idx]);
+  }, [card?.id]);
 
   if (!card) return null;
 
@@ -187,13 +185,12 @@ const FlashcardMode = ({ cards, sessionCards, reviewed, onGrade }) => {
 };
 
 // ─── Quiz Mode ─────────────────────────────────────────────────
-const QuizMode = ({ sessionCards, reviewed, onGrade }) => {
+const QuizMode = ({ card, sessionCards, onGrade }) => {
   const [selected, setSelected] = useState(null);
   const [locked, setLocked] = useState(false);
   const [correctCount, setCorrectCount] = useState(0);
-  const card = sessionCards[reviewed];
 
-  useEffect(() => { setSelected(null); setLocked(false); }, [reviewed]);
+  useEffect(() => { setSelected(null); setLocked(false); }, [card?.id]);
 
   if (!card) return null;
 
@@ -221,7 +218,7 @@ const QuizMode = ({ sessionCards, reviewed, onGrade }) => {
     <div className="px-mobile" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: '32px 0' }}>
       <div style={{ width: '100%', maxWidth: 640, background: 'white', borderRadius: 20, padding: 'clamp(20px, 5vw, 36px)', border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: 11, color: '#6366f1', fontWeight: 600, letterSpacing: '0.08em' }}>FRAGE {reviewed + 1} / {sessionCards.length}</div>
+          <div style={{ fontSize: 11, color: '#6366f1', fontWeight: 600, letterSpacing: '0.08em' }}>FRAGE</div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#10b981', fontWeight: 600, background: '#d1fae5', padding: '4px 8px', borderRadius: 6 }}>
             <Icons.Check size={12}/> {correctCount} RICHTIG
           </div>
@@ -269,17 +266,16 @@ const QuizMode = ({ sessionCards, reviewed, onGrade }) => {
 };
 
 // ─── Typing Mode ───────────────────────────────────────────────
-const TypingMode = ({ sessionCards, reviewed, onGrade }) => {
+const TypingMode = ({ card, onGrade }) => {
   const [input, setInput] = useState('');
   const [checked, setChecked] = useState(false);
   const [isCorrect, setIsCorrect] = useState(false);
-  const card = sessionCards[reviewed];
 
   useEffect(() => {
     setInput('');
     setChecked(false);
     setIsCorrect(false);
-  }, [reviewed]);
+  }, [card?.id]);
 
   if (!card) return null;
 
@@ -300,7 +296,7 @@ const TypingMode = ({ sessionCards, reviewed, onGrade }) => {
   return (
     <div className="px-mobile" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 24, padding: '32px 0' }}>
       <div style={{ width: '100%', maxWidth: 640, background: 'white', borderRadius: 20, padding: 'clamp(20px, 5vw, 36px)', border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 16px rgba(15,23,42,0.06)' }}>
-        <div style={{ fontSize: 11, color: '#6366f1', fontWeight: 600, letterSpacing: '0.08em' }}>FRAGE {reviewed + 1} / {sessionCards.length}</div>
+        <div style={{ fontSize: 11, color: '#6366f1', fontWeight: 600, letterSpacing: '0.08em' }}>FRAGE</div>
         <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 500, color: '#0f172a', marginTop: 10, lineHeight: 1.2 }}>
           {card.front}
         </div>
@@ -334,36 +330,59 @@ const TypingMode = ({ sessionCards, reviewed, onGrade }) => {
 };
 
 // ─── Done Screen ──────────────────────────────────────────────
-const DoneScreen = ({ reviewed, setTitle }) => (
+const DoneScreen = ({ doneCount, hasMore, onNextRound }) => (
   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 0', gap: 20 }}>
     <div style={{ width: 76, height: 76, borderRadius: 22, background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #c7d2fe' }}>
       <Icons.Check size={34}/>
     </div>
-    <div style={{ fontFamily: 'Instrument Sans', fontSize: 28, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em' }}>Session abgeschlossen!</div>
-    <div style={{ fontFamily: 'Caveat', fontSize: 22, color: '#64748b' }}>Du hast {reviewed} Karten gelernt.</div>
+    <div style={{ fontFamily: 'Instrument Sans', fontSize: 28, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em' }}>Set abgeschlossen!</div>
+    <div style={{ fontFamily: 'Caveat', fontSize: 22, color: '#64748b' }}>{doneCount} Karten gemeistert. ⭐</div>
     <div style={{ display: 'flex', gap: 12, marginTop: 16 }}>
       <a href={setId ? `lernset.html?id=${setId}` : 'dashboard.html'} className="btn-ghost" style={{ padding: '12px 24px', fontSize: 14 }}>
         Zum Lernset
       </a>
-      <a href="dashboard.html" className="btn-primary" style={{ padding: '12px 24px', fontSize: 14, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
-        <Icons.Home size={14}/> Dashboard
-      </a>
+      {hasMore ? (
+        <button onClick={onNextRound} className="btn-primary" style={{ padding: '12px 24px', fontSize: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icons.Cards size={14}/> Nächste 10 Karten
+        </button>
+      ) : (
+        <a href="dashboard.html" className="btn-primary" style={{ padding: '12px 24px', fontSize: 14, textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Icons.Home size={14}/> Dashboard
+        </a>
+      )}
     </div>
   </div>
 );
 
 // ─── Main ─────────────────────────────────────────────────────
+const SESSION_SIZE = 10;
+const REQUIRED_CORRECT = 2;
+
 const LernModus = () => {
   const [mode, setMode] = useState('flashcards');
-  const [cards, setCards] = useState([]);
-  const [sessionCards, setSessionCards] = useState([]);
-  const [reviewed, setReviewed] = useState(0);
+  const [allCards, setAllCards] = useState([]);       // all cards of this set
+  const [sessionCards, setSessionCards] = useState([]); // current 10-card batch
+  const [queue, setQueue] = useState([]);               // active learning queue
+  const [correctCounts, setCorrectCounts] = useState({}); // {id: count}
   const [done, setDone] = useState(false);
   const [studySet, setStudySet] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userId, setUserId] = useState(null);
   const [sessionId, setSessionId] = useState(null);
   const [streak, setStreak] = useState(0);
+  const [sessionOffset, setSessionOffset] = useState(0); // which batch we're on
+
+  const doneCount = Object.values(correctCounts).filter(c => c >= REQUIRED_CORRECT).length;
+  const progress = sessionCards.length ? doneCount / sessionCards.length : 0;
+  const currentCard = queue[0] || null;
+
+  const startSession = (cardPool, offset) => {
+    const batch = cardPool.slice(offset, offset + SESSION_SIZE);
+    setSessionCards(batch);
+    setQueue([...batch]);
+    setCorrectCounts({});
+    setDone(false);
+  };
 
   useEffect(() => {
     (async () => {
@@ -375,80 +394,106 @@ const LernModus = () => {
 
       if (!setId) { setLoading(false); return; }
 
-      // Load study set
       const { data: s } = await window.sb.from('study_sets').select('*').eq('id', setId).single();
       if (s) { setStudySet(s); document.title = `${s.title} lernen — StudyFlow`; }
 
-      // Load cards
+      // Load due cards first, fallback to all cards
       const now = new Date().toISOString();
       let { data: due } = await window.sb.from('cards')
-        .select('*')
-        .eq('set_id', setId)
-        .lte('next_review', now)
+        .select('*').eq('set_id', setId).lte('next_review', now)
         .order('next_review', { ascending: true });
 
       if (!due || due.length === 0) {
         const { data: all } = await window.sb.from('cards')
-          .select('*')
-          .eq('set_id', setId)
-          .order('created_at', { ascending: true });
+          .select('*').eq('set_id', setId).order('created_at', { ascending: true });
         due = all || [];
       }
 
-      setCards(due);
-      setSessionCards(due);
+      setAllCards(due);
+      startSession(due, 0);
 
-      // Start session record
       const { data: sess } = await window.sb.from('study_sessions').insert({
-        user_id: uid,
-        set_id: setId,
-        mode: 'flashcard',
+        user_id: uid, set_id: setId, mode: 'flashcard',
       }).select().single();
       if (sess) setSessionId(sess.id);
 
-      // Compute streak (days with at least one review)
       const { data: reviews } = await window.sb.from('card_reviews')
-        .select('reviewed_at')
-        .eq('user_id', uid)
-        .order('reviewed_at', { ascending: false })
-        .limit(100);
-
+        .select('reviewed_at').eq('user_id', uid)
+        .order('reviewed_at', { ascending: false }).limit(100);
       if (reviews && reviews.length > 0) {
-        let s = 0;
-        let d = new Date(); d.setHours(0,0,0,0);
+        let st = 0, d = new Date(); d.setHours(0,0,0,0);
         const days = new Set(reviews.map(r => new Date(r.reviewed_at).toDateString()));
-        while (days.has(d.toDateString())) { s++; d.setDate(d.getDate() - 1); }
-        setStreak(s);
+        while (days.has(d.toDateString())) { st++; d.setDate(d.getDate() - 1); }
+        setStreak(st);
       }
 
       setLoading(false);
     })();
   }, []);
 
+  // Save session progress to DB when leaving early
+  useEffect(() => {
+    const onUnload = () => {
+      if (sessionId && !done && doneCount > 0) {
+        const body = JSON.stringify({ cards_reviewed: doneCount, ended_at: new Date().toISOString() });
+        navigator.sendBeacon
+          ? navigator.sendBeacon(`/api/session-end`, body)
+          : null; // best-effort only
+      }
+    };
+    window.addEventListener('beforeunload', onUnload);
+    return () => window.removeEventListener('beforeunload', onUnload);
+  }, [sessionId, done, doneCount]);
+
   const handleGrade = async (card, grade) => {
     if (!userId) return;
 
     const updates = calcNextReview(card, grade);
-
-    // Save review
     await window.sb.from('card_reviews').insert({ card_id: card.id, user_id: userId, grade });
-    // Update card SRS data
     await window.sb.from('cards').update(updates).eq('id', card.id);
 
-    const next = reviewed + 1;
-    if (next >= sessionCards.length) {
-      // End session
+    const isCorrect = grade >= 3;
+    const newCounts = { ...correctCounts };
+    if (isCorrect) {
+      newCounts[card.id] = (newCounts[card.id] || 0) + 1;
+    } else {
+      newCounts[card.id] = 0; // reset streak on wrong answer
+    }
+    setCorrectCounts(newCounts);
+
+    // Build new queue (remove current card from front)
+    const newQueue = [...queue.slice(1)];
+
+    if (newCounts[card.id] < REQUIRED_CORRECT) {
+      // Not done yet — put back in queue
+      const insertAt = isCorrect
+        ? Math.min(3, newQueue.length) // correct but not done: back in 3
+        : Math.min(2, newQueue.length); // wrong: show again sooner
+      newQueue.splice(insertAt, 0, card);
+    }
+
+    if (newQueue.length === 0) {
+      // This 10-card batch is done
+      const batchDone = Object.values(newCounts).filter(c => c >= REQUIRED_CORRECT).length;
       if (sessionId) {
         await window.sb.from('study_sessions').update({
-          cards_reviewed: next,
+          cards_reviewed: batchDone,
           ended_at: new Date().toISOString(),
         }).eq('id', sessionId);
       }
-      setReviewed(next);
+      setCorrectCounts(newCounts);
       setDone(true);
+      setQueue([]);
     } else {
-      setReviewed(next);
+      setCorrectCounts(newCounts);
+      setQueue(newQueue);
     }
+  };
+
+  const handleNextRound = () => {
+    const nextOffset = sessionOffset + SESSION_SIZE;
+    setSessionOffset(nextOffset);
+    startSession(allCards, nextOffset);
   };
 
   if (loading) return (
@@ -457,7 +502,7 @@ const LernModus = () => {
     </div>
   );
 
-  if (!setId || cards.length === 0) return (
+  if (!setId || allCards.length === 0) return (
     <div className="dot-paper" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: 16 }}>
       <div style={{ fontSize: 48 }}>😴</div>
       <div style={{ fontFamily: 'Caveat', fontSize: 28, color: '#64748b' }}>Keine Karten zum Lernen</div>
@@ -467,8 +512,8 @@ const LernModus = () => {
     </div>
   );
 
-  const progress = reviewed / sessionCards.length;
   const backHref = setId ? `lernset.html?id=${setId}` : 'dashboard.html';
+  const hasMoreCards = sessionOffset + SESSION_SIZE < allCards.length;
 
   return (
     <div className="dot-paper" style={{ minHeight: '100vh' }}>
@@ -479,7 +524,7 @@ const LernModus = () => {
         <div className="header-info" style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
           <div style={{ fontSize: 13, color: '#0f172a', fontWeight: 500 }}>{studySet?.title || 'Lernen'}</div>
           <span style={{ color: '#cbd5e1' }}>·</span>
-          <div style={{ fontSize: 13, color: '#64748b' }}>{sessionCards.length} Karten</div>
+          <div style={{ fontSize: 13, color: '#64748b' }}>Set {Math.floor(sessionOffset / SESSION_SIZE) + 1} · {sessionCards.length} Karten</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {streak > 0 && (
@@ -492,12 +537,26 @@ const LernModus = () => {
 
       <div style={{ padding: '16px 32px 0' }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8, fontSize: 12, color: '#64748b' }}>
-          <span>Fortschritt · {reviewed} / {sessionCards.length}</span>
-          <span>{done ? 'Fertig!' : `~ ${Math.ceil((sessionCards.length - reviewed) * 0.5)} Min übrig`}</span>
+          <span>{doneCount} / {sessionCards.length} gemeistert</span>
+          <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            {queue.length > 0 && <span style={{ color: '#6366f1', fontWeight: 500 }}>{queue.length} verbleibend</span>}
+            <span style={{ fontSize: 10, background: '#eef2ff', color: '#6366f1', padding: '2px 6px', borderRadius: 4, fontWeight: 600 }}>2× richtig = fertig</span>
+          </span>
         </div>
         <div style={{ height: 6, background: '#f1f5f9', borderRadius: 999, overflow: 'hidden' }}>
           <div style={{ width: `${progress * 100}%`, height: '100%', background: 'linear-gradient(90deg, #6366f1, #818cf8)', borderRadius: 999, transition: 'width 0.3s ease' }}></div>
         </div>
+        {/* Per-card correct indicators */}
+        {sessionCards.length > 0 && (
+          <div style={{ display: 'flex', gap: 3, marginTop: 6 }}>
+            {sessionCards.map(c => {
+              const cnt = correctCounts[c.id] || 0;
+              return (
+                <div key={c.id} style={{ flex: 1, height: 3, borderRadius: 2, background: cnt >= REQUIRED_CORRECT ? '#10b981' : cnt === 1 ? '#f59e0b' : '#f1f5f9', transition: 'background 0.3s' }} title={`${cnt}/${REQUIRED_CORRECT} richtig`}/>
+              );
+            })}
+          </div>
+        )}
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'center', paddingTop: 24 }}>
@@ -506,21 +565,20 @@ const LernModus = () => {
 
       <div className="px-mobile" style={{ maxWidth: 800, margin: '0 auto', padding: '0 32px 100px' }}>
         {done ? (
-          <DoneScreen reviewed={reviewed} setTitle={studySet?.title}/>
-        ) : (
+          <DoneScreen doneCount={doneCount} hasMore={hasMoreCards} onNextRound={handleNextRound}/>
+        ) : currentCard ? (
           <>
             {mode === 'flashcards' && (
               <FlashcardMode
-                cards={cards}
+                card={currentCard}
                 sessionCards={sessionCards}
-                reviewed={reviewed}
                 onGrade={handleGrade}
               />
             )}
             {mode === 'quiz' && sessionCards.length >= 4 ? (
               <QuizMode
+                card={currentCard}
                 sessionCards={sessionCards}
-                reviewed={reviewed}
                 onGrade={handleGrade}
               />
             ) : mode === 'quiz' ? (
@@ -530,13 +588,12 @@ const LernModus = () => {
             ) : null}
             {mode === 'typing' && (
               <TypingMode
-                sessionCards={sessionCards}
-                reviewed={reviewed}
+                card={currentCard}
                 onGrade={handleGrade}
               />
             )}
           </>
-        )}
+        ) : null}
       </div>
 
       <AIAssistant/>

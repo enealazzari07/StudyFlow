@@ -60,6 +60,9 @@
 
       const handleGoogle = async () => {
         setError('');
+        if (refCode.trim()) {
+          localStorage.setItem('studyflow_pending_ref', refCode.trim().toUpperCase());
+        }
         const { error } = await window.sb.auth.signInWithOAuth({
           provider: 'google',
           options: { redirectTo: window.getBaseUrl() + 'dashboard.html' },
@@ -114,7 +117,7 @@
       if (checking) return null;
 
       return (
-        <div className="dot-paper auth-container" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24, position: 'relative' }}>
+        <div className="dot-paper auth-container" style={{ minHeight: '100dvh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px 16px', position: 'relative', overflowY: 'auto', boxSizing: 'border-box' }}>
           <a href="Landing.html" style={{ position: 'absolute', top: 24, left: 28, display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
             <Icons.ArrowLeft size={14}/> Zurück
           </a>

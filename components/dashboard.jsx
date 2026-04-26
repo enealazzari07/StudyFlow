@@ -1125,48 +1125,60 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
         </div>
       )}
 
-      <div style={{ marginTop: 'auto', display: 'flex', flexDirection: 'column', gap: 8, borderTop: '1px solid var(--border-light)', paddingTop: 14 }}>
-        <div
-          onClick={() => onNav('settings')}
-          onMouseEnter={e => { if (active !== 'settings') e.currentTarget.style.background = 'var(--bg-hover)'; }}
-          onMouseLeave={e => { if (active !== 'settings') e.currentTarget.style.background = 'transparent'; }}
-          style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', transition: 'background 0.1s', color: active === 'settings' ? 'var(--text-main)' : 'var(--text-muted)', background: active === 'settings' ? 'var(--bg-active)' : 'transparent', fontWeight: active === 'settings' ? 500 : 400, fontSize: 13 }}
-        >
-          <Icons.Settings size={15}/>
-          <span style={{ flex: 1 }}>Einstellungen</span>
-        </div>
+      <div style={{ marginTop: 'auto', borderTop: '1px solid var(--border-light)', paddingTop: 14 }}>
+        <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+          {/* User profile */}
+          <div style={{ position: 'relative', flex: 1, minWidth: 0 }}>
+            {showUserMenu && (
+              <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: 8, background: 'var(--bg-panel)', borderRadius: 12, border: '1px solid var(--border-light)', boxShadow: '0 4px 20px rgba(15,23,42,0.08)', padding: 6, zIndex: 100 }}>
+                <div onClick={async () => {
+                  if (confirm('Möchtest du dich abmelden?')) {
+                    await window.sb.auth.signOut();
+                    window.location.href = 'login.html';
+                  }
+                }} onMouseEnter={e => e.currentTarget.style.background = '#fee2e2'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} style={{ padding: '8px 10px', fontSize: 13, color: '#ef4444', cursor: 'pointer', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.1s' }}>
+                  <Icons.ArrowLeft size={14}/> Abmelden
+                </div>
+              </div>
+            )}
+            <div
+              onClick={() => setShowUserMenu(!showUserMenu)}
+              onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
+              onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px', borderRadius: 10, cursor: 'pointer', transition: 'background 0.1s' }}
+            >
+              <Avatar name={displayName} color="#6366f1" size={30}/>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
+                <div style={{ fontSize: 11, color: isPro ? '#6366f1' : 'var(--text-lighter)', fontWeight: isPro ? 600 : 400, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  {isPro ? <Icons.Bolt size={12}/> : <Icons.Bookmark size={12}/>}
+                  {isPro ? 'Pro Plan' : 'Free Plan'}
+                </div>
+              </div>
+            </div>
+          </div>
 
-        <div style={{ position: 'relative' }}>
-          {showUserMenu && (
-            <div style={{ position: 'absolute', bottom: '100%', left: 0, right: 0, marginBottom: 8, background: 'var(--bg-panel)', borderRadius: 12, border: '1px solid var(--border-light)', boxShadow: '0 4px 20px rgba(15,23,42,0.08)', padding: 6, zIndex: 100 }}>
-              <div onClick={() => { setShowUserMenu(false); onNav('settings'); }} onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-active)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} style={{ padding: '8px 10px', fontSize: 13, color: 'var(--text-main)', cursor: 'pointer', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.1s' }}>
-                <Icons.Settings size={14}/> Profil verwalten
-              </div>
-              <div style={{ height: 1, background: '#e2e8f0', margin: '4px 0' }}></div>
-              <div onClick={async () => {
-                if (confirm('Möchtest du dich abmelden?')) {
-                  await window.sb.auth.signOut();
-                  window.location.href = 'login.html';
-                }
-              }} onMouseEnter={e => e.currentTarget.style.background = '#fee2e2'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'} style={{ padding: '8px 10px', fontSize: 13, color: '#ef4444', cursor: 'pointer', borderRadius: 8, display: 'flex', alignItems: 'center', gap: 8, transition: 'background 0.1s' }}>
-                <Icons.ArrowLeft size={14}/> Abmelden
-              </div>
-            </div>
-          )}
+          {/* Settings button — own box next to profile */}
           <div
-            onClick={() => setShowUserMenu(!showUserMenu)}
-            onMouseEnter={e => e.currentTarget.style.background = 'var(--bg-hover)'}
-            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
-            style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px', borderRadius: 10, cursor: 'pointer', transition: 'background 0.1s' }}
+            onClick={() => onNav('settings')}
+            onMouseEnter={e => { if (active !== 'settings') e.currentTarget.style.background = 'var(--bg-hover)'; }}
+            onMouseLeave={e => { if (active !== 'settings') e.currentTarget.style.background = active === 'settings' ? 'var(--bg-active)' : 'var(--bg-panel)'; }}
+            title="Einstellungen"
+            style={{
+              flexShrink: 0,
+              padding: '10px',
+              borderRadius: 10,
+              border: '1px solid var(--border-light)',
+              background: active === 'settings' ? 'var(--bg-active)' : 'var(--bg-panel)',
+              color: active === 'settings' ? 'var(--text-main)' : 'var(--text-muted)',
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'background 0.1s',
+            }}
           >
-            <Avatar name={displayName} color="#6366f1" size={30}/>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayName}</div>
-              <div style={{ fontSize: 11, color: isPro ? '#6366f1' : 'var(--text-lighter)', fontWeight: isPro ? 600 : 400, display: 'flex', alignItems: 'center', gap: 6 }}>
-                {isPro ? <Icons.Bolt size={12}/> : <Icons.Bookmark size={12}/>}
-                {isPro ? 'Pro Plan' : 'Free Plan'}
-              </div>
-            </div>
+            <Icons.Settings size={15}/>
           </div>
         </div>
       </div>
@@ -1281,12 +1293,18 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
 
   const totalCards = sets?.reduce((acc, s) => acc + (s.total_cards || 0), 0) || 0;
   const totalMastered = sets?.reduce((acc, s) => acc + (s.mastered_cards || 0), 0) || 0;
-  const masteredPct = totalCards ? Math.round((totalMastered / totalCards) * 100) : 0;
   const activeSets = (sets || []).filter(s => s.mastered_cards > 0).length;
 
-  const radius = 18;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (masteredPct / 100) * circumference;
+  // Level system: 1 XP per card review, 100 XP per level
+  const totalXP = stats?.totalReviews || 0;
+  const XP_PER_LEVEL = 100;
+  const level = Math.floor(totalXP / XP_PER_LEVEL) + 1;
+  const xpInLevel = totalXP % XP_PER_LEVEL;
+  const levelPct = xpInLevel / XP_PER_LEVEL;
+  const xpToNext = XP_PER_LEVEL - xpInLevel;
+  const levelRadius = 22;
+  const levelCircumference = 2 * Math.PI * levelRadius;
+  const levelDashoffset = levelCircumference * (1 - levelPct);
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -1337,26 +1355,36 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
           </div>
         </div>
 
-        {/* Block 3: Gesamt-Fortschritt (Circle Donut Chart) */}
+        {/* Block 3: Level-System */}
         <div style={{ background: 'var(--bg-panel)', borderRadius: 12, padding: '14px 16px', border: '1px solid var(--border-light)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
             <div style={{ fontSize: 12, color: 'var(--text-light)', fontWeight: 500 }}>Gesamt-Fortschritt</div>
             <div style={{ display: 'flex', alignItems: 'baseline', gap: 6 }}>
-              <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: 'var(--text-main)', letterSpacing: '-0.02em', lineHeight: 1 }}>{totalMastered}</div>
-              <div style={{ fontSize: 12, color: 'var(--text-lighter)', fontWeight: 500 }}>/ {totalCards} Karten</div>
+              <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 700, color: '#d97706', letterSpacing: '-0.02em', lineHeight: 1 }}>Level {level}</div>
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-lighter)', marginTop: 2 }}>
-              <span style={{ color: 'var(--text-main)', fontWeight: 500 }}>{activeSets}</span> Lernsets geübt
+              {totalXP === 0
+                ? 'Lern erste Karten!'
+                : <><span style={{ color: 'var(--text-main)', fontWeight: 500 }}>{xpToNext} XP</span> bis Level {level + 1}</>
+              }
             </div>
           </div>
 
-          {/* Circle Donut Chart */}
-          <div style={{ position: 'relative', width: 44, height: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <svg width="44" height="44" style={{ transform: 'rotate(-90deg)' }}>
-              <circle cx="22" cy="22" r={radius} stroke="var(--bg-active)" strokeWidth="4" fill="none" />
-              <circle cx="22" cy="22" r={radius} stroke="#10b981" strokeWidth="4" fill="none" strokeDasharray={circumference} strokeDashoffset={strokeDashoffset} strokeLinecap="round" style={{ transition: 'stroke-dashoffset 0.5s ease' }} />
+          {/* Gold circular progress */}
+          <div style={{ position: 'relative', width: 52, height: 52, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <svg width="52" height="52" style={{ transform: 'rotate(-90deg)' }}>
+              <circle cx="26" cy="26" r={levelRadius} stroke="var(--bg-active)" strokeWidth="4.5" fill="none" />
+              <circle cx="26" cy="26" r={levelRadius} stroke="#f59e0b" strokeWidth="4.5" fill="none"
+                strokeDasharray={levelCircumference}
+                strokeDashoffset={levelDashoffset}
+                strokeLinecap="round"
+                style={{ transition: 'stroke-dashoffset 0.6s ease', filter: 'drop-shadow(0 0 3px rgba(245,158,11,0.4))' }}
+              />
             </svg>
-            <div style={{ position: 'absolute', fontSize: 10, fontWeight: 600, color: 'var(--text-main)' }}>{masteredPct}%</div>
+            <div style={{ position: 'absolute', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 0 }}>
+              <div style={{ fontSize: 8, fontWeight: 700, color: '#d97706', letterSpacing: '0.06em', lineHeight: 1 }}>LVL</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text-main)', lineHeight: 1 }}>{level}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -1465,6 +1493,14 @@ const Dashboard = () => {
       setUser(u);
       const { data: prof } = await window.sb.from('profiles').select('*').eq('id', u.id).single();
       setProfile(prof);
+
+      // Apply pending referral code from Google OAuth flow
+      const pendingRef = localStorage.getItem('studyflow_pending_ref');
+      if (pendingRef && prof && !prof.referred_by) {
+        await window.sb.from('profiles').update({ referred_by: pendingRef }).eq('id', u.id);
+        localStorage.removeItem('studyflow_pending_ref');
+      }
+
       await loadSets(u.id);
       setLoading(false);
     })();
@@ -1493,6 +1529,8 @@ const Dashboard = () => {
     const weekAgo = new Date(Date.now()-7*24*3600*1000).toISOString();
     const { count: weekReviews } = await window.sb.from('card_reviews')
       .select('id', { count: 'exact', head: true }).eq('user_id', userId).gte('reviewed_at', weekAgo);
+    const { count: totalReviews } = await window.sb.from('card_reviews')
+      .select('id', { count: 'exact', head: true }).eq('user_id', userId);
 
     // Streak: consecutive days (incl. today) with at least one review
     const { data: reviewDates } = await window.sb.from('card_reviews')
@@ -1520,7 +1558,7 @@ const Dashboard = () => {
       setStreak(0);
     }
     
-    setStats({ dueToday, weekReviews: weekReviews || 0, masteryPct, totalSets: enriched.length, reviewCounts });
+    setStats({ dueToday, weekReviews: weekReviews || 0, masteryPct, totalSets: enriched.length, reviewCounts, totalReviews: totalReviews || 0 });
   };
 
   // Abmelden-Button wurde entfernt (Sidebar-UI)
@@ -1627,7 +1665,7 @@ const Dashboard = () => {
                 </div>
               </div>
 
-              <div style={{ display: filteredSets.length > 0 ? 'grid' : 'flex', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4, paddingBottom: 70, alignContent: 'start' }}>
+              <div style={{ display: filteredSets.length > 0 ? 'grid' : 'flex', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4, paddingBottom: 20, alignContent: 'start' }}>
                 {filteredSets.length > 0
                   ? filteredSets.map(s => <SetCard key={s.id} set={s} onDelete={handleSetDeleted}/>)
                   : <EmptyState onNewSet={() => setShowModal(true)}/>
@@ -1638,14 +1676,6 @@ const Dashboard = () => {
         )}
       </main>
 
-      <div style={{ position: 'fixed', bottom: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 60 }}>
-        <Dock items={[
-          { id: 'home', label: 'Start', icon: <Icons.Home size={18}/> },
-          { id: 'cards', label: 'Lernsets', icon: <Icons.Cards size={18}/> },
-          { id: 'docs', label: 'Dokumente', icon: <Icons.Doc size={18}/> },
-          { id: 'settings', label: 'Einstellungen', icon: <Icons.Settings size={18}/> },
-        ]} active={active} onSelect={setActive}/>
-      </div>
 
       <AIAssistant/>
 

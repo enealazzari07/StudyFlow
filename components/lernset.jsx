@@ -386,12 +386,6 @@ const LernsetDetail = () => {
 
       <CardsList cards={cards} setCards={setCards} currentSetId={setId}/>
 
-      <div style={{ position: 'fixed', bottom: 24, left: '50%', transform: 'translateX(-50%)', zIndex: 60 }}>
-        <Dock items={DOCK_ITEMS} active="cards" onSelect={(id) => {
-          const item = DOCK_ITEMS.find(i => i.id === id);
-          if (item?.href) window.location.href = item.href;
-        }}/>
-      </div>
       <AIAssistant/>
     </div>
   );
