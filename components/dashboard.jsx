@@ -218,36 +218,6 @@ const EXTENSIONS = [
     makeScenarioId: null,
     connected: false,
   },
-  {
-    id: 'slack',
-    name: 'Slack',
-    desc: 'Empfange tägliche Lernerinnerungen und teile Fortschritte in Slack.',
-    icon: '🟣',
-    color: '#611f69',
-    bg: '#fce8ff',
-    makeScenarioId: null,
-    connected: false,
-  },
-  {
-    id: 'github',
-    name: 'GitHub',
-    desc: 'Verknüpfe Programmier-Lernsets mit deinen GitHub-Repositories.',
-    icon: '🐙',
-    color: '#0f172a',
-    bg: '#f1f5f9',
-    makeScenarioId: null,
-    connected: false,
-  },
-  {
-    id: 'spotify',
-    name: 'Spotify',
-    desc: 'Starte automatisch Focus-Playlists beim Beginn einer Lernsession.',
-    icon: '🎵',
-    color: '#1DB954',
-    bg: '#e6faf0',
-    makeScenarioId: null,
-    connected: false,
-  },
 ];
 
 // ─── OneNote Integration Modal ────────────────────────────────
