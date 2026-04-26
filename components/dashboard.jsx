@@ -74,8 +74,8 @@ function createFolderArtDataUri({ filled = false } = {}) {
   return `data:image/svg+xml;utf8,${encodeURIComponent(svg)}`;
 }
 
-const EMPTY_FOLDER_ART = createFolderArtDataUri({ filled: false });
-const FILLED_FOLDER_ART = createFolderArtDataUri({ filled: true });
+const EMPTY_FOLDER_ART = 'components/image.png';
+const FILLED_FOLDER_ART = 'components/image.png';
 
 // ─── Zhipu AI (GLM) API für den Chat ─────────────────────────
 // Der API-Key ist im Zhipu AI Format. Unterstützt direkte Browser-Aufrufe (CORS).
