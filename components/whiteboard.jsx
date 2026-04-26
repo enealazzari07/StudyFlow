@@ -932,7 +932,7 @@ const Whiteboard = () => {
 
         {/* colour + pen-size strip — shown for pen / highlight */}
         {(tool === 'pen' || tool === 'highlight') && (
-          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5 }}>
+          <div style={{ display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 6 }}>
             <PenSizePicker penSizeId={penSizeId} onChange={setPenSizeId} />
             <div style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'white', borderRadius: 999, padding: '6px 10px', border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 4px 12px rgba(15,23,42,0.06)' }}>
               {PASTELS.concat(PALETTE).map((swatch) => (
