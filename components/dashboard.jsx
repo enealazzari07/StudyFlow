@@ -171,8 +171,8 @@ const EXTENSIONS = [
   {
     id: 'onenote',
     name: 'Microsoft OneNote',
-    desc: 'Exportiere Notizen, Karteikarten und Zusammenfassungen direkt in OneNote-Notizbücher.',
-    icon: '📓',
+    desc: 'Verbinde dein Konto und lass die KI deine Notizbücher zusammenfassen.',
+    logo: 'https://cdn.simpleicons.org/microsoftonenote/7719AA',
     color: '#7719AA',
     bg: '#f5e6ff',
     makeScenarioId: 9126398,
@@ -182,7 +182,7 @@ const EXTENSIONS = [
     id: 'teams',
     name: 'Microsoft Teams',
     desc: 'Teile Lernerfolge und Lernsets in Teams-Kanälen mit Kommilitonen.',
-    icon: '💬',
+    logo: 'https://cdn.simpleicons.org/microsoftteams/5059C9',
     color: '#5059C9',
     bg: '#eef0ff',
     makeScenarioId: 9126399,
@@ -192,7 +192,7 @@ const EXTENSIONS = [
     id: 'gdrive',
     name: 'Google Drive',
     desc: 'Synchronisiere Dokumente und Lernmaterialien mit Google Drive.',
-    icon: '📁',
+    logo: 'https://cdn.simpleicons.org/googledrive/1967D2',
     color: '#1967D2',
     bg: '#e8f0fe',
     makeScenarioId: null,
@@ -202,7 +202,7 @@ const EXTENSIONS = [
     id: 'gcal',
     name: 'Google Calendar',
     desc: 'Plane Lernsessions automatisch in deinem Google Kalender ein.',
-    icon: '📅',
+    logo: 'https://cdn.simpleicons.org/googlecalendar/1E8E3E',
     color: '#1E8E3E',
     bg: '#e6f4ea',
     makeScenarioId: null,
@@ -212,7 +212,7 @@ const EXTENSIONS = [
     id: 'notion',
     name: 'Notion',
     desc: 'Exportiere Karteikarten und Zusammenfassungen in Notion-Datenbanken.',
-    icon: '⬛',
+    logo: 'https://cdn.simpleicons.org/notion/000000',
     color: '#0f172a',
     bg: '#f1f5f9',
     makeScenarioId: null,
@@ -351,7 +351,9 @@ const OneNoteModal = ({ onClose }) => {
 
         {/* Header */}
         <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: '#f5e6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>📓</div>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: '#f5e6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 9 }}>
+            <img src="https://cdn.simpleicons.org/microsoftonenote/7719AA" alt="OneNote" style={{ width: '100%', height: '100%', objectFit: 'contain' }}/>
+          </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>Microsoft OneNote</div>
             <div style={{ fontSize: 12, color: '#94a3b8' }}>Notizbücher verbinden &amp; mit KI zusammenfassen</div>
@@ -366,7 +368,9 @@ const OneNoteModal = ({ onClose }) => {
           {/* IDLE — Connect button */}
           {step === 'idle' && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, padding: '24px 0' }}>
-              <div style={{ width: 72, height: 72, borderRadius: 20, background: '#f5e6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 36 }}>📓</div>
+              <div style={{ width: 72, height: 72, borderRadius: 20, background: '#f5e6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+                <img src="https://cdn.simpleicons.org/microsoftonenote/7719AA" alt="OneNote" style={{ width: '100%', height: '100%', objectFit: 'contain' }}/>
+              </div>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 6 }}>OneNote verbinden</div>
                 <div style={{ fontSize: 13, color: '#64748b', maxWidth: 340, lineHeight: 1.6 }}>
@@ -505,7 +509,9 @@ const ExtensionsPanel = () => {
             <div key={ext.id} style={{ background: 'var(--bg-panel)', border: `1px solid ${isConnected ? ext.color + '44' : 'var(--border-light)'}`, borderRadius: 14, padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: ext.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>{ext.icon}</div>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: ext.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 7 }}>
+                    <img src={ext.logo} alt={ext.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => { e.target.style.display='none'; }}/>
+                  </div>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{ext.name}</div>
                     {ext.id === 'onenote' && <div style={{ fontSize: 10, color: '#7719AA', fontWeight: 500, marginTop: 1 }}>KI-Zusammenfassung</div>}
