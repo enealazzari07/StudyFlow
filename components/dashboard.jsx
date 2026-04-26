@@ -166,58 +166,68 @@ const CreateSetModal = ({ onClose, onCreated, userId }) => {
   );
 };
 
+// ─── Extension logos (inline SVG, no CDN needed) ─────────────
+const ExtLogo = ({ id, size = 22 }) => {
+  const logos = {
+    onenote: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="24" height="24" rx="4" fill="#7719AA"/>
+        <rect x="3" y="5" width="11" height="15" rx="1.5" fill="white"/>
+        <text x="5" y="17" fontFamily="Arial,sans-serif" fontSize="11" fontWeight="900" fill="#7719AA">N</text>
+        <rect x="11.5" y="7.5" width="9" height="10" rx="1.5" fill="#C179E8"/>
+        <line x1="13.5" y1="10.5" x2="18.5" y2="10.5" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
+        <line x1="13.5" y1="13" x2="18.5" y2="13" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
+        <line x1="13.5" y1="15.5" x2="18.5" y2="15.5" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
+      </svg>
+    ),
+    teams: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="24" height="24" rx="4" fill="#5059C9"/>
+        <circle cx="15.5" cy="7.5" r="2" fill="#fff" opacity="0.9"/>
+        <path d="M11 10.5h9v1c0 2.2-1.8 4-4 4h-1c-2.2 0-4-1.8-4-4v-1z" fill="white"/>
+        <circle cx="9" cy="9" r="2.5" fill="white"/>
+        <path d="M4.5 13h9v1C13.5 16.5 11.5 18 9 18s-4.5-1.5-4.5-4v-1z" fill="white"/>
+      </svg>
+    ),
+    gdrive: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <polygon points="12,3 22,20 2,20" fill="none"/>
+        <polygon points="12,3 19,16 5,16" fill="#1967D2" opacity="0.15"/>
+        <polygon points="2,20 9.5,7 14.5,16 8,20" fill="#1967D2"/>
+        <polygon points="22,20 14.5,16 9.5,7 17,7" fill="#4285F4"/>
+        <polygon points="2,20 22,20 14.5,16 8,20" fill="#188038"/>
+        <polygon points="8,20 14.5,16 22,20" fill="#34A853"/>
+        <polygon points="2,20 8,20 9.5,7" fill="#0D652D"/>
+      </svg>
+    ),
+    gcal: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect x="2" y="4" width="20" height="18" rx="2" fill="white" stroke="#E0E0E0" strokeWidth="1"/>
+        <rect x="2" y="4" width="20" height="6" rx="2" fill="#1E8E3E"/>
+        <rect x="2" y="8" width="20" height="2" fill="#1E8E3E"/>
+        <line x1="8" y1="4" x2="8" y2="2" stroke="#1E8E3E" strokeWidth="1.5" strokeLinecap="round"/>
+        <line x1="16" y1="4" x2="16" y2="2" stroke="#1E8E3E" strokeWidth="1.5" strokeLinecap="round"/>
+        <text x="7.5" y="19" fontFamily="Arial,sans-serif" fontSize="7" fontWeight="900" fill="#1967D2">31</text>
+      </svg>
+    ),
+    notion: (
+      <svg width={size} height={size} viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <rect width="24" height="24" rx="4" fill="white" stroke="#E5E7EB" strokeWidth="1"/>
+        <path d="M6 5.5h7.5c.5 0 1 .2 1.4.5l2.6 2.2c.3.3.5.7.5 1.1V19c0 .3-.2.5-.5.5H6c-.3 0-.5-.2-.5-.5V6c0-.3.2-.5.5-.5z" fill="#0f172a"/>
+        <path d="M9 9.5h6M9 12.5h6M9 15.5h4" stroke="white" strokeWidth="1.2" strokeLinecap="round"/>
+      </svg>
+    ),
+  };
+  return logos[id] || null;
+};
+
 // ─── Extensions Panel ─────────────────────────────────────────
 const EXTENSIONS = [
-  {
-    id: 'onenote',
-    name: 'Microsoft OneNote',
-    desc: 'Verbinde dein Konto und lass die KI deine Notizbücher zusammenfassen.',
-    logo: 'https://cdn.simpleicons.org/microsoftonenote/7719AA',
-    color: '#7719AA',
-    bg: '#f5e6ff',
-    makeScenarioId: 9126398,
-    connected: false,
-  },
-  {
-    id: 'teams',
-    name: 'Microsoft Teams',
-    desc: 'Teile Lernerfolge und Lernsets in Teams-Kanälen mit Kommilitonen.',
-    logo: 'https://cdn.simpleicons.org/microsoftteams/5059C9',
-    color: '#5059C9',
-    bg: '#eef0ff',
-    makeScenarioId: 9126399,
-    connected: false,
-  },
-  {
-    id: 'gdrive',
-    name: 'Google Drive',
-    desc: 'Synchronisiere Dokumente und Lernmaterialien mit Google Drive.',
-    logo: 'https://cdn.simpleicons.org/googledrive/1967D2',
-    color: '#1967D2',
-    bg: '#e8f0fe',
-    makeScenarioId: null,
-    connected: false,
-  },
-  {
-    id: 'gcal',
-    name: 'Google Calendar',
-    desc: 'Plane Lernsessions automatisch in deinem Google Kalender ein.',
-    logo: 'https://cdn.simpleicons.org/googlecalendar/1E8E3E',
-    color: '#1E8E3E',
-    bg: '#e6f4ea',
-    makeScenarioId: null,
-    connected: false,
-  },
-  {
-    id: 'notion',
-    name: 'Notion',
-    desc: 'Exportiere Karteikarten und Zusammenfassungen in Notion-Datenbanken.',
-    logo: 'https://cdn.simpleicons.org/notion/000000',
-    color: '#0f172a',
-    bg: '#f1f5f9',
-    makeScenarioId: null,
-    connected: false,
-  },
+  { id: 'onenote', name: 'Microsoft OneNote', desc: 'Verbinde dein Konto und lass die KI deine Notizbücher zusammenfassen.', color: '#7719AA', bg: '#f5e6ff', makeScenarioId: 9126398, connected: false },
+  { id: 'teams',   name: 'Microsoft Teams',  desc: 'Teile Lernerfolge und Lernsets in Teams-Kanälen mit Kommilitonen.',   color: '#5059C9', bg: '#eef0ff', makeScenarioId: 9126399, connected: false },
+  { id: 'gdrive',  name: 'Google Drive',     desc: 'Synchronisiere Dokumente und Lernmaterialien mit Google Drive.',      color: '#1967D2', bg: '#e8f0fe', makeScenarioId: null,    connected: false },
+  { id: 'gcal',    name: 'Google Calendar',  desc: 'Plane Lernsessions automatisch in deinem Google Kalender ein.',       color: '#1E8E3E', bg: '#e6f4ea', makeScenarioId: null,    connected: false },
+  { id: 'notion',  name: 'Notion',           desc: 'Exportiere Karteikarten und Zusammenfassungen in Notion-Datenbanken.', color: '#0f172a', bg: '#f1f5f9', makeScenarioId: null,   connected: false },
 ];
 
 // ─── OneNote Integration Modal ────────────────────────────────
@@ -351,8 +361,8 @@ const OneNoteModal = ({ onClose }) => {
 
         {/* Header */}
         <div style={{ padding: '18px 22px', borderBottom: '1px solid #f1f5f9', display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: '#f5e6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 9 }}>
-            <img src="https://cdn.simpleicons.org/microsoftonenote/7719AA" alt="OneNote" style={{ width: '100%', height: '100%', objectFit: 'contain' }}/>
+          <div style={{ width: 40, height: 40, borderRadius: 12, background: '#f5e6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <ExtLogo id="onenote" size={24}/>
           </div>
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a' }}>Microsoft OneNote</div>
@@ -368,8 +378,8 @@ const OneNoteModal = ({ onClose }) => {
           {/* IDLE — Connect button */}
           {step === 'idle' && (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 20, padding: '24px 0' }}>
-              <div style={{ width: 72, height: 72, borderRadius: 20, background: '#f5e6ff', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-                <img src="https://cdn.simpleicons.org/microsoftonenote/7719AA" alt="OneNote" style={{ width: '100%', height: '100%', objectFit: 'contain' }}/>
+              <div style={{ width: 72, height: 72, borderRadius: 20, background: '#f5e6ff', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <ExtLogo id="onenote" size={44}/>
               </div>
               <div style={{ textAlign: 'center' }}>
                 <div style={{ fontSize: 15, fontWeight: 600, color: '#0f172a', marginBottom: 6 }}>OneNote verbinden</div>
@@ -509,8 +519,8 @@ const ExtensionsPanel = () => {
             <div key={ext.id} style={{ background: 'var(--bg-panel)', border: `1px solid ${isConnected ? ext.color + '44' : 'var(--border-light)'}`, borderRadius: 14, padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <div style={{ width: 36, height: 36, borderRadius: 10, background: ext.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 7 }}>
-                    <img src={ext.logo} alt={ext.name} style={{ width: '100%', height: '100%', objectFit: 'contain' }} onError={e => { e.target.style.display='none'; }}/>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: ext.bg, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <ExtLogo id={ext.id} size={20}/>
                   </div>
                   <div>
                     <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{ext.name}</div>
