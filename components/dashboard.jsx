@@ -163,8 +163,196 @@ const CreateSetModal = ({ onClose, onCreated, userId }) => {
   );
 };
 
+// ─── Extensions Panel ─────────────────────────────────────────
+const EXTENSIONS = [
+  {
+    id: 'onenote',
+    name: 'Microsoft OneNote',
+    desc: 'Exportiere Notizen, Karteikarten und Zusammenfassungen direkt in OneNote-Notizbücher.',
+    icon: '📓',
+    color: '#7719AA',
+    bg: '#f5e6ff',
+    makeScenarioId: 9126398,
+    connected: false,
+  },
+  {
+    id: 'teams',
+    name: 'Microsoft Teams',
+    desc: 'Teile Lernerfolge und Lernsets in Teams-Kanälen mit Kommilitonen.',
+    icon: '💬',
+    color: '#5059C9',
+    bg: '#eef0ff',
+    makeScenarioId: 9126399,
+    connected: false,
+  },
+  {
+    id: 'gdrive',
+    name: 'Google Drive',
+    desc: 'Synchronisiere Dokumente und Lernmaterialien mit Google Drive.',
+    icon: '📁',
+    color: '#1967D2',
+    bg: '#e8f0fe',
+    makeScenarioId: null,
+    connected: false,
+  },
+  {
+    id: 'gcal',
+    name: 'Google Calendar',
+    desc: 'Plane Lernsessions automatisch in deinem Google Kalender ein.',
+    icon: '📅',
+    color: '#1E8E3E',
+    bg: '#e6f4ea',
+    makeScenarioId: null,
+    connected: false,
+  },
+  {
+    id: 'notion',
+    name: 'Notion',
+    desc: 'Exportiere Karteikarten und Zusammenfassungen in Notion-Datenbanken.',
+    icon: '⬛',
+    color: '#0f172a',
+    bg: '#f1f5f9',
+    makeScenarioId: null,
+    connected: false,
+  },
+  {
+    id: 'slack',
+    name: 'Slack',
+    desc: 'Empfange tägliche Lernerinnerungen und teile Fortschritte in Slack.',
+    icon: '🟣',
+    color: '#611f69',
+    bg: '#fce8ff',
+    makeScenarioId: null,
+    connected: false,
+  },
+  {
+    id: 'github',
+    name: 'GitHub',
+    desc: 'Verknüpfe Programmier-Lernsets mit deinen GitHub-Repositories.',
+    icon: '🐙',
+    color: '#0f172a',
+    bg: '#f1f5f9',
+    makeScenarioId: null,
+    connected: false,
+  },
+  {
+    id: 'spotify',
+    name: 'Spotify',
+    desc: 'Starte automatisch Focus-Playlists beim Beginn einer Lernsession.',
+    icon: '🎵',
+    color: '#1DB954',
+    bg: '#e6faf0',
+    makeScenarioId: null,
+    connected: false,
+  },
+];
+
+const ExtensionsPanel = () => {
+  const [connected, setConnected] = useState({});
+  const makeBaseUrl = 'https://eu2.make.com/1840378/scenarios';
+
+  const handleConnect = (ext) => {
+    if (ext.makeScenarioId) {
+      window.open(`${makeBaseUrl}/${ext.makeScenarioId}/edit`, '_blank');
+      setConnected(prev => ({ ...prev, [ext.id]: true }));
+    } else {
+      window.open('https://make.com', '_blank');
+    }
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      <div>
+        <h2 style={{ fontFamily: 'Instrument Sans', fontSize: 18, fontWeight: 600, color: 'var(--text-main)', margin: '0 0 4px' }}>Erweiterungen</h2>
+        <div style={{ fontSize: 13, color: 'var(--text-light)' }}>
+          Verbinde StudyFlow mit deinen Lieblingstools über{' '}
+          <a href="https://make.com" target="_blank" rel="noreferrer" style={{ color: '#6366f1', textDecoration: 'none', fontWeight: 500 }}>Make.com</a>.
+          Die Szenarien für OneNote und Teams sind bereits eingerichtet.
+        </div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+        {EXTENSIONS.map(ext => {
+          const isConnected = connected[ext.id] || ext.connected;
+          const hasMake = !!ext.makeScenarioId;
+          return (
+            <div key={ext.id} style={{
+              background: 'var(--bg-panel)',
+              border: `1px solid ${isConnected ? ext.color + '44' : 'var(--border-light)'}`,
+              borderRadius: 14,
+              padding: 18,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
+              transition: 'box-shadow 0.15s',
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 10, background: ext.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18 }}>
+                    {ext.icon}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-main)' }}>{ext.name}</div>
+                    {hasMake && (
+                      <div style={{ fontSize: 10, color: '#6366f1', fontWeight: 500, marginTop: 1, display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#6366f1', display: 'inline-block' }}/>
+                        Make.com Szenario
+                      </div>
+                    )}
+                  </div>
+                </div>
+                {isConnected && (
+                  <span style={{ fontSize: 10, background: '#dcfce7', color: '#16a34a', padding: '2px 8px', borderRadius: 999, fontWeight: 600 }}>AKTIV</span>
+                )}
+              </div>
+              <div style={{ fontSize: 12, color: 'var(--text-light)', lineHeight: 1.5 }}>{ext.desc}</div>
+              <button
+                onClick={() => handleConnect(ext)}
+                style={{
+                  marginTop: 'auto',
+                  padding: '7px 14px',
+                  borderRadius: 8,
+                  border: isConnected ? `1px solid ${ext.color}44` : '1px solid var(--border-light)',
+                  background: isConnected ? ext.bg : 'white',
+                  color: isConnected ? ext.color : 'var(--text-main)',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  cursor: 'pointer',
+                  fontFamily: 'inherit',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: 6,
+                  transition: 'all 0.15s',
+                }}
+              >
+                {isConnected ? <><Icons.Check size={12}/> Konfigurieren</> : hasMake ? <><Icons.Share size={12}/> Verbinden</> : '+ Make.com einrichten'}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div style={{ background: 'linear-gradient(135deg, #eef2ff, #f5f3ff)', borderRadius: 14, padding: 18, border: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', gap: 14 }}>
+        <div style={{ fontSize: 28 }}>⚡</div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: '#312e81', marginBottom: 3 }}>Eigene Automatisierung über Make.com</div>
+          <div style={{ fontSize: 12, color: '#4338ca' }}>
+            Erstelle benutzerdefinierte Workflows: z.B. Karten aus E-Mails importieren, Lernstatistiken in Airtable speichern oder Zusammenfassungen per Telegram erhalten.
+          </div>
+        </div>
+        <a href="https://eu2.make.com/1840378/scenarios" target="_blank" rel="noreferrer"
+          style={{ marginLeft: 'auto', flexShrink: 0, padding: '8px 16px', background: '#4f46e5', color: 'white', borderRadius: 8, fontSize: 12, fontWeight: 500, textDecoration: 'none', whiteSpace: 'nowrap' }}>
+          Make.com öffnen →
+        </a>
+      </div>
+    </div>
+  );
+};
+
 // ─── Settings Panel ──────────────────────────────────────────
 const SettingsPanel = ({ user, profile, onProfileUpdate, darkMode, setDarkMode }) => {
+  const [settingsTab, setSettingsTab] = useState('profil');
   const [name, setName] = useState(profile?.display_name || '');
   const [university, setUniversity] = useState(profile?.university || '');
   const [weeklyGoal, setWeeklyGoal] = useState(profile?.weekly_goal || 20);
@@ -220,7 +408,7 @@ const SettingsPanel = ({ user, profile, onProfileUpdate, darkMode, setDarkMode }
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <div>
           <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: 'var(--text-main)', letterSpacing: '-0.02em', margin: 0 }}>Einstellungen</h1>
-          <div style={{ fontSize: 13, color: 'var(--text-light)', marginTop: 4 }}>Profil, Lernziele und Abo verwalten.</div>
+          <div style={{ fontSize: 13, color: 'var(--text-light)', marginTop: 4 }}>Profil, Lernziele und Erweiterungen verwalten.</div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg-panel)', padding: '6px 12px', borderRadius: 999, border: '1px solid var(--border-light)' }}>
           <Icons.Eye size={14} color="var(--text-muted)"/>
@@ -228,6 +416,25 @@ const SettingsPanel = ({ user, profile, onProfileUpdate, darkMode, setDarkMode }
           <Toggle on={darkMode} onChange={() => setDarkMode(!darkMode)}/>
         </div>
       </div>
+
+      {/* Tab Navigation */}
+      <div style={{ display: 'flex', gap: 4, background: 'var(--bg-panel)', borderRadius: 10, padding: 4, border: '1px solid var(--border-light)', alignSelf: 'flex-start' }}>
+        {[{ id: 'profil', label: 'Profil & Abo', icon: '👤' }, { id: 'extensions', label: 'Erweiterungen', icon: '🔌' }].map(tab => (
+          <button key={tab.id} onClick={() => setSettingsTab(tab.id)} style={{
+            padding: '7px 16px', borderRadius: 7, border: 'none', cursor: 'pointer', fontFamily: 'inherit',
+            fontSize: 13, fontWeight: settingsTab === tab.id ? 600 : 400,
+            background: settingsTab === tab.id ? 'white' : 'transparent',
+            color: settingsTab === tab.id ? 'var(--text-main)' : 'var(--text-muted)',
+            boxShadow: settingsTab === tab.id ? '0 1px 4px rgba(15,23,42,0.08)' : 'none',
+            display: 'flex', alignItems: 'center', gap: 6, transition: 'all 0.15s',
+          }}>
+            <span>{tab.icon}</span> {tab.label}
+          </button>
+        ))}
+      </div>
+
+      {settingsTab === 'extensions' && <ExtensionsPanel />}
+      {settingsTab === 'profil' && <>
 
       {/* Plan banner */}
       <div style={{
@@ -378,6 +585,8 @@ const SettingsPanel = ({ user, profile, onProfileUpdate, darkMode, setDarkMode }
           </button>
         </div>
       </div>
+
+      </>}
 
       {/* Upgrade Modal */}
       {showUpgrade && (
