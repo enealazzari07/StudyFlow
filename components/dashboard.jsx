@@ -78,21 +78,26 @@ const EMPTY_FOLDER_ART = 'components/image.png';
 const FILLED_FOLDER_ART = 'components/image.png';
 
 async function callChatAI(messages, model) {
-  const res = await fetch('https://api.llmapi.ai/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': 'Bearer llmapi_cfd04b9d553f200f951001d5021a535a1bdffe34d81827101a6048ac3196f2a7',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ model, messages }),
-  });
+  let res;
+  try {
+    res = await fetch('https://api.llmapi.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Authorization': 'Bearer llmapi_cfd04b9d553f200f951001d5021a535a1bdffe34d81827101a6048ac3196f2a7',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ model, messages }),
+    });
+  } catch (netErr) {
+    throw new Error(`Netzwerkfehler: ${netErr.message}`);
+  }
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
     if (res.status === 429) throw new Error('RATE_LIMIT');
-    throw new Error(`API ${res.status}: ${txt.slice(0, 120)}`);
+    throw new Error(`Fehler ${res.status}: ${txt.slice(0, 200)}`);
   }
   const data = await res.json();
-  return data.choices[0].message.content || '';
+  return data.choices?.[0]?.message?.content || '';
 }
 
 async function callAI(messages, model = AI_MODEL) {
@@ -1114,7 +1119,7 @@ const SUGGESTIONS = [
 ];
 
 const MODELS = [
-  { id: 'claude-sonnet-4.6', label: 'Claude Sonnet' },
+  { id: 'gemma-4-26b-a4b-it', label: 'Gemma 4' },
   { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
   { id: 'deepseek-v3', label: 'DeepSeek V3' },
 ];
@@ -1126,7 +1131,7 @@ const FlowAIPage = ({ onClose }) => {
   const [activeChatId, setActiveChatId] = React.useState(chats[0].id);
   const [input, setInput] = React.useState('');
   const [loading, setLoading] = React.useState(false);
-  const [model, setModel] = React.useState('claude-sonnet-4.6');
+  const [model, setModel] = React.useState('gemma-4-26b-a4b-it');
   const [showModelDropdown, setShowModelDropdown] = React.useState(false);
   const [attachment, setAttachment] = React.useState(null); // { name, text }
   const [attachLoading, setAttachLoading] = React.useState(false);
@@ -1209,7 +1214,7 @@ const FlowAIPage = ({ onClose }) => {
         c.id === activeChatId ? { ...c, messages: [...c.messages, aiMsg] } : c
       ));
     } catch (e) {
-      const errMsg = { role: 'ai', text: e.message === 'RATE_LIMIT' ? 'Rate limit erreicht — bitte kurz warten und nochmal versuchen.' : 'Verbindungsfehler — bitte erneut versuchen.', time: new Date() };
+      const errMsg = { role: 'ai', text: e.message === 'RATE_LIMIT' ? 'Rate limit erreicht — bitte kurz warten und nochmal versuchen.' : `Fehler: ${e.message}`, time: new Date() };
       setChats(prev => prev.map(c =>
         c.id === activeChatId ? { ...c, messages: [...c.messages, errMsg] } : c
       ));
