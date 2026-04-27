@@ -77,23 +77,8 @@ function createFolderArtDataUri({ filled = false } = {}) {
 const EMPTY_FOLDER_ART = 'components/image.png';
 const FILLED_FOLDER_ART = 'components/image.png';
 
-// ─── Zhipu AI (GLM) API für den Chat ─────────────────────────
 async function callChatAI(messages, model) {
-  const res = await fetch('https://api.airforce/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${AIRFORCE_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ model, messages }),
-  });
-  if (!res.ok) {
-    const txt = await res.text().catch(() => '');
-    if (res.status === 429) throw new Error('RATE_LIMIT');
-    throw new Error(`API ${res.status}: ${txt.slice(0, 120)}`);
-  }
-  const data = await res.json();
-  return data.choices[0].message.content || '';
+  return callAI(messages, model);
 }
 
 async function callAI(messages, model = AI_MODEL) {
