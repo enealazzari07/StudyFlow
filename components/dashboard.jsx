@@ -1133,8 +1133,36 @@ const FlowAIPage = ({ onClose }) => {
   const [loading, setLoading] = React.useState(false);
   const [model, setModel] = React.useState('glm-4');
   const [showModelDropdown, setShowModelDropdown] = React.useState(false);
+  const [attachment, setAttachment] = React.useState(null); // { name, text }
+  const [attachLoading, setAttachLoading] = React.useState(false);
   const messagesEndRef = React.useRef(null);
   const inputRef = React.useRef(null);
+  const fileInputRef = React.useRef(null);
+
+  const handleAttach = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    e.target.value = '';
+    setAttachLoading(true);
+    try {
+      const isText = file.type.startsWith('text/') || /\.(txt|md|csv)$/i.test(file.name);
+      if (isText) {
+        const text = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = ev => res(ev.target.result);
+          r.onerror = rej;
+          r.readAsText(file);
+        });
+        setAttachment({ name: file.name, text: text.slice(0, 12000) });
+      } else {
+        setAttachment({ name: file.name, text: null });
+      }
+    } catch {
+      setAttachment({ name: file.name, text: null });
+    }
+    setAttachLoading(false);
+    inputRef.current?.focus();
+  };
 
   const activeChat = chats.find(c => c.id === activeChatId) || chats[0];
 
@@ -1152,22 +1180,34 @@ const FlowAIPage = ({ onClose }) => {
 
   const send = async (text) => {
     const t = (text || input).trim();
-    if (!t || loading) return;
+    if ((!t && !attachment) || loading) return;
     setInput('');
+    const sentAttachment = attachment;
+    setAttachment(null);
 
-    const userMsg = { role: 'user', text: t, time: new Date() };
+    const displayText = t || (sentAttachment ? `📎 ${sentAttachment.name}` : '');
+    const userMsg = { role: 'user', text: displayText, time: new Date(), attachment: sentAttachment };
     setChats(prev => prev.map(c =>
       c.id === activeChatId
-        ? { ...c, title: c.messages.length <= 1 ? t.slice(0, 32) : c.title, messages: [...c.messages, userMsg] }
+        ? { ...c, title: c.messages.length <= 1 ? (t || sentAttachment?.name || 'Chat').slice(0, 32) : c.title, messages: [...c.messages, userMsg] }
         : c
     ));
     setLoading(true);
+
+    let userContent = t;
+    if (sentAttachment) {
+      if (sentAttachment.text) {
+        userContent = `[Dokument: ${sentAttachment.name}]\n\n${sentAttachment.text}${t ? `\n\n${t}` : ''}`;
+      } else {
+        userContent = `[Dokument angehängt: ${sentAttachment.name}]${t ? `\n\n${t}` : '\n\nBitte analysiere dieses Dokument.'}`;
+      }
+    }
 
     try {
       const res = await callChatAI([
         { role: 'system', content: 'Du bist Flow, eine freundliche KI-Lernassistentin für StudyFlow. Antworte auf Deutsch, präzise und motivierend. Helfe beim Lernen, Erklären von Konzepten, Erstellen von Karteikarten und Quiz. Antworte kurz und strukturiert.' },
         ...activeChat.messages.filter(m => m.role !== 'ai' || activeChat.messages.indexOf(m) > 0).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text })),
-        { role: 'user', content: t },
+        { role: 'user', content: userContent || t },
       ], model);
       const aiMsg = { role: 'ai', text: res, time: new Date() };
       setChats(prev => prev.map(c =>
@@ -1191,6 +1231,7 @@ const FlowAIPage = ({ onClose }) => {
     <style>{`
       @keyframes flowPulse { 0%,100%{opacity:0.25;transform:scale(0.75)} 50%{opacity:1;transform:scale(1)} }
       @keyframes flowFadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+      @keyframes spin { to { transform: rotate(360deg); } }
       .flow-msg { animation: flowFadeIn 0.25s ease; }
       .flow-chat-item:hover { background: rgba(255,255,255,0.07) !important; }
     `}</style>
@@ -1323,21 +1364,37 @@ const FlowAIPage = ({ onClose }) => {
         {/* Floating input */}
         <div style={{ position: 'absolute', bottom: 18, left: 24, right: 24, zIndex: 10 }}>
           <div style={{ background: 'rgba(255,252,242,0.97)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: 20, border: '1px solid rgba(15,23,42,0.11)', boxShadow: '0 8px 28px rgba(15,23,42,0.13), 0 2px 6px rgba(15,23,42,0.06)', padding: '14px 14px 10px 16px' }}>
+            <input ref={fileInputRef} type="file" accept=".pdf,.txt,.md,.csv,image/*" style={{ display: 'none' }} onChange={handleAttach}/>
+            {attachment && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: '#eef2ff', borderRadius: 8, border: '1px solid #c7d2fe', maxWidth: '100%' }}>
+                  <Icons.Doc size={12} style={{ color: '#6366f1', flexShrink: 0 }}/>
+                  <span style={{ fontSize: 12, color: '#4f46e5', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>{attachment.name}</span>
+                  <button onClick={() => setAttachment(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#818cf8', padding: 0, display: 'flex', lineHeight: 1 }}>
+                    <Icons.X size={11}/>
+                  </button>
+                </div>
+              </div>
+            )}
             <textarea
               ref={inputRef}
               value={input}
               onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
-              placeholder="Schreib etwas…"
+              placeholder={attachment ? 'Frage zum Dokument stellen… (oder einfach senden)' : 'Schreib etwas…'}
               rows={1}
               style={{ width: '100%', padding: 0, border: 'none', outline: 'none', fontFamily: 'inherit', fontSize: 14, background: 'transparent', color: '#1e293b', resize: 'none', lineHeight: 1.55, maxHeight: 120, overflowY: 'auto', display: 'block' }}
               onInput={e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }}
             />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
-              <button onClick={newChat} title="Neuer Chat" style={{ width: 30, height: 30, borderRadius: 9, background: 'rgba(15,23,42,0.06)', border: '1px solid rgba(15,23,42,0.09)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#64748b', transition: 'all 0.1s' }}
-                onMouseEnter={e => e.currentTarget.style.background = 'rgba(15,23,42,0.1)'}
-                onMouseLeave={e => e.currentTarget.style.background = 'rgba(15,23,42,0.06)'}>
-                <Icons.Plus size={14}/>
+              <button onClick={() => fileInputRef.current?.click()} title="Dokument anfügen" disabled={attachLoading}
+                style={{ width: 30, height: 30, borderRadius: 9, background: attachment ? 'rgba(99,102,241,0.1)' : 'rgba(15,23,42,0.06)', border: `1px solid ${attachment ? 'rgba(99,102,241,0.3)' : 'rgba(15,23,42,0.09)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: attachment ? '#6366f1' : '#64748b', transition: 'all 0.1s' }}
+                onMouseEnter={e => { if (!attachment) e.currentTarget.style.background = 'rgba(15,23,42,0.1)'; }}
+                onMouseLeave={e => { if (!attachment) e.currentTarget.style.background = 'rgba(15,23,42,0.06)'; }}>
+                {attachLoading
+                  ? <div style={{ width: 12, height: 12, border: '2px solid #c7d2fe', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }}/>
+                  : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
+                }
               </button>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ position: 'relative' }}>
@@ -1360,8 +1417,8 @@ const FlowAIPage = ({ onClose }) => {
                     <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2.5 3.5L5 6.5L7.5 3.5" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </div>
                 </div>
-                <button onClick={() => send()} disabled={!input.trim() || loading}
-                  style={{ width: 32, height: 32, borderRadius: 10, background: input.trim() && !loading ? '#1e293b' : 'rgba(15,23,42,0.08)', color: input.trim() && !loading ? 'white' : '#94a3b8', border: 'none', cursor: input.trim() && !loading ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', flexShrink: 0 }}>
+                <button onClick={() => send()} disabled={(!input.trim() && !attachment) || loading}
+                  style={{ width: 32, height: 32, borderRadius: 10, background: (input.trim() || attachment) && !loading ? '#1e293b' : 'rgba(15,23,42,0.08)', color: (input.trim() || attachment) && !loading ? 'white' : '#94a3b8', border: 'none', cursor: (input.trim() || attachment) && !loading ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', flexShrink: 0 }}>
                   <Icons.ArrowRight size={15}/>
                 </button>
               </div>
