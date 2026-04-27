@@ -78,23 +78,19 @@ const EMPTY_FOLDER_ART = 'components/image.png';
 const FILLED_FOLDER_ART = 'components/image.png';
 
 // ─── Zhipu AI (GLM) API für den Chat ─────────────────────────
-// Der API-Key ist im Zhipu AI Format. Unterstützt direkte Browser-Aufrufe (CORS).
-const ZHIPU_KEY = 'fa883d72c67d4ab9b9f9400344fdba52.E20c9sxZEyRuklDbvojX7jhO';
-const ZHIPU_URL = 'https://open.bigmodel.cn/api/paas/v4/chat/completions';
-
 async function callChatAI(messages, model) {
-  const res = await fetch(ZHIPU_URL, {
+  const res = await fetch('https://api.airforce/v1/chat/completions', {
     method: 'POST',
-    headers: { 
-      'Authorization': `Bearer ${ZHIPU_KEY}`, 
-      'Content-Type': 'application/json'
+    headers: {
+      'Authorization': `Bearer ${AIRFORCE_KEY}`,
+      'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ model, messages, stream: false }),
+    body: JSON.stringify({ model, messages }),
   });
   if (!res.ok) {
     const txt = await res.text().catch(() => '');
     if (res.status === 429) throw new Error('RATE_LIMIT');
-    throw new Error(`API ${res.status}: ${txt.slice(0,120)}`);
+    throw new Error(`API ${res.status}: ${txt.slice(0, 120)}`);
   }
   const data = await res.json();
   return data.choices[0].message.content || '';
@@ -1119,9 +1115,9 @@ const SUGGESTIONS = [
 ];
 
 const MODELS = [
-  { id: 'glm-4', label: 'GLM-4 (Zhipu)' },
+  { id: 'deepseek-v3', label: 'DeepSeek V3' },
   { id: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-  { id: 'claude-sonnet-4.6', label: 'Sonnet 4.6' },
+  { id: 'claude-sonnet-4-5', label: 'Claude Sonnet' },
 ];
 
 const FlowAIPage = ({ onClose }) => {
@@ -1131,7 +1127,7 @@ const FlowAIPage = ({ onClose }) => {
   const [activeChatId, setActiveChatId] = React.useState(chats[0].id);
   const [input, setInput] = React.useState('');
   const [loading, setLoading] = React.useState(false);
-  const [model, setModel] = React.useState('glm-4');
+  const [model, setModel] = React.useState('deepseek-v3');
   const [showModelDropdown, setShowModelDropdown] = React.useState(false);
   const [attachment, setAttachment] = React.useState(null); // { name, text }
   const [attachLoading, setAttachLoading] = React.useState(false);
