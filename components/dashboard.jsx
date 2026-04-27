@@ -1145,20 +1145,29 @@ const FlowAIPage = ({ onClose }) => {
     e.target.value = '';
     setAttachLoading(true);
     try {
+      const isImage = file.type.startsWith('image/');
       const isText = file.type.startsWith('text/') || /\.(txt|md|csv)$/i.test(file.name);
-      if (isText) {
+      if (isImage) {
+        const dataUrl = await new Promise((res, rej) => {
+          const r = new FileReader();
+          r.onload = ev => res(ev.target.result);
+          r.onerror = rej;
+          r.readAsDataURL(file);
+        });
+        setAttachment({ name: file.name, type: 'image', dataUrl });
+      } else if (isText) {
         const text = await new Promise((res, rej) => {
           const r = new FileReader();
           r.onload = ev => res(ev.target.result);
           r.onerror = rej;
           r.readAsText(file);
         });
-        setAttachment({ name: file.name, text: text.slice(0, 12000) });
+        setAttachment({ name: file.name, type: 'text', text: text.slice(0, 12000) });
       } else {
-        setAttachment({ name: file.name, text: null });
+        setAttachment({ name: file.name, type: 'other', text: null });
       }
     } catch {
-      setAttachment({ name: file.name, text: null });
+      setAttachment({ name: file.name, type: 'other', text: null });
     }
     setAttachLoading(false);
     inputRef.current?.focus();
@@ -1194,18 +1203,23 @@ const FlowAIPage = ({ onClose }) => {
     ));
     setLoading(true);
 
-    let userContent = t;
-    if (sentAttachment) {
-      if (sentAttachment.text) {
-        userContent = `[Dokument: ${sentAttachment.name}]\n\n${sentAttachment.text}${t ? `\n\n${t}` : ''}`;
-      } else {
-        userContent = `[Dokument angehängt: ${sentAttachment.name}]${t ? `\n\n${t}` : '\n\nBitte analysiere dieses Dokument.'}`;
-      }
+    // Build the user message content for the API
+    let userContent;
+    if (sentAttachment?.type === 'image') {
+      // Vision format: array with text + image
+      userContent = [
+        ...(t ? [{ type: 'text', text: t }] : [{ type: 'text', text: 'Bitte beschreibe und analysiere dieses Bild.' }]),
+        { type: 'image_url', image_url: { url: sentAttachment.dataUrl } },
+      ];
+    } else if (sentAttachment?.type === 'text') {
+      userContent = `[Dokument: ${sentAttachment.name}]\n\n${sentAttachment.text}${t ? `\n\n${t}` : ''}`;
+    } else {
+      userContent = t;
     }
 
     try {
       const res = await callChatAI([
-        { role: 'system', content: 'Du bist Flow, eine freundliche KI-Lernassistentin für StudyFlow. Antworte auf Deutsch, präzise und motivierend. Helfe beim Lernen, Erklären von Konzepten, Erstellen von Karteikarten und Quiz. Antworte kurz und strukturiert.' },
+        { role: 'system', content: 'Du bist Flow, eine freundliche KI-Lernassistentin für StudyFlow. Antworte auf Deutsch, präzise und motivierend. Helfe beim Lernen, Erklären von Konzepten, Erstellen von Karteikarten und Quiz. Antworte kurz und strukturiert. Wenn du etwas nicht weißt oder dir unsicher bist, frage nach — erfinde keine Antworten.' },
         ...activeChat.messages.filter(m => m.role !== 'ai' || activeChat.messages.indexOf(m) > 0).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text })),
         { role: 'user', content: userContent || t },
       ], model);
