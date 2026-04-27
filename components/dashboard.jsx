@@ -78,7 +78,21 @@ const EMPTY_FOLDER_ART = 'components/image.png';
 const FILLED_FOLDER_ART = 'components/image.png';
 
 async function callChatAI(messages, model) {
-  return callAI(messages, model);
+  const res = await fetch('https://api.llmapi.ai/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': 'Bearer llmapi_cfd04b9d553f200f951001d5021a535a1bdffe34d81827101a6048ac3196f2a7',
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ model, messages }),
+  });
+  if (!res.ok) {
+    const txt = await res.text().catch(() => '');
+    if (res.status === 429) throw new Error('RATE_LIMIT');
+    throw new Error(`API ${res.status}: ${txt.slice(0, 120)}`);
+  }
+  const data = await res.json();
+  return data.choices[0].message.content || '';
 }
 
 async function callAI(messages, model = AI_MODEL) {
