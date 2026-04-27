@@ -1115,9 +1115,9 @@ const SUGGESTIONS = [
 ];
 
 const MODELS = [
+  { id: 'claude-sonnet-4.6', label: 'Claude Sonnet' },
+  { id: 'gemini-2.5-flash', label: 'Gemini 2.5 Flash' },
   { id: 'deepseek-v3', label: 'DeepSeek V3' },
-  { id: 'gpt-4o-mini', label: 'GPT-4o Mini' },
-  { id: 'claude-sonnet-4-5', label: 'Claude Sonnet' },
 ];
 
 const FlowAIPage = ({ onClose }) => {
@@ -1127,7 +1127,7 @@ const FlowAIPage = ({ onClose }) => {
   const [activeChatId, setActiveChatId] = React.useState(chats[0].id);
   const [input, setInput] = React.useState('');
   const [loading, setLoading] = React.useState(false);
-  const [model, setModel] = React.useState('deepseek-v3');
+  const [model, setModel] = React.useState('claude-sonnet-4.6');
   const [showModelDropdown, setShowModelDropdown] = React.useState(false);
   const [attachment, setAttachment] = React.useState(null); // { name, text }
   const [attachLoading, setAttachLoading] = React.useState(false);
@@ -1229,82 +1229,72 @@ const FlowAIPage = ({ onClose }) => {
       @keyframes flowFadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
       @keyframes spin { to { transform: rotate(360deg); } }
       .flow-msg { animation: flowFadeIn 0.25s ease; }
-      .flow-chat-item:hover { background: rgba(255,255,255,0.07) !important; }
+      .flow-chat-item:hover { background: rgba(15,23,42,0.04) !important; }
+      .flow-new-chat:hover { background: white !important; box-shadow: 0 2px 8px rgba(15,23,42,0.1) !important; }
     `}</style>
 
-      {/* ── Left: dark notebook cover ── */}
-      <div style={{ width: 238, flexShrink: 0, background: '#141d2e', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
+      {/* ── Left: transparent notebook sidebar ── */}
+      <div style={{ width: 220, flexShrink: 0, background: 'transparent', display: 'flex', flexDirection: 'column', overflow: 'hidden', borderRight: '1px solid rgba(15,23,42,0.07)', padding: '18px 12px 14px' }}>
 
-        {/* Header */}
-        <div style={{ padding: '20px 18px 16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
-            <div style={{ width: 36, height: 36, borderRadius: 12, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(99,102,241,0.4)', flexShrink: 0 }}>
-              <Icons.Sparkles size={18} style={{ color: 'white' }}/>
-            </div>
-          </div>
-          <button onClick={newChat} style={{ width: '100%', padding: '9px 12px', background: 'rgba(99,102,241,0.22)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 12, cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 13, fontFamily: 'inherit', fontWeight: 500, transition: 'all 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.35)'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(99,102,241,0.22)'; }}>
-            <Icons.Plus size={13}/> Neuer Chat
-          </button>
-        </div>
+        {/* Neuer Chat */}
+        <button onClick={newChat} className="flow-new-chat"
+          style={{ width: '100%', padding: '9px 14px', background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(15,23,42,0.1)', borderRadius: 12, cursor: 'pointer', color: 'var(--text-main)', display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontFamily: 'inherit', fontWeight: 500, transition: 'all 0.15s', boxShadow: '0 1px 3px rgba(15,23,42,0.06)', marginBottom: 18 }}>
+          <Icons.Plus size={13} style={{ color: '#6366f1' }}/> Neuer Chat
+        </button>
 
         {/* Chat list */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '0 10px', display: 'flex', flexDirection: 'column', gap: 1 }}>
-          <div style={{ fontSize: 9.5, fontWeight: 700, color: 'rgba(255,255,255,0.25)', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '0 8px 6px' }}>Verlauf</div>
+        <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <div style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text-lighter)', letterSpacing: '0.12em', textTransform: 'uppercase', padding: '0 8px 8px' }}>Verlauf</div>
           {chats.map((c, i) => {
             const isAct = c.id === activeChatId;
             const col = CHAT_COLORS[i % CHAT_COLORS.length];
             return (
               <div key={c.id} className="flow-chat-item" onClick={() => setActiveChatId(c.id)}
-                style={{ padding: '9px 10px', borderRadius: 10, cursor: 'pointer', background: isAct ? 'rgba(255,255,255,0.09)' : 'transparent', border: isAct ? '1px solid rgba(255,255,255,0.12)' : '1px solid transparent', transition: 'all 0.1s', display: 'flex', alignItems: 'center', gap: 10 }}>
-                <span style={{ width: 8, height: 8, borderRadius: '50%', background: col, flexShrink: 0, opacity: isAct ? 1 : 0.45, boxShadow: isAct ? `0 0 6px ${col}88` : 'none' }}/>
+                style={{ padding: '8px 10px', borderRadius: 10, cursor: 'pointer', background: isAct ? 'rgba(255,255,255,0.85)' : 'transparent', border: isAct ? '1px solid rgba(15,23,42,0.08)' : '1px solid transparent', boxShadow: isAct ? '0 1px 4px rgba(15,23,42,0.08)' : 'none', transition: 'all 0.1s', display: 'flex', alignItems: 'center', gap: 9 }}>
+                <span style={{ width: 7, height: 7, borderRadius: '50%', background: col, flexShrink: 0, opacity: isAct ? 1 : 0.4 }}/>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, color: isAct ? 'white' : 'rgba(255,255,255,0.55)', fontWeight: isAct ? 500 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</div>
-                  <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.25)', marginTop: 1 }}>{c.messages.length} Nachr.</div>
+                  <div style={{ fontSize: 13, color: isAct ? 'var(--text-main)' : 'var(--text-light)', fontWeight: isAct ? 500 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-lighter)', marginTop: 1 }}>{c.messages.length} Nachr.</div>
                 </div>
               </div>
             );
           })}
         </div>
 
-        {/* Close button at bottom */}
-        <div style={{ padding: '14px 16px', borderTop: '1px solid rgba(255,255,255,0.05)' }}>
-          <button onClick={onClose} style={{ width: '100%', padding: '7px 10px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 10, cursor: 'pointer', color: 'rgba(255,255,255,0.4)', display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontFamily: 'inherit', transition: 'all 0.15s' }}
-            onMouseEnter={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.65)'; e.currentTarget.style.background = 'rgba(255,255,255,0.09)'; }}
-            onMouseLeave={e => { e.currentTarget.style.color = 'rgba(255,255,255,0.4)'; e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}>
-            <Icons.X size={13}/> Schliessen
-          </button>
-        </div>
+        {/* Close button */}
+        <button onClick={onClose}
+          style={{ width: '100%', padding: '7px 12px', background: 'transparent', border: '1px solid rgba(15,23,42,0.09)', borderRadius: 10, cursor: 'pointer', color: 'var(--text-lighter)', display: 'flex', alignItems: 'center', gap: 7, fontSize: 12.5, fontFamily: 'inherit', transition: 'all 0.15s', marginTop: 10 }}
+          onMouseEnter={e => { e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'rgba(15,23,42,0.04)'; }}
+          onMouseLeave={e => { e.currentTarget.style.color = 'var(--text-lighter)'; e.currentTarget.style.background = 'transparent'; }}>
+          <Icons.X size={13}/> Schliessen
+        </button>
       </div>
 
-      {/* ── Right: cream notebook pages ── */}
-      <div style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column',
-        background: '#f7f3ea',
-        backgroundImage: 'radial-gradient(circle, rgba(99,102,241,0.18) 1px, transparent 1px)',
-        backgroundSize: '24px 24px',
-      }}>
+      {/* ── Right: full-width chat area (uses parent dot-paper bg) ── */}
+      <div style={{ flex: 1, minWidth: 0, position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+
         {/* Title bar */}
-        <div style={{ padding: '14px 20px 10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, zIndex: 1, position: 'relative' }}>
-          <div style={{ fontFamily: 'Caveat', fontSize: 22, fontWeight: 700, color: '#1e293b', letterSpacing: '0.01em' }}>{activeChat.title}</div>
-          <div style={{ fontSize: 11, color: '#94a3b8' }}>{formatTime(new Date())}</div>
+        <div style={{ padding: '16px 28px 10px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, zIndex: 1 }}>
+          <div style={{ fontFamily: 'Caveat', fontSize: 22, fontWeight: 700, color: 'var(--text-main)', letterSpacing: '0.01em' }}>{activeChat.title}</div>
+          <div style={{ fontSize: 11, color: 'var(--text-lighter)' }}>{formatTime(new Date())}</div>
         </div>
 
         {/* Messages */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 36px 150px 32px', display: 'flex', flexDirection: 'column', gap: 22, zIndex: 1, position: 'relative' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 48px 160px', display: 'flex', flexDirection: 'column', gap: 22, position: 'relative' }}>
 
           {/* Empty state */}
           {activeChat.messages.length <= 1 && (
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 22, minHeight: 240 }}>
               <div style={{ textAlign: 'center' }}>
-                <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 700, color: '#1e293b', lineHeight: 1.2, marginBottom: 6 }}>Was kann ich für<br/>dich aufschreiben?</div>
-                <div style={{ fontFamily: 'Caveat', fontSize: 17, color: '#64748b' }}>Deine KI-Lernassistentin ist bereit ✏️</div>
+                <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 700, color: 'var(--text-main)', lineHeight: 1.2, marginBottom: 6 }}>Was kann ich für<br/>dich aufschreiben?</div>
+                <div style={{ fontFamily: 'Caveat', fontSize: 17, color: 'var(--text-light)' }}>Deine KI-Lernassistentin ist bereit ✏️</div>
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, width: '100%', maxWidth: 460 }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, width: '100%', maxWidth: 520 }}>
                 {SUGGESTIONS.map((s, i) => (
-                  <button key={i} onClick={() => send(s.text)} style={{ textAlign: 'left', padding: '11px 14px', background: 'rgba(255,255,255,0.7)', border: '1px solid rgba(15,23,42,0.1)', borderRadius: 12, fontSize: 12.5, color: '#475569', fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 8, transition: 'all 0.15s', boxShadow: '0 1px 4px rgba(15,23,42,0.06)', lineHeight: 1.4 }}
-                    onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.95)'; e.currentTarget.style.borderColor = '#c7d2fe'; }}
-                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.7)'; e.currentTarget.style.borderColor = 'rgba(15,23,42,0.1)'; }}>
+                  <button key={i} onClick={() => send(s.text)}
+                    style={{ textAlign: 'left', padding: '12px 15px', background: 'rgba(255,255,255,0.75)', border: '1px solid rgba(15,23,42,0.09)', borderRadius: 13, fontSize: 12.5, color: 'var(--text-muted)', fontFamily: 'inherit', cursor: 'pointer', display: 'flex', alignItems: 'flex-start', gap: 8, transition: 'all 0.15s', boxShadow: '0 1px 4px rgba(15,23,42,0.05)', lineHeight: 1.4 }}
+                    onMouseEnter={e => { e.currentTarget.style.background = 'white'; e.currentTarget.style.borderColor = '#c7d2fe'; e.currentTarget.style.boxShadow = '0 2px 8px rgba(15,23,42,0.08)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.75)'; e.currentTarget.style.borderColor = 'rgba(15,23,42,0.09)'; e.currentTarget.style.boxShadow = '0 1px 4px rgba(15,23,42,0.05)'; }}>
                     <span style={{ color: '#6366f1', flexShrink: 0, marginTop: 1 }}>{s.icon}</span> {s.text}
                   </button>
                 ))}
@@ -1316,26 +1306,20 @@ const FlowAIPage = ({ onClose }) => {
           {activeChat.messages.map((m, i) => (
             <div key={i} className="flow-msg" style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start', gap: 5 }}>
               {m.role === 'ai' ? (
-                /* AI: sticky-note style */
-                <div style={{ maxWidth: '74%', position: 'relative' }}>
-                  {/* Tape strip on top */}
-                  <div style={{ position: 'absolute', top: -9, left: '50%', transform: 'translateX(-50%)', width: 44, height: 14, background: 'rgba(99,102,241,0.25)', borderRadius: 3, zIndex: 1 }}/>
-                  <div style={{ background: '#fffef5', borderRadius: '3px 12px 12px 12px', padding: '16px 16px 12px', boxShadow: '2px 4px 16px rgba(15,23,42,0.11), 0 1px 3px rgba(15,23,42,0.07)', border: '1px solid rgba(234,179,8,0.12)', transform: `rotate(${i % 3 === 0 ? -0.4 : i % 3 === 1 ? 0.3 : -0.2}deg)` }}>
+                <div style={{ maxWidth: '72%', position: 'relative' }}>
+                  <div style={{ position: 'absolute', top: -9, left: '50%', transform: 'translateX(-50%)', width: 44, height: 14, background: 'rgba(99,102,241,0.2)', borderRadius: 3, zIndex: 1 }}/>
+                  <div style={{ background: 'rgba(255,255,255,0.9)', borderRadius: '3px 14px 14px 14px', padding: '16px 18px 13px', boxShadow: '2px 4px 18px rgba(15,23,42,0.09), 0 1px 3px rgba(15,23,42,0.05)', border: '1px solid rgba(15,23,42,0.07)', transform: `rotate(${i % 3 === 0 ? -0.3 : i % 3 === 1 ? 0.25 : -0.15}deg)` }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 8 }}>
-                      <div style={{ width: 18, height: 18, borderRadius: 6, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                        <Icons.Sparkles size={10} style={{ color: 'white' }}/>
-                      </div>
                       <span style={{ fontFamily: 'Caveat', fontSize: 13, fontWeight: 700, color: '#6366f1', letterSpacing: '0.03em' }}>Flow</span>
-                      <span style={{ fontSize: 10, color: '#94a3b8', marginLeft: 2 }}>{formatTime(m.time)}</span>
+                      <span style={{ fontSize: 10, color: 'var(--text-lighter)' }}>{formatTime(m.time)}</span>
                     </div>
-                    <div style={{ fontSize: 13.5, lineHeight: 1.7, color: '#1e293b', whiteSpace: 'pre-wrap' }}>{m.text}</div>
+                    <div style={{ fontSize: 13.5, lineHeight: 1.75, color: 'var(--text-main)', whiteSpace: 'pre-wrap' }}>{m.text}</div>
                   </div>
                 </div>
               ) : (
-                /* User: dark ink bubble */
                 <div style={{ maxWidth: '68%', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 4 }}>
-                  <div style={{ padding: '10px 16px', borderRadius: '16px 16px 4px 16px', background: '#1e293b', color: 'white', fontSize: 13.5, lineHeight: 1.65, boxShadow: '0 2px 12px rgba(15,23,42,0.2)', whiteSpace: 'pre-wrap' }}>{m.text}</div>
-                  <div style={{ fontSize: 10, color: '#94a3b8' }}>{formatTime(m.time)}</div>
+                  <div style={{ padding: '11px 17px', borderRadius: '16px 16px 4px 16px', background: '#1e293b', color: 'white', fontSize: 13.5, lineHeight: 1.65, boxShadow: '0 2px 12px rgba(15,23,42,0.15)', whiteSpace: 'pre-wrap' }}>{m.text}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-lighter)' }}>{formatTime(m.time)}</div>
                 </div>
               )}
             </div>
@@ -1343,13 +1327,11 @@ const FlowAIPage = ({ onClose }) => {
 
           {/* Loading dots */}
           {loading && (
-            <div className="flow-msg" style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 5 }}>
-              <div style={{ position: 'relative', maxWidth: '74%' }}>
-                <div style={{ position: 'absolute', top: -9, left: '50%', transform: 'translateX(-50%)', width: 44, height: 14, background: 'rgba(99,102,241,0.25)', borderRadius: 3 }}/>
-                <div style={{ background: '#fffef5', borderRadius: '3px 12px 12px 12px', padding: '16px 20px', boxShadow: '2px 4px 16px rgba(15,23,42,0.11)', border: '1px solid rgba(234,179,8,0.12)', display: 'flex', gap: 6, alignItems: 'center' }}>
-                  {[0,1,2].map(j => (
-                    <div key={j} style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', animation: `flowPulse 1.2s ease-in-out ${j*0.22}s infinite` }}/>
-                  ))}
+            <div className="flow-msg" style={{ display: 'flex', alignItems: 'flex-start' }}>
+              <div style={{ position: 'relative' }}>
+                <div style={{ position: 'absolute', top: -9, left: '50%', transform: 'translateX(-50%)', width: 44, height: 14, background: 'rgba(99,102,241,0.2)', borderRadius: 3 }}/>
+                <div style={{ background: 'rgba(255,255,255,0.9)', borderRadius: '3px 14px 14px 14px', padding: '16px 22px', boxShadow: '2px 4px 18px rgba(15,23,42,0.09)', border: '1px solid rgba(15,23,42,0.07)', display: 'flex', gap: 6, alignItems: 'center' }}>
+                  {[0,1,2].map(j => <div key={j} style={{ width: 8, height: 8, borderRadius: '50%', background: '#6366f1', animation: `flowPulse 1.2s ease-in-out ${j*0.22}s infinite` }}/>)}
                 </div>
               </div>
             </div>
@@ -1358,35 +1340,32 @@ const FlowAIPage = ({ onClose }) => {
         </div>
 
         {/* Floating input */}
-        <div style={{ position: 'absolute', bottom: 18, left: 24, right: 24, zIndex: 10 }}>
-          <div style={{ background: 'rgba(255,252,242,0.97)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: 20, border: '1px solid rgba(15,23,42,0.11)', boxShadow: '0 8px 28px rgba(15,23,42,0.13), 0 2px 6px rgba(15,23,42,0.06)', padding: '14px 14px 10px 16px' }}>
+        <div style={{ position: 'absolute', bottom: 20, left: 32, right: 32, zIndex: 10 }}>
+          <div style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', borderRadius: 20, border: '1px solid rgba(15,23,42,0.1)', boxShadow: '0 8px 32px rgba(15,23,42,0.1), 0 2px 6px rgba(15,23,42,0.05)', padding: '14px 14px 10px 16px' }}>
             <input ref={fileInputRef} type="file" accept=".pdf,.txt,.md,.csv,image/*" style={{ display: 'none' }} onChange={handleAttach}/>
             {attachment && (
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10, flexWrap: 'wrap' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: '#eef2ff', borderRadius: 8, border: '1px solid #c7d2fe', maxWidth: '100%' }}>
-                  <Icons.Doc size={12} style={{ color: '#6366f1', flexShrink: 0 }}/>
-                  <span style={{ fontSize: 12, color: '#4f46e5', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>{attachment.name}</span>
-                  <button onClick={() => setAttachment(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#818cf8', padding: 0, display: 'flex', lineHeight: 1 }}>
+              <div style={{ display: 'flex', gap: 6, marginBottom: 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 10px', background: '#eef2ff', borderRadius: 8, border: '1px solid #c7d2fe' }}>
+                  <Icons.Doc size={12} style={{ color: '#6366f1' }}/>
+                  <span style={{ fontSize: 12, color: '#4f46e5', fontWeight: 500, maxWidth: 240, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{attachment.name}</span>
+                  <button onClick={() => setAttachment(null)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#818cf8', padding: 0, display: 'flex' }}>
                     <Icons.X size={11}/>
                   </button>
                 </div>
               </div>
             )}
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={e => setInput(e.target.value)}
+            <textarea ref={inputRef} value={input} onChange={e => setInput(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); send(); } }}
               placeholder={attachment ? 'Frage zum Dokument stellen… (oder einfach senden)' : 'Schreib etwas…'}
               rows={1}
-              style={{ width: '100%', padding: 0, border: 'none', outline: 'none', fontFamily: 'inherit', fontSize: 14, background: 'transparent', color: '#1e293b', resize: 'none', lineHeight: 1.55, maxHeight: 120, overflowY: 'auto', display: 'block' }}
+              style={{ width: '100%', padding: 0, border: 'none', outline: 'none', fontFamily: 'inherit', fontSize: 14, background: 'transparent', color: 'var(--text-main)', resize: 'none', lineHeight: 1.55, maxHeight: 120, overflowY: 'auto', display: 'block' }}
               onInput={e => { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }}
             />
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 10 }}>
               <button onClick={() => fileInputRef.current?.click()} title="Dokument anfügen" disabled={attachLoading}
-                style={{ width: 30, height: 30, borderRadius: 9, background: attachment ? 'rgba(99,102,241,0.1)' : 'rgba(15,23,42,0.06)', border: `1px solid ${attachment ? 'rgba(99,102,241,0.3)' : 'rgba(15,23,42,0.09)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: attachment ? '#6366f1' : '#64748b', transition: 'all 0.1s' }}
-                onMouseEnter={e => { if (!attachment) e.currentTarget.style.background = 'rgba(15,23,42,0.1)'; }}
-                onMouseLeave={e => { if (!attachment) e.currentTarget.style.background = 'rgba(15,23,42,0.06)'; }}>
+                style={{ width: 30, height: 30, borderRadius: 9, background: attachment ? 'rgba(99,102,241,0.08)' : 'rgba(15,23,42,0.05)', border: `1px solid ${attachment ? 'rgba(99,102,241,0.25)' : 'rgba(15,23,42,0.09)'}`, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', color: attachment ? '#6366f1' : '#94a3b8', transition: 'all 0.1s' }}
+                onMouseEnter={e => { if (!attachment) { e.currentTarget.style.background = 'rgba(15,23,42,0.08)'; e.currentTarget.style.color = '#64748b'; } }}
+                onMouseLeave={e => { if (!attachment) { e.currentTarget.style.background = 'rgba(15,23,42,0.05)'; e.currentTarget.style.color = '#94a3b8'; } }}>
                 {attachLoading
                   ? <div style={{ width: 12, height: 12, border: '2px solid #c7d2fe', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.7s linear infinite' }}/>
                   : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.44 11.05l-9.19 9.19a6 6 0 01-8.49-8.49l9.19-9.19a4 4 0 015.66 5.66l-9.2 9.19a2 2 0 01-2.83-2.83l8.49-8.48"/></svg>
@@ -1395,26 +1374,27 @@ const FlowAIPage = ({ onClose }) => {
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <div style={{ position: 'relative' }}>
                   {showModelDropdown && (
-                    <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 8, background: 'white', borderRadius: 12, border: '1px solid rgba(15,23,42,0.09)', boxShadow: '0 4px 20px rgba(15,23,42,0.08)', padding: 6, zIndex: 100, minWidth: 140 }}>
+                    <div style={{ position: 'absolute', bottom: '100%', right: 0, marginBottom: 8, background: 'white', borderRadius: 13, border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 6px 24px rgba(15,23,42,0.1)', padding: 6, zIndex: 100, minWidth: 160 }}>
                       {MODELS.map(m => (
                         <div key={m.id} onClick={() => { setModel(m.id); setShowModelDropdown(false); }}
-                          style={{ padding: '8px 10px', fontSize: 12, color: model === m.id ? '#6366f1' : '#1e293b', cursor: 'pointer', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'background 0.1s', background: model === m.id ? '#eef2ff' : 'transparent' }}
-                          onMouseEnter={e => { if (model !== m.id) e.currentTarget.style.background = '#f1f5f9'; }}
+                          style={{ padding: '9px 12px', fontSize: 12.5, color: model === m.id ? '#6366f1' : 'var(--text-main)', cursor: 'pointer', borderRadius: 9, display: 'flex', alignItems: 'center', justifyContent: 'space-between', transition: 'background 0.1s', background: model === m.id ? '#eef2ff' : 'transparent' }}
+                          onMouseEnter={e => { if (model !== m.id) e.currentTarget.style.background = '#f8fafc'; }}
                           onMouseLeave={e => { if (model !== m.id) e.currentTarget.style.background = 'transparent'; }}>
                           {m.label}
-                          {model === m.id && <Icons.Check size={14}/>}
+                          {model === m.id && <Icons.Check size={13}/>}
                         </div>
                       ))}
                     </div>
                   )}
-                  <div onClick={() => setShowModelDropdown(!showModelDropdown)} style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 10px', borderRadius: 9, background: 'rgba(15,23,42,0.06)', border: '1px solid rgba(15,23,42,0.09)', cursor: 'pointer' }}>
-                    <div style={{ width: 12, height: 12, borderRadius: 3, background: 'linear-gradient(135deg,#6366f1,#818cf8)', flexShrink: 0 }}/>
-                    <span style={{ fontSize: 12, color: '#475569', fontWeight: 500, whiteSpace: 'nowrap' }}>{MODELS.find(m => m.id === model)?.label}</span>
-                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2.5 3.5L5 6.5L7.5 3.5" stroke="#64748b" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
+                  <div onClick={() => setShowModelDropdown(!showModelDropdown)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 9, background: 'rgba(15,23,42,0.05)', border: '1px solid rgba(15,23,42,0.09)', cursor: 'pointer' }}>
+                    <div style={{ width: 10, height: 10, borderRadius: 3, background: 'linear-gradient(135deg,#6366f1,#818cf8)', flexShrink: 0 }}/>
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500, whiteSpace: 'nowrap' }}>{MODELS.find(m => m.id === model)?.label}</span>
+                    <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><path d="M2.5 3.5L5 6.5L7.5 3.5" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                   </div>
                 </div>
                 <button onClick={() => send()} disabled={(!input.trim() && !attachment) || loading}
-                  style={{ width: 32, height: 32, borderRadius: 10, background: (input.trim() || attachment) && !loading ? '#1e293b' : 'rgba(15,23,42,0.08)', color: (input.trim() || attachment) && !loading ? 'white' : '#94a3b8', border: 'none', cursor: (input.trim() || attachment) && !loading ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', flexShrink: 0 }}>
+                  style={{ width: 33, height: 33, borderRadius: 11, background: (input.trim() || attachment) && !loading ? '#1e293b' : 'rgba(15,23,42,0.07)', color: (input.trim() || attachment) && !loading ? 'white' : '#94a3b8', border: 'none', cursor: (input.trim() || attachment) && !loading ? 'pointer' : 'default', display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'all 0.15s', flexShrink: 0 }}>
                   <Icons.ArrowRight size={15}/>
                 </button>
               </div>
