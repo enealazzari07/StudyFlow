@@ -571,7 +571,7 @@ const ExtensionsPanel = () => {
 };
 
 // ─── Settings Panel ──────────────────────────────────────────
-const SettingsPanel = ({ user, profile, onProfileUpdate, darkMode, setDarkMode }) => {
+const SettingsPanel = ({ user, profile, onProfileUpdate, darkMode, setDarkMode, onShowToast }) => {
   const [settingsTab, setSettingsTab] = useState('profil');
   const [name, setName] = useState(profile?.display_name || '');
   const [university, setUniversity] = useState(profile?.university || '');
@@ -605,7 +605,10 @@ const SettingsPanel = ({ user, profile, onProfileUpdate, darkMode, setDarkMode }
     const { data } = await window.sb.from('profiles').update({ plan: 'pro' }).eq('id', user.id).select().single();
     setUpgrading(false);
     setShowUpgrade(false);
-    if (data) onProfileUpdate(data);
+    if (data) {
+      onProfileUpdate(data);
+      onShowToast?.('Pro Abo aktiviert', 'Viel Spaß mit allen Features! 🚀', 'pro');
+    }
   };
 
   const handleDowngrade = async () => {
@@ -1195,18 +1198,11 @@ const FlowAIPage = ({ onClose }) => {
       {/* ── Left: dark notebook cover ── */}
       <div style={{ width: 238, flexShrink: 0, background: '#141d2e', display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
-        {/* Logo */}
+        {/* Header */}
         <div style={{ padding: '20px 18px 16px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
             <div style={{ width: 36, height: 36, borderRadius: 12, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 12px rgba(99,102,241,0.4)', flexShrink: 0 }}>
               <Icons.Sparkles size={18} style={{ color: 'white' }}/>
-            </div>
-            <div>
-              <div style={{ fontFamily: 'Caveat', fontSize: 22, fontWeight: 700, color: 'white', lineHeight: 1.1 }}>Flow AI</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginTop: 2 }}>
-                <span style={{ width: 5, height: 5, borderRadius: '50%', background: '#10b981', display: 'inline-block' }}/>
-                <span style={{ fontSize: 10.5, color: '#10b981', fontWeight: 500 }}>Online</span>
-              </div>
             </div>
           </div>
           <button onClick={newChat} style={{ width: '100%', padding: '9px 12px', background: 'rgba(99,102,241,0.22)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: 12, cursor: 'pointer', color: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 7, fontSize: 13, fontFamily: 'inherit', fontWeight: 500, transition: 'all 0.15s' }}
@@ -1224,7 +1220,7 @@ const FlowAIPage = ({ onClose }) => {
             const col = CHAT_COLORS[i % CHAT_COLORS.length];
             return (
               <div key={c.id} className="flow-chat-item" onClick={() => setActiveChatId(c.id)}
-                style={{ padding: '9px 10px', borderRadius: 10, cursor: 'pointer', background: isAct ? 'rgba(99,102,241,0.2)' : 'transparent', border: isAct ? '1px solid rgba(99,102,241,0.35)' : '1px solid transparent', transition: 'all 0.1s', display: 'flex', alignItems: 'center', gap: 10 }}>
+                style={{ padding: '9px 10px', borderRadius: 10, cursor: 'pointer', background: isAct ? 'rgba(255,255,255,0.09)' : 'transparent', border: isAct ? '1px solid rgba(255,255,255,0.12)' : '1px solid transparent', transition: 'all 0.1s', display: 'flex', alignItems: 'center', gap: 10 }}>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: col, flexShrink: 0, opacity: isAct ? 1 : 0.45, boxShadow: isAct ? `0 0 6px ${col}88` : 'none' }}/>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ fontSize: 13, color: isAct ? 'white' : 'rgba(255,255,255,0.55)', fontWeight: isAct ? 500 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{c.title}</div>
@@ -1251,17 +1247,14 @@ const FlowAIPage = ({ onClose }) => {
         backgroundImage: 'radial-gradient(circle, rgba(99,102,241,0.18) 1px, transparent 1px)',
         backgroundSize: '24px 24px',
       }}>
-        {/* Red margin line */}
-        <div style={{ position: 'absolute', left: 72, top: 0, bottom: 0, width: 1.5, background: 'rgba(239,68,68,0.22)', zIndex: 0, pointerEvents: 'none' }}/>
-
         {/* Title bar */}
-        <div style={{ padding: '14px 20px 10px 88px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, zIndex: 1, position: 'relative' }}>
+        <div style={{ padding: '14px 20px 10px 24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0, zIndex: 1, position: 'relative' }}>
           <div style={{ fontFamily: 'Caveat', fontSize: 22, fontWeight: 700, color: '#1e293b', letterSpacing: '0.01em' }}>{activeChat.title}</div>
           <div style={{ fontSize: 11, color: '#94a3b8' }}>{formatTime(new Date())}</div>
         </div>
 
         {/* Messages */}
-        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 36px 150px 88px', display: 'flex', flexDirection: 'column', gap: 22, zIndex: 1, position: 'relative' }}>
+        <div style={{ flex: 1, overflowY: 'auto', padding: '4px 36px 150px 32px', display: 'flex', flexDirection: 'column', gap: 22, zIndex: 1, position: 'relative' }}>
 
           {/* Empty state */}
           {activeChat.messages.length <= 1 && (
@@ -1328,7 +1321,7 @@ const FlowAIPage = ({ onClose }) => {
         </div>
 
         {/* Floating input */}
-        <div style={{ position: 'absolute', bottom: 18, left: 78, right: 28, zIndex: 10 }}>
+        <div style={{ position: 'absolute', bottom: 18, left: 24, right: 24, zIndex: 10 }}>
           <div style={{ background: 'rgba(255,252,242,0.97)', backdropFilter: 'blur(16px)', WebkitBackdropFilter: 'blur(16px)', borderRadius: 20, border: '1px solid rgba(15,23,42,0.11)', boxShadow: '0 8px 28px rgba(15,23,42,0.13), 0 2px 6px rgba(15,23,42,0.06)', padding: '14px 14px 10px 16px' }}>
             <textarea
               ref={inputRef}
@@ -1796,54 +1789,166 @@ const EmptyState = ({ onNewSet }) => (
   </div>
 );
 
-// ─── Welcome Modal ───────────────────────────────────────────
-const WelcomeModal = ({ onClose }) => {
+// ─── Toast Notifications ─────────────────────────────────────
+const ToastContainer = ({ toasts, onRemove }) => (
+  <div style={{ position: 'fixed', top: 20, right: 20, zIndex: 9999, display: 'flex', flexDirection: 'column', gap: 10, pointerEvents: 'none' }}>
+    <style>{`
+      @keyframes toastIn { from { opacity: 0; transform: translateX(60px); } to { opacity: 1; transform: translateX(0); } }
+      @keyframes toastOut { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(60px); } }
+      .toast-item { animation: toastIn 0.3s cubic-bezier(0.34,1.56,0.64,1); }
+      .toast-item.leaving { animation: toastOut 0.25s ease forwards; }
+    `}</style>
+    {toasts.map(t => (
+      <div key={t.id} className={`toast-item${t.leaving ? ' leaving' : ''}`}
+        style={{ background: t.type === 'pro' ? 'linear-gradient(135deg,#6366f1,#4f46e5)' : '#0f172a', color: 'white', borderRadius: 14, padding: '12px 16px', display: 'flex', alignItems: 'center', gap: 10, boxShadow: '0 8px 24px rgba(15,23,42,0.22)', minWidth: 220, maxWidth: 320, pointerEvents: 'all', cursor: 'pointer' }}
+        onClick={() => onRemove(t.id)}>
+        <div style={{ width: 32, height: 32, borderRadius: 10, background: t.type === 'pro' ? 'rgba(255,255,255,0.2)' : 'rgba(99,102,241,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {t.type === 'pro' ? <Icons.Sparkles size={15} style={{ color: 'white' }}/> : <Icons.Check size={15} style={{ color: '#a5f3b3' }}/>}
+        </div>
+        <div>
+          <div style={{ fontSize: 13, fontWeight: 600 }}>{t.title}</div>
+          {t.desc && <div style={{ fontSize: 11.5, opacity: 0.75, marginTop: 1 }}>{t.desc}</div>}
+        </div>
+      </div>
+    ))}
+  </div>
+);
+
+// ─── Tutorial Modal ───────────────────────────────────────────
+const TUTORIAL_STEPS = [
+  {
+    icon: <Icons.Logo size={28}/>,
+    color: '#6366f1', bg: 'linear-gradient(135deg,#6366f1,#818cf8)',
+    title: 'Willkommen bei StudyFlow! 🎉',
+    subtitle: 'Schön, dass du da bist.',
+    desc: 'In wenigen Schritten zeigen wir dir, wie du deinen Lern-Workspace einrichtest.',
+    tip: null,
+  },
+  {
+    icon: <Icons.Folder size={24}/>,
+    color: '#f59e0b', bg: 'linear-gradient(135deg,#f59e0b,#fbbf24)',
+    title: 'Ordner erstellen',
+    subtitle: 'Halte alles übersichtlich',
+    desc: 'Klicke im Dashboard auf „Neues Lernset" und gib beim Erstellen einen Ordnernamen ein — das Lernset landet dann automatisch in diesem Ordner.',
+    tip: '💡 Tipp: Nutze Ordner wie Fächer — z.B. „Mathe", „Bio" oder „Englisch".',
+  },
+  {
+    icon: <Icons.Cards size={24}/>,
+    color: '#10b981', bg: 'linear-gradient(135deg,#10b981,#34d399)',
+    title: 'Lernset anlegen',
+    subtitle: 'Dein erstes Karteikartenset',
+    desc: 'Klicke links auf den Button „Neues Lernset", gib ihm einen Namen und füge deine ersten Karten hinzu. Du kannst auch PDFs hochladen — Flow AI erstellt die Karten automatisch.',
+    tip: '💡 Tipp: Starte mit 10–20 Karten. Qualität schlägt Quantität.',
+  },
+  {
+    icon: <Icons.Sparkles size={24}/>,
+    color: '#8b5cf6', bg: 'linear-gradient(135deg,#8b5cf6,#a78bfa)',
+    title: 'Flow AI nutzen',
+    subtitle: 'KI-gestütztes Lernen',
+    desc: 'Öffne „Flow AI" in der linken Navigation. Du kannst Fragen stellen, Karten generieren lassen oder dich zu einem Thema quizzen lassen.',
+    tip: '💡 Tipp: Lade unter „Dokumente" ein PDF hoch — Flow erstellt dir sofort Karten daraus.',
+  },
+];
+
+const TutorialModal = ({ onClose, onDone }) => {
+  const [step, setStep] = React.useState(0);
+  const current = TUTORIAL_STEPS[step];
+  const isLast = step === TUTORIAL_STEPS.length - 1;
+
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.6)', backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
-      <div style={{ background: 'var(--bg-panel)', borderRadius: 24, padding: 40, width: 480, maxWidth: '100%', boxShadow: '0 30px 80px rgba(15,23,42,0.2)', position: 'relative', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
-        <div style={{ position: 'absolute', top: -20, right: -20, opacity: 0.05, pointerEvents: 'none' }}>
-          <Icons.Sparkles size={160} />
-        </div>
-        
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24 }}>
-          <div style={{ width: 56, height: 56, borderRadius: 16, background: 'linear-gradient(135deg, #6366f1, #818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', boxShadow: '0 8px 16px rgba(99,102,241,0.25)', flexShrink: 0 }}>
-            <Icons.Logo size={32} />
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.65)', backdropFilter: 'blur(6px)', WebkitBackdropFilter: 'blur(6px)', zIndex: 400, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }}>
+      <style>{`
+        @keyframes tutorialSlide { from { opacity: 0; transform: translateY(12px) scale(0.98); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        .tutorial-card { animation: tutorialSlide 0.28s cubic-bezier(0.34,1.2,0.64,1); }
+      `}</style>
+      <div className="tutorial-card" key={step} style={{ background: 'white', borderRadius: 28, padding: 40, width: 500, maxWidth: '100%', boxShadow: '0 40px 100px rgba(15,23,42,0.22)', position: 'relative', overflow: 'hidden' }}>
+        {/* BG decoration */}
+        <div style={{ position: 'absolute', top: -40, right: -40, width: 160, height: 160, borderRadius: '50%', background: current.bg, opacity: 0.07, pointerEvents: 'none' }}/>
+
+        {/* Step counter */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
+          <div style={{ display: 'flex', gap: 6 }}>
+            {TUTORIAL_STEPS.map((_, i) => (
+              <div key={i} style={{ width: i === step ? 22 : 8, height: 8, borderRadius: 4, background: i === step ? current.color : '#e2e8f0', transition: 'all 0.3s' }}/>
+            ))}
           </div>
-          <div>
-            <h2 style={{ fontFamily: 'Instrument Sans', fontSize: 24, fontWeight: 700, color: 'var(--text-main)', margin: 0, letterSpacing: '-0.02em' }}>Willkommen bei StudyFlow! 🎉</h2>
-            <div style={{ fontFamily: 'Caveat', fontSize: 18, color: '#6366f1', fontWeight: 600 }}>Schön, dass du da bist.</div>
-          </div>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, borderRadius: 6, display: 'flex' }}>
+            <Icons.X size={16}/>
+          </button>
         </div>
-        
-        <div style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.6, marginBottom: 32 }}>
-          Bevor du loslegst, hier ein kurzer Überblick, wie du das meiste aus deinem neuen Lern-Workspace herausholst:
+
+        {/* Icon */}
+        <div style={{ width: 60, height: 60, borderRadius: 18, background: current.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', marginBottom: 20, boxShadow: `0 8px 20px ${current.color}44` }}>
+          {current.icon}
         </div>
-        
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 20, marginBottom: 36 }}>
-          {[
-            { icon: <Icons.Sparkles size={16}/>, color: '#8b5cf6', bg: '#f3e8ff', title: 'Flow AI', desc: 'Lade PDFs oder Skripte hoch. Flow erstellt dir in Sekunden Zusammenfassungen und Karteikarten.' },
-            { icon: <Icons.Cards size={16}/>, color: '#10b981', bg: '#d1fae5', title: 'Spaced Repetition', desc: 'Lerne smarter, nicht härter. Der Algorithmus zeigt dir Karten genau dann, wenn du sie vergessen würdest.' },
-            { icon: <Icons.Users size={16}/>, color: '#f59e0b', bg: '#fef3c7', title: 'Zusammen lernen', desc: 'Teile deine Ordner mit Freunden und bearbeitet Lernsets gemeinsam in Echtzeit.' }
-          ].map((f, i) => (
-            <div key={i} style={{ display: 'flex', gap: 14 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 10, background: f.bg, color: f.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                {f.icon}
-              </div>
-              <div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)' }}>{f.title}</div>
-                <div style={{ fontSize: 13, color: 'var(--text-light)', marginTop: 2, lineHeight: 1.4 }}>{f.desc}</div>
-              </div>
-            </div>
-          ))}
+
+        {/* Text */}
+        <h2 style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 700, color: '#0f172a', margin: '0 0 4px', letterSpacing: '-0.02em' }}>{current.title}</h2>
+        <div style={{ fontFamily: 'Caveat', fontSize: 17, color: current.color, fontWeight: 600, marginBottom: 16 }}>{current.subtitle}</div>
+        <p style={{ fontSize: 14, color: '#475569', lineHeight: 1.7, margin: '0 0 20px' }}>{current.desc}</p>
+
+        {current.tip && (
+          <div style={{ background: '#f8fafc', borderRadius: 12, padding: '12px 14px', fontSize: 13, color: '#64748b', marginBottom: 20, border: '1px solid #e2e8f0' }}>{current.tip}</div>
+        )}
+
+        {/* Actions */}
+        <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+          {step > 0 && (
+            <button onClick={() => setStep(s => s - 1)} style={{ flex: '0 0 auto', padding: '12px 18px', border: '1px solid #e2e8f0', borderRadius: 14, background: 'white', color: '#64748b', fontFamily: 'inherit', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Icons.ArrowRight size={14} style={{ transform: 'rotate(180deg)' }}/> Zurück
+            </button>
+          )}
+          <button onClick={() => { if (isLast) onDone(); else setStep(s => s + 1); }}
+            className="btn-primary" style={{ flex: 1, justifyContent: 'center', padding: '13px 0', fontSize: 14.5, background: current.bg, border: 'none' }}>
+            {isLast ? 'Alles klar, los geht\'s!' : 'Weiter'} <Icons.ArrowRight size={15}/>
+          </button>
         </div>
-        
-        <button onClick={onClose} className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '14px 0', fontSize: 15, background: 'linear-gradient(135deg, #6366f1, #4f46e5)' }}>
-          Alles klar, los geht's! <Icons.ArrowRight size={16} />
-        </button>
       </div>
     </div>
   );
 };
+
+// ─── Pro Upsell Popup ─────────────────────────────────────────
+const ProUpsellModal = ({ onClose, onUpgrade }) => (
+  <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(5px)', WebkitBackdropFilter: 'blur(5px)', zIndex: 450, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
+    <div style={{ background: 'white', borderRadius: 26, padding: 36, width: 440, maxWidth: '100%', boxShadow: '0 40px 100px rgba(15,23,42,0.22)', position: 'relative', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+      <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg,#6366f105,#818cf808)', pointerEvents: 'none' }}/>
+      <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: 'none', border: 'none', cursor: 'pointer', color: '#94a3b8', padding: 4, borderRadius: 6, display: 'flex' }}>
+        <Icons.X size={16}/>
+      </button>
+
+      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 22 }}>
+        <div style={{ width: 50, height: 50, borderRadius: 15, background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 18px rgba(99,102,241,0.35)', flexShrink: 0 }}>
+          <Icons.Sparkles size={22} style={{ color: 'white' }}/>
+        </div>
+        <div>
+          <div style={{ fontFamily: 'Instrument Sans', fontSize: 19, fontWeight: 700, color: '#0f172a', letterSpacing: '-0.02em' }}>Hol dir StudyFlow Pro</div>
+          <div style={{ fontFamily: 'Caveat', fontSize: 16, color: '#6366f1', fontWeight: 600 }}>Nur 5,99 € / Monat</div>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 11, marginBottom: 26 }}>
+        {[
+          { icon: <Icons.Sparkles size={14}/>, text: 'Unbegrenzte AI-Analysen & Flow Chat' },
+          { icon: <Icons.Cards size={14}/>, text: 'Unbegrenzte Lernsets (Free: max. 10)' },
+          { icon: <Icons.Users size={14}/>, text: 'Kollaboration in Echtzeit' },
+          { icon: <Icons.Eye size={14}/>, text: 'Bildanalyse mit Vision AI' },
+          { icon: <Icons.Chart size={14}/>, text: 'Detaillierte Lernstatistiken' },
+        ].map((f, i) => (
+          <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 26, height: 26, borderRadius: 8, background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>{f.icon}</div>
+            <span style={{ fontSize: 13.5, color: '#334155' }}>{f.text}</span>
+          </div>
+        ))}
+      </div>
+
+      <button onClick={onUpgrade} className="btn-primary" style={{ width: '100%', justifyContent: 'center', padding: '14px 0', fontSize: 15, background: 'linear-gradient(135deg,#6366f1,#4f46e5)', marginBottom: 10 }}>
+        Pro freischalten <Icons.ArrowRight size={15}/>
+      </button>
+      <div style={{ textAlign: 'center', fontSize: 12, color: '#94a3b8' }}>Jederzeit kündbar · Keine Bindung</div>
+    </div>
+  </div>
+);
 
 // ─── Dashboard ───────────────────────────────────────────────
 const Dashboard = () => {
@@ -1861,7 +1966,10 @@ const Dashboard = () => {
   const [stats, setStats] = useState({});
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
-  const [showWelcome, setShowWelcome] = useState(() => localStorage.getItem('studyflow_welcome') === 'true');
+  const [showTutorial, setShowTutorial] = useState(() => localStorage.getItem('studyflow_welcome') === 'true');
+  const [showProUpsell, setShowProUpsell] = useState(false);
+  const [toasts, setToasts] = useState([]);
+  const toastIdRef = React.useRef(0);
   const [streak, setStreak] = useState(0);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem('theme') === 'dark');
 
@@ -1871,11 +1979,33 @@ const Dashboard = () => {
     localStorage.setItem('theme', darkMode ? 'dark' : 'light');
   }, [darkMode]);
 
+  const showToast = React.useCallback((title, desc, type = 'success') => {
+    const id = ++toastIdRef.current;
+    setToasts(prev => [...prev, { id, title, desc, type }]);
+    setTimeout(() => {
+      setToasts(prev => prev.map(t => t.id === id ? { ...t, leaving: true } : t));
+      setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 300);
+    }, 4000);
+  }, []);
+
+  const removeToast = React.useCallback((id) => {
+    setToasts(prev => prev.map(t => t.id === id ? { ...t, leaving: true } : t));
+    setTimeout(() => setToasts(prev => prev.filter(t => t.id !== id)), 300);
+  }, []);
+
   useEffect(() => {
-    if (showWelcome) {
+    if (showTutorial) {
       localStorage.removeItem('studyflow_welcome');
+      setTimeout(() => showToast('Konto erstellt', 'Willkommen bei StudyFlow! 🎉'), 500);
     }
-  }, [showWelcome]);
+  }, []);
+
+  const handleTutorialDone = () => {
+    setShowTutorial(false);
+    if (!profile || profile?.plan !== 'pro') {
+      setTimeout(() => setShowProUpsell(true), 350);
+    }
+  };
 
   useEffect(() => {
     (async () => {
@@ -2027,7 +2157,7 @@ const Dashboard = () => {
         {!showAI && <TopBar search={search} onSearch={setSearch} streak={streak}/>}
 
         {showDocs && <DocsPanel userId={user?.id}/>}
-        {showSettings && <SettingsPanel user={user} profile={profile} onProfileUpdate={setProfile} darkMode={darkMode} setDarkMode={setDarkMode}/>}
+        {showSettings && <SettingsPanel user={user} profile={profile} onProfileUpdate={setProfile} darkMode={darkMode} setDarkMode={setDarkMode} onShowToast={showToast}/>}
         {showAI && <FlowAIPage onClose={() => setActive('home')}/>}
 
         {showSets && (
@@ -2076,7 +2206,14 @@ const Dashboard = () => {
       {showModal && (
         <CreateSetModal userId={user?.id} onClose={() => setShowModal(false)} onCreated={handleSetCreated}/>
       )}
-      {showWelcome && <WelcomeModal onClose={() => setShowWelcome(false)} />}
+      {showTutorial && <TutorialModal onClose={() => setShowTutorial(false)} onDone={handleTutorialDone}/>}
+      {showProUpsell && (
+        <ProUpsellModal
+          onClose={() => setShowProUpsell(false)}
+          onUpgrade={() => { setShowProUpsell(false); setActive('settings'); }}
+        />
+      )}
+      <ToastContainer toasts={toasts} onRemove={removeToast}/>
     </div>
   );
 };
