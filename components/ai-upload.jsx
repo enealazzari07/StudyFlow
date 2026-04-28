@@ -3,7 +3,8 @@ const { useState, useEffect, useRef } = React;
 
 const AIRFORCE_KEY = 'sk-air-tWdMV6mXgoa1zAfHr8UfGVI9BFzyr5dXE2jdZO4pPApRVrXDyH6W6Bdv6RwmUctq';
 const AI_URL = 'https://api.airforce/v1/chat/completions';
-const VISION_MODEL = 'claude-sonnet-4.6';
+// gemini-2.5-flash has reliable vision support on api.airforce
+const VISION_MODEL = 'gemini-2.5-flash';
 
 const params = new URLSearchParams(window.location.search);
 const TARGET_SET_ID = params.get('targetSetId') || null;
@@ -16,29 +17,54 @@ function formatFileSize(bytes) {
 
 function uid() { return Math.random().toString(36).slice(2); }
 
-// Read file → {type:'image'|'text', content: dataUrl|string}
-function readFile(file) {
-  return new Promise((resolve, reject) => {
-    const isImage = file.type.startsWith('image/');
-    const reader = new FileReader();
-    if (isImage) {
-      reader.onload = e => resolve({ type: 'image', content: e.target.result });
-      reader.readAsDataURL(file);
-    } else {
-      reader.onload = e => resolve({ type: 'text', content: e.target.result });
-      reader.onerror = reject;
-      reader.readAsText(file, 'UTF-8');
-    }
-    reader.onerror = reject;
+// Resize image to max 1600px on longest side, JPEG quality 0.85
+// Returns a new base64 DataURL
+function resizeImage(dataUrl, maxPx = 1600, quality = 0.85) {
+  return new Promise(resolve => {
+    const img = new Image();
+    img.onload = () => {
+      const ratio = Math.min(1, maxPx / Math.max(img.width, img.height));
+      const w = Math.round(img.width * ratio);
+      const h = Math.round(img.height * ratio);
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL('image/jpeg', quality));
+    };
+    img.onerror = () => resolve(dataUrl); // fallback: use original
+    img.src = dataUrl;
   });
 }
 
-// Call api.airforce and return parsed card array
+// Read file → {type:'image'|'text', content: dataUrl|string}
+async function readFile(file) {
+  const isImage = file.type.startsWith('image/');
+  if (isImage) {
+    const rawDataUrl = await new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = e => res(e.target.result);
+      r.onerror = rej;
+      r.readAsDataURL(file);
+    });
+    // Always compress/resize so the base64 stays manageable
+    const compressed = await resizeImage(rawDataUrl, 1600, 0.85);
+    return { type: 'image', content: compressed };
+  } else {
+    return new Promise((res, rej) => {
+      const r = new FileReader();
+      r.onload = e => res({ type: 'text', content: e.target.result });
+      r.onerror = rej;
+      r.readAsText(file, 'UTF-8');
+    });
+  }
+}
+
+// Call api.airforce vision and return parsed card array
 async function analyzeFile(fileData) {
-  const PROMPT = `Du bist ein Lernassistent. Analysiere den Inhalt und erstelle Karteikarten (Frage/Antwort-Paare) auf Deutsch.
-Antworte AUSSCHLIESSLICH mit einem JSON-Array ohne weiteren Text:
-[{"front": "Frage hier", "back": "Antwort hier"}, ...]
-Erstelle mindestens 5 und maximal 30 sinnvolle Karten.`;
+  const PROMPT = `Du bist ein Lernassistent. Analysiere den Inhalt (Bild, Tabelle, Text, Notizen) und extrahiere alle Lernpaare als Karteikarten.
+Antworte AUSSCHLIESSLICH mit einem JSON-Array, kein weiterer Text, kein Markdown:
+[{"front": "Begriff/Frage", "back": "Übersetzung/Antwort"}, ...]
+Extrahiere ALLE sichtbaren Einträge. Minimum 3, kein Maximum.`;
 
   let messages;
   if (fileData.type === 'image') {
@@ -63,20 +89,26 @@ Erstelle mindestens 5 und maximal 30 sinnvolle Karten.`;
   const res = await fetch(AI_URL, {
     method: 'POST',
     headers: { Authorization: `Bearer ${AIRFORCE_KEY}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model: VISION_MODEL, messages, max_tokens: 3000 })
+    body: JSON.stringify({ model: VISION_MODEL, messages, max_tokens: 4000 })
   });
 
   if (!res.ok) {
-    const txt = await res.text().catch(() => res.status);
-    throw new Error(`API Fehler ${res.status}: ${txt}`);
+    const txt = await res.text().catch(() => String(res.status));
+    throw new Error(`API Fehler ${res.status}: ${txt.slice(0, 300)}`);
   }
 
   const json = await res.json();
-  const raw = json?.choices?.[0]?.message?.content || '';
+  const raw = (json?.choices?.[0]?.message?.content || '').trim();
 
-  // Extract JSON array from response (model sometimes wraps in ```json ... ```)
+  if (!raw) {
+    // Log full response for debugging
+    console.error('Empty API response. Full JSON:', JSON.stringify(json));
+    throw new Error('Die KI hat keine Antwort geliefert. Bitte erneut versuchen.');
+  }
+
+  // Extract JSON array (model may wrap in ```json ... ```)
   const match = raw.match(/\[[\s\S]*\]/);
-  if (!match) throw new Error('Keine Karten in der Antwort gefunden. Antwort: ' + raw.slice(0, 200));
+  if (!match) throw new Error('Kein JSON-Array in der Antwort.\n\nAntwort: ' + raw.slice(0, 400));
   const arr = JSON.parse(match[0]);
   if (!Array.isArray(arr) || arr.length === 0) throw new Error('Leeres Kartenarray');
   return arr.map(c => ({
