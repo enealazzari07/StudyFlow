@@ -1656,16 +1656,32 @@ const DiscoverPage = () => {
     (async () => {
       setLoading(true);
       try {
-        const { data, error: err } = await window.sb
+        // Fetch public sets (no profile join — no direct FK chain)
+        const { data: rawSets, error: err } = await window.sb
           .from('study_sets')
-          .select('id, title, description, tags, total_cards:cards(count), owner_id, updated_at, profiles(display_name)')
+          .select('id, title, description, tags, total_cards:cards(count), owner_id, updated_at')
           .eq('visibility', 'public')
           .order('updated_at', { ascending: false })
           .limit(100);
         if (err) throw err;
-        setSets((data || []).map(s => ({ ...s, total_cards: s.total_cards?.[0]?.count ?? 0 })));
+
+        const setsArr = (rawSets || []).map(s => ({ ...s, total_cards: s.total_cards?.[0]?.count ?? 0 }));
+
+        // Fetch display names for unique owner_ids
+        const ownerIds = [...new Set(setsArr.map(s => s.owner_id))];
+        let nameMap = {};
+        if (ownerIds.length > 0) {
+          const { data: profiles } = await window.sb
+            .from('profiles')
+            .select('id, display_name')
+            .in('id', ownerIds);
+          (profiles || []).forEach(p => { nameMap[p.id] = p.display_name; });
+        }
+
+        setSets(setsArr.map(s => ({ ...s, authorName: nameMap[s.owner_id] || 'Anonym' })));
       } catch (e) {
-        setError('Öffentliche Sets konnten nicht geladen werden.');
+        console.error(e);
+        setError('Öffentliche Sets konnten nicht geladen werden: ' + (e?.message || e));
       }
       setLoading(false);
     })();
@@ -1742,7 +1758,7 @@ const DiscoverPage = () => {
 
 const DiscoverCard = ({ set }) => {
   const setTags = (set.tags || []).slice(0, 3);
-  const authorName = set.profiles?.display_name || 'Anonym';
+  const authorName = set.authorName || 'Anonym';
   const lastStudy = set.updated_at ? (() => {
     const diff = Date.now() - new Date(set.updated_at).getTime();
     const d = Math.floor(diff / 86400000);
