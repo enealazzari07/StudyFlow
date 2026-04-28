@@ -1780,6 +1780,10 @@ const DiscoverCard = ({ set }) => {
 // ─── Set Card ────────────────────────────────────────────────
 const SetCard = ({ set, onDelete, onUpdate }) => {
   const [showVisMenu, setShowVisMenu] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [renaming, setRenaming] = useState(false);
+  const [renameVal, setRenameVal] = useState(set.title);
+  const renameRef = React.useRef(null);
   const pct = set.total_cards ? Math.round((set.mastered_cards / set.total_cards) * 100) : 0;
   const isDraft = set.total_cards === 0;
   const lastStudy = set.updated_at ? (() => {
@@ -1792,16 +1796,40 @@ const SetCard = ({ set, onDelete, onUpdate }) => {
   const vis = VISIBILITY_OPTIONS.find(v => v.id === (set.visibility || 'private'));
   const setTags = (set.tags || []).slice(0, 3);
 
+  // Close menus on outside click
+  React.useEffect(() => {
+    if (!showMenu && !showVisMenu) return;
+    const handler = () => { setShowMenu(false); setShowVisMenu(false); };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showMenu, showVisMenu]);
+
+  // Focus rename input
+  React.useEffect(() => {
+    if (renaming && renameRef.current) renameRef.current.focus();
+  }, [renaming]);
+
   const handleDelete = async (e) => {
     e.preventDefault(); e.stopPropagation();
+    setShowMenu(false);
     if (!confirm(`"${set.title}" wirklich löschen?`)) return;
     await window.sb.from('study_sets').delete().eq('id', set.id);
     onDelete(set.id);
   };
 
+  const handleRenameSubmit = async (e) => {
+    e?.preventDefault(); e?.stopPropagation();
+    const newTitle = renameVal.trim();
+    if (!newTitle || newTitle === set.title) { setRenaming(false); return; }
+    const { data } = await window.sb.from('study_sets').update({ title: newTitle }).eq('id', set.id).select().single();
+    if (data && onUpdate) onUpdate(data);
+    setRenaming(false);
+  };
+
   const handleVisChange = async (e, newVis) => {
     e.preventDefault(); e.stopPropagation();
     setShowVisMenu(false);
+    setShowMenu(false);
     const { data } = await window.sb.from('study_sets').update({ visibility: newVis }).eq('id', set.id).select().single();
     if (data && onUpdate) onUpdate(data);
   };
@@ -1818,7 +1846,16 @@ const SetCard = ({ set, onDelete, onUpdate }) => {
             <Icons.Cards size={16}/>
           </div>
           <div style={{ minWidth: 0 }}>
-            <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'Instrument Sans' }}>{set.title}</div>
+            {renaming ? (
+              <form onSubmit={e => { e.preventDefault(); e.stopPropagation(); handleRenameSubmit(e); }} onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
+                <input ref={renameRef} value={renameVal} onChange={e => setRenameVal(e.target.value)}
+                  onBlur={() => handleRenameSubmit()}
+                  onKeyDown={e => { if (e.key === 'Escape') { setRenaming(false); setRenameVal(set.title); } }}
+                  style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-main)', fontFamily: 'Instrument Sans', background: 'var(--bg-active)', border: '1.5px solid #818cf8', borderRadius: 6, padding: '3px 8px', outline: 'none', width: '100%', boxSizing: 'border-box' }}/>
+              </form>
+            ) : (
+              <div style={{ fontSize: 15, fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'Instrument Sans' }}>{set.title}</div>
+            )}
             <div style={{ fontSize: 11.5, color: 'var(--text-lighter)', marginTop: 1 }}>{set.total_cards} Karten · {lastStudy}</div>
           </div>
         </div>
@@ -1847,7 +1884,54 @@ const SetCard = ({ set, onDelete, onUpdate }) => {
               ))}
             </div>
           )}
-          <button onClick={handleDelete} style={{ padding: 4, background: 'none', border: 'none', borderRadius: 5, cursor: 'pointer', color: '#cbd5e1', display: 'flex' }}><Icons.MoreH size={14}/></button>
+          {/* 3-dot menu */}
+          <div style={{ position: 'relative' }} onMouseDown={e => e.stopPropagation()}>
+            <button onClick={e => { e.preventDefault(); e.stopPropagation(); setShowMenu(v => !v); setShowVisMenu(false); }}
+              style={{ padding: 4, background: showMenu ? 'var(--bg-active)' : 'none', border: 'none', borderRadius: 5, cursor: 'pointer', color: showMenu ? 'var(--text-muted)' : '#cbd5e1', display: 'flex' }}>
+              <Icons.MoreH size={14}/>
+            </button>
+            {showMenu && (
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--bg-panel)', borderRadius: 12, border: '1px solid var(--border-light)', boxShadow: '0 8px 28px rgba(15,23,42,0.13)', padding: 6, zIndex: 100, minWidth: 190 }}
+                onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
+                {/* Öffnen */}
+                <div onClick={e => { e.preventDefault(); e.stopPropagation(); window.location.href = `lernset.html?id=${set.id}`; }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 11px', borderRadius: 8, cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13 }}
+                  onMouseEnter={e => e.currentTarget.style.background='var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                  <Icons.Cards size={13}/> Öffnen
+                </div>
+                {/* Lernen */}
+                <div onClick={e => { e.preventDefault(); e.stopPropagation(); window.location.href = `lern-modus.html?id=${set.id}`; }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 11px', borderRadius: 8, cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13 }}
+                  onMouseEnter={e => e.currentTarget.style.background='var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                  <Icons.Brain size={13}/> Lernen
+                </div>
+                <div style={{ height: 1, background: 'var(--border-light)', margin: '4px 6px' }}/>
+                {/* Umbenennen */}
+                <div onClick={e => { e.preventDefault(); e.stopPropagation(); setShowMenu(false); setRenameVal(set.title); setRenaming(true); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 11px', borderRadius: 8, cursor: 'pointer', color: 'var(--text-muted)', fontSize: 13 }}
+                  onMouseEnter={e => e.currentTarget.style.background='var(--bg-hover)'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                  <Icons.Edit size={13}/> Umbenennen
+                </div>
+                {/* Sichtbarkeit */}
+                {VISIBILITY_OPTIONS.map(v => (
+                  <div key={v.id} onClick={e => handleVisChange(e, v.id)}
+                    style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 11px', borderRadius: 8, cursor: 'pointer', color: (set.visibility || 'private') === v.id ? v.color : 'var(--text-muted)', fontSize: 13, background: (set.visibility || 'private') === v.id ? v.bg : 'transparent', fontWeight: (set.visibility || 'private') === v.id ? 600 : 400 }}
+                    onMouseEnter={e => { if ((set.visibility || 'private') !== v.id) e.currentTarget.style.background='var(--bg-hover)'; }}
+                    onMouseLeave={e => { if ((set.visibility || 'private') !== v.id) e.currentTarget.style.background='transparent'; }}>
+                    <v.Icon size={13}/> {v.label}
+                    {(set.visibility || 'private') === v.id && <Icons.Check size={11} style={{ marginLeft: 'auto' }}/>}
+                  </div>
+                ))}
+                <div style={{ height: 1, background: 'var(--border-light)', margin: '4px 6px' }}/>
+                {/* Löschen */}
+                <div onClick={handleDelete}
+                  style={{ display: 'flex', alignItems: 'center', gap: 9, padding: '9px 11px', borderRadius: 8, cursor: 'pointer', color: '#ef4444', fontSize: 13 }}
+                  onMouseEnter={e => e.currentTarget.style.background='#fef2f2'} onMouseLeave={e => e.currentTarget.style.background='transparent'}>
+                  <Icons.X size={13}/> Löschen
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -1902,6 +1986,8 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
     }
     return arr;
   }, [stats.reviewCounts]);
+
+  const activeDays = React.useMemo(() => cells.filter(c => c.v > 0).length, [cells]);
 
   const weeklyGoal = profile?.weekly_goal || 20;
   const weekReviews = stats?.weekReviews || 0;
@@ -1968,8 +2054,8 @@ const StatsRow = ({ stats, streak, profile, sets }) => {
             <WavyLine color="#3b82f6"/>
             <div style={{ marginTop: 10, display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 8 }}>
               <div>
-                <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 700, color: 'var(--text-main)', lineHeight: 1 }}>{streak || 0}</div>
-                <div style={{ fontFamily: 'Caveat', fontSize: 14, color: '#3b82f6' }}>Tage Streak</div>
+                <div style={{ fontFamily: 'Caveat', fontSize: 32, fontWeight: 700, color: 'var(--text-main)', lineHeight: 1 }}>{activeDays}</div>
+                <div style={{ fontFamily: 'Caveat', fontSize: 14, color: '#3b82f6' }}>Tage aktiv (28 T.)</div>
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 3, marginBottom: 4 }}>
                 {cells.map((cell, i) => (
@@ -2493,7 +2579,7 @@ const Dashboard = () => {
                   style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: 'var(--bg-panel)', border: '1px solid var(--border-light)', borderRadius: 9, fontSize: 12.5, color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, transition: 'all 0.15s', boxShadow: '0 1px 2px rgba(15,23,42,0.04)' }}
                   onMouseEnter={e => { e.currentTarget.style.borderColor='#c7d2fe'; e.currentTarget.style.color='#6366f1'; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border-light)'; e.currentTarget.style.color='var(--text-muted)'; }}>
-                  <Icons.Search size={13}/> Suchen
+                  <Icons.Search size={13}/> Communitys
                 </button>
               </div>
 

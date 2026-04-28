@@ -221,17 +221,98 @@ const CardsList = ({ cards, setCards, currentSetId }) => {
   );
 };
 
+// ─── Share Modal ──────────────────────────────────────────────
+const ShareModal = ({ set, userId, onClose }) => {
+  const [token, setToken] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [loadingToken, setLoadingToken] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      // Check for existing token first
+      const { data: existing } = await window.sb
+        .from('set_share_tokens')
+        .select('token')
+        .eq('set_id', set.id)
+        .eq('created_by', userId)
+        .maybeSingle();
+      if (existing) { setToken(existing.token); setLoadingToken(false); return; }
+      // Create new token
+      const { data } = await window.sb
+        .from('set_share_tokens')
+        .insert({ set_id: set.id, created_by: userId })
+        .select('token')
+        .single();
+      if (data) setToken(data.token);
+      setLoadingToken(false);
+    })();
+  }, []);
+
+  const shareUrl = token ? `${window.location.origin}/share.html?token=${encodeURIComponent(token)}` : '';
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: 20, padding: '28px 28px 24px', width: 440, boxShadow: '0 24px 64px rgba(15,23,42,0.18)', border: '1px solid rgba(15,23,42,0.07)' }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+          <div>
+            <div style={{ fontFamily: 'Instrument Sans', fontWeight: 700, fontSize: 17, color: '#0f172a' }}>Lernset teilen</div>
+            <div style={{ fontSize: 12.5, color: '#64748b', marginTop: 2 }}>{set.title}</div>
+          </div>
+          <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: 7, cursor: 'pointer', color: '#64748b', display: 'flex' }}>
+            <Icons.X size={15}/>
+          </button>
+        </div>
+
+        <div style={{ background: '#f8fafc', borderRadius: 12, padding: '14px 16px', border: '1px solid #e2e8f0', marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Teilen-Link</div>
+          {loadingToken ? (
+            <div style={{ fontSize: 13, color: '#94a3b8', fontFamily: 'Caveat', fontSize: 17 }}>Erstelle Link…</div>
+          ) : (
+            <div style={{ fontSize: 12.5, color: '#334155', wordBreak: 'break-all', fontFamily: 'JetBrains Mono, monospace', lineHeight: 1.5 }}>{shareUrl}</div>
+          )}
+        </div>
+
+        <div style={{ fontSize: 12.5, color: '#64748b', background: '#eff6ff', borderRadius: 10, padding: '10px 14px', marginBottom: 16, border: '1px solid #bfdbfe', lineHeight: 1.55 }}>
+          Wer diesen Link öffnet, kann das Lernset <strong>in seine eigene Bibliothek</strong> hinzufügen — mit eigenem Lernfortschritt.
+        </div>
+
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={handleCopy} disabled={loadingToken}
+            style={{ flex: 1, padding: '10px 0', background: copied ? '#059669' : '#6366f1', color: 'white', border: 'none', borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'background 0.2s' }}>
+            {copied ? <><Icons.Check size={14}/> Kopiert!</> : <><Icons.Share size={14}/> Link kopieren</>}
+          </button>
+          <button onClick={onClose} style={{ padding: '10px 18px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 10, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Schließen
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Main ─────────────────────────────────────────────────────
 const LernsetDetail = () => {
   const [studySet, setStudySet] = useState(null);
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   useEffect(() => {
     (async () => {
       const session = await window.requireAuth();
       if (!session) return;
+      setCurrentUser(session.user);
 
       if (!setId) { setNotFound(true); setLoading(false); return; }
 
@@ -293,24 +374,35 @@ const LernsetDetail = () => {
 
   return (
     <div className="dot-paper" style={{ minHeight: '100vh' }}>
-      {/* Header */}
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 32px', background: 'white', borderBottom: '1px solid rgba(15,23,42,0.06)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b', fontSize: 13 }}>
-            <Icons.ArrowLeft size={14}/> Dashboard
-          </a>
-          <div style={{ height: 20, width: 1, background: '#e2e8f0' }}></div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
-            {studySet.folder && <><Icons.Folder size={14}/> {studySet.folder} <Icons.Chevron size={11}/></>}
-            <span style={{ color: '#0f172a', fontWeight: 500 }}>{studySet.title}</span>
+      {/* Header — rounded, floating, matches dashboard style */}
+      <div style={{ padding: '12px 16px 0' }}>
+        <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 20px', background: 'white', borderRadius: 16, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 1px 4px rgba(15,23,42,0.05)' }}>
+          {/* Logo + breadcrumb */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+            {/* StudyFlow logo */}
+            <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 7, textDecoration: 'none' }}>
+              <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 2px 6px rgba(99,102,241,0.3)' }}>
+                <Icons.Sparkles size={14} style={{ color: 'white' }}/>
+              </div>
+              <span style={{ fontFamily: 'Instrument Sans', fontWeight: 700, fontSize: 15, color: '#0f172a', letterSpacing: '-0.01em' }}>StudyFlow</span>
+            </a>
+            <div style={{ height: 20, width: 1, background: '#e2e8f0' }}/>
+            <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#64748b', fontSize: 13, textDecoration: 'none' }}>
+              <Icons.ArrowLeft size={13}/> Dashboard
+            </a>
+            <div style={{ height: 20, width: 1, background: '#e2e8f0' }}/>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
+              {studySet.folder && <><Icons.Folder size={14}/> {studySet.folder} <Icons.Chevron size={11}/></>}
+              <span style={{ color: '#0f172a', fontWeight: 500 }}>{studySet.title}</span>
+            </div>
           </div>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button className="btn-ghost" style={{ padding: '7px 12px', fontSize: 13 }}>
-            <Icons.Share size={13}/> Teilen
-          </button>
-        </div>
-      </header>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <button onClick={() => setShowShare(true)} className="btn-ghost" style={{ padding: '7px 12px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}>
+              <Icons.Share size={13}/> Teilen
+            </button>
+          </div>
+        </header>
+      </div>
 
       {/* Hero */}
       <section style={{ padding: '36px 32px 24px', position: 'relative' }}>
@@ -387,6 +479,10 @@ const LernsetDetail = () => {
       <CardsList cards={cards} setCards={setCards} currentSetId={setId}/>
 
       <AIAssistant/>
+
+      {showShare && studySet && currentUser && (
+        <ShareModal set={studySet} userId={currentUser.id} onClose={() => setShowShare(false)}/>
+      )}
     </div>
   );
 };
