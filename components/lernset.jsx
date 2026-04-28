@@ -272,12 +272,15 @@ const ShareModal = ({ set, userId, onClose }) => {
           </button>
         </div>
 
-        <div style={{ background: '#f8fafc', borderRadius: 12, padding: '14px 16px', border: '1px solid #e2e8f0', marginBottom: 16 }}>
+        <div style={{ marginBottom: 16 }}>
           <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Teilen-Link</div>
           {loadingToken ? (
-            <div style={{ fontSize: 13, color: '#94a3b8', fontFamily: 'Caveat', fontSize: 17 }}>Erstelle Link…</div>
+            <div style={{ background: '#f8fafc', borderRadius: 10, padding: '12px 14px', border: '1px solid #e2e8f0', fontSize: 13, color: '#94a3b8', fontFamily: 'Caveat', fontSize: 17 }}>Erstelle Link…</div>
+          ) : !token ? (
+            <div style={{ background: '#fee2e2', borderRadius: 10, padding: '12px 14px', border: '1px solid #fecaca', fontSize: 13, color: '#dc2626' }}>Fehler beim Generieren. Bitte Seite neu laden.</div>
           ) : (
-            <div style={{ fontSize: 12.5, color: '#334155', wordBreak: 'break-all', fontFamily: 'JetBrains Mono, monospace', lineHeight: 1.5 }}>{shareUrl}</div>
+            <input readOnly value={shareUrl} onClick={e => e.target.select()}
+              style={{ width: '100%', boxSizing: 'border-box', padding: '11px 14px', background: '#f8fafc', border: '1.5px solid #c7d2fe', borderRadius: 10, fontSize: 12, color: '#334155', fontFamily: 'JetBrains Mono, monospace', outline: 'none', cursor: 'text', lineHeight: 1.5 }}/>
           )}
         </div>
 
@@ -390,11 +393,6 @@ const LernsetDetail = () => {
             <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 5, color: '#64748b', fontSize: 13, textDecoration: 'none' }}>
               <Icons.ArrowLeft size={13}/> Dashboard
             </a>
-            <div style={{ height: 20, width: 1, background: '#e2e8f0' }}/>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#64748b' }}>
-              {studySet.folder && <><Icons.Folder size={14}/> {studySet.folder} <Icons.Chevron size={11}/></>}
-              <span style={{ color: '#0f172a', fontWeight: 500 }}>{studySet.title}</span>
-            </div>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
             <button onClick={() => setShowShare(true)} className="btn-ghost" style={{ padding: '7px 12px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}>
