@@ -140,13 +140,50 @@ const Toggle = ({ on, onChange }) => (
   </div>
 );
 
+// ─── Tags & Visibility ───────────────────────────────────────
+const PREDEFINED_TAGS = [
+  { id: 'mathematik',  label: 'Mathematik',           color: '#6366f1' },
+  { id: 'physik',      label: 'Physik',                color: '#0ea5e9' },
+  { id: 'chemie',      label: 'Chemie',                color: '#10b981' },
+  { id: 'biologie',    label: 'Biologie',              color: '#22c55e' },
+  { id: 'geschichte',  label: 'Geschichte',            color: '#f59e0b' },
+  { id: 'geographie',  label: 'Geographie',            color: '#84cc16' },
+  { id: 'deutsch',     label: 'Deutsch',               color: '#ef4444' },
+  { id: 'englisch',    label: 'Englisch',              color: '#3b82f6' },
+  { id: 'franzoesisch',label: 'Französisch',           color: '#8b5cf6' },
+  { id: 'spanisch',    label: 'Spanisch',              color: '#f97316' },
+  { id: 'latein',      label: 'Latein',                color: '#78716c' },
+  { id: 'informatik',  label: 'Informatik',            color: '#06b6d4' },
+  { id: 'wirtschaft',  label: 'Wirtschaft',            color: '#f59e0b' },
+  { id: 'philosophie', label: 'Philosophie',           color: '#ec4899' },
+  { id: 'sprachen',    label: 'Sprachen',              color: '#14b8a6' },
+  { id: 'uni',         label: 'Uni',                   color: '#6366f1' },
+  { id: 'schule',      label: 'Schule',                color: '#84cc16' },
+  { id: 'pruefung',    label: 'Prüfung',               color: '#dc2626' },
+];
+const VISIBILITY_OPTIONS = [
+  { id: 'private', label: 'Privat',      desc: 'Nur du',             Icon: (p) => <Icons.Lock  {...p}/>, color: '#64748b', bg: '#f1f5f9' },
+  { id: 'normal',  label: 'Geteilt',     desc: 'Per Link teilbar',   Icon: (p) => <Icons.Users {...p}/>, color: '#6366f1', bg: '#eef2ff' },
+  { id: 'public',  label: 'Öffentlich',  desc: 'Für alle sichtbar',  Icon: (p) => <Icons.Eye   {...p}/>, color: '#059669', bg: '#d1fae5' },
+];
+const tagColor = (id) => PREDEFINED_TAGS.find(t => t.id === id)?.color || '#6366f1';
+const TagChip = ({ label, color, onRemove, small }) => (
+  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: small ? '2px 7px' : '3px 9px', borderRadius: 999, background: `${color}18`, border: `1px solid ${color}44`, fontSize: small ? 10.5 : 11.5, color, fontWeight: 500, whiteSpace: 'nowrap' }}>
+    {label}{onRemove && <button onClick={onRemove} style={{ background: 'none', border: 'none', cursor: 'pointer', color, padding: 0, lineHeight: 1, display: 'flex' }}><Icons.X size={9}/></button>}
+  </span>
+);
+
 // ─── Create Set Modal ────────────────────────────────────────
 const CreateSetModal = ({ onClose, onCreated, userId }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [folder, setFolder] = useState('');
+  const [visibility, setVisibility] = useState('private');
+  const [tags, setTags] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const toggleTag = (id) => setTags(prev => prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -155,23 +192,24 @@ const CreateSetModal = ({ onClose, onCreated, userId }) => {
     const { data, error: err } = await window.sb.from('study_sets').insert({
       owner_id: userId, title: title.trim(), emoji: null,
       description: description.trim() || null, folder: folder.trim() || null,
+      visibility, tags,
     }).select().single();
     setLoading(false);
     if (err) { setError(err.message); return; }
     onCreated(data); onClose();
   };
 
+  const selVis = VISIBILITY_OPTIONS.find(v => v.id === visibility);
+
   return (
     <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', zIndex: 200, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 24 }} onClick={onClose}>
-      <div style={{ background: 'var(--bg-panel)', borderRadius: 20, padding: 32, width: 480, boxShadow: '0 20px 60px rgba(15,23,42,0.2)' }} onClick={e => e.stopPropagation()}>
+      <div style={{ background: 'var(--bg-panel)', borderRadius: 22, padding: 32, width: 520, maxHeight: '90vh', overflowY: 'auto', boxShadow: '0 24px 64px rgba(15,23,42,0.2)' }} onClick={e => e.stopPropagation()}>
         <div style={{ fontFamily: 'Instrument Sans', fontSize: 20, fontWeight: 600, color: 'var(--text-main)', marginBottom: 24 }}>Neues Lernset erstellen</div>
         {error && <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 8, padding: '10px 14px', fontSize: 13, color: '#991b1b', marginBottom: 16 }}>{error}</div>}
-        <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <div style={{ flex: 1 }}>
-              <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>Titel *</label>
-              <input value={title} onChange={e => setTitle(e.target.value)} className="input-paper" placeholder="z.B. Mikroökonomie II" required autoFocus/>
-            </div>
+        <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>Titel *</label>
+            <input value={title} onChange={e => setTitle(e.target.value)} className="input-paper" placeholder="z.B. Mikroökonomie II" required autoFocus/>
           </div>
           <div>
             <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>Beschreibung (optional)</label>
@@ -181,7 +219,42 @@ const CreateSetModal = ({ onClose, onCreated, userId }) => {
             <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', display: 'block', marginBottom: 6 }}>Ordner (optional)</label>
             <input value={folder} onChange={e => setFolder(e.target.value)} className="input-paper" placeholder="z.B. Sommersemester 26"/>
           </div>
-          <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+
+          {/* Visibility */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', display: 'block', marginBottom: 8 }}>Sichtbarkeit</label>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {VISIBILITY_OPTIONS.map(v => {
+                const active = visibility === v.id;
+                return (
+                  <button key={v.id} type="button" onClick={() => setVisibility(v.id)}
+                    style={{ flex: 1, padding: '10px 8px', borderRadius: 12, border: `1.5px solid ${active ? v.color : 'var(--border-light)'}`, background: active ? v.bg : 'var(--bg-main)', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, transition: 'all 0.15s' }}>
+                    <v.Icon size={16} style={{ color: active ? v.color : 'var(--text-lighter)' }}/>
+                    <span style={{ fontSize: 12, fontWeight: 600, color: active ? v.color : 'var(--text-muted)' }}>{v.label}</span>
+                    <span style={{ fontSize: 10, color: active ? v.color : 'var(--text-lighter)', opacity: 0.8 }}>{v.desc}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Tags */}
+          <div>
+            <label style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', display: 'block', marginBottom: 8 }}>Tags (optional)</label>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {PREDEFINED_TAGS.map(t => {
+                const active = tags.includes(t.id);
+                return (
+                  <button key={t.id} type="button" onClick={() => toggleTag(t.id)}
+                    style={{ padding: '4px 11px', borderRadius: 999, border: `1.5px solid ${active ? t.color : 'var(--border-light)'}`, background: active ? `${t.color}18` : 'transparent', color: active ? t.color : 'var(--text-lighter)', fontSize: 12, fontWeight: active ? 600 : 400, cursor: 'pointer', transition: 'all 0.12s' }}>
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
             <button type="button" onClick={onClose} className="btn-ghost" style={{ flex: 1, justifyContent: 'center', padding: '11px 0' }}>Abbrechen</button>
             <button type="submit" disabled={loading || !title.trim()} className="btn-primary" style={{ flex: 1, justifyContent: 'center', padding: '11px 0', opacity: loading ? 0.7 : 1 }}>
               {loading ? 'Erstelle…' : <><Icons.Plus size={14}/> Erstellen</>}
@@ -1432,10 +1505,11 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
   const isPro = profile?.plan === 'pro';
 
   const navItems = [
-    { id: 'home', label: 'Alle Lernsets', count: sets ? sets.length : 0, icon: <Icons.Cards size={15}/> },
-    { id: 'docs', label: 'Dokumente', count: null, icon: <Icons.Doc size={15}/> },
-    { id: 'fav', label: 'Favoriten', count: 0, icon: <Icons.Star size={15}/> },
-    { id: 'shared', label: 'Geteilt mit mir', count: 0, icon: <Icons.Users size={15}/> },
+    { id: 'home',     label: 'Alle Lernsets',  count: sets ? sets.length : 0, icon: <Icons.Cards  size={15}/> },
+    { id: 'discover', label: 'Entdecken',       count: null,                   icon: <Icons.Search size={15}/> },
+    { id: 'docs',     label: 'Dokumente',       count: null,                   icon: <Icons.Doc    size={15}/> },
+    { id: 'fav',      label: 'Favoriten',       count: 0,                      icon: <Icons.Star   size={15}/> },
+    { id: 'shared',   label: 'Geteilt mit mir', count: 0,                      icon: <Icons.Users  size={15}/> },
   ];
 
   return (
@@ -1571,8 +1645,142 @@ const TopBar = ({ search, onSearch, streak }) => (
   </div>
 );
 
+// ─── Discover Page ───────────────────────────────────────────
+const DiscoverPage = () => {
+  const [sets, setSets] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState('');
+  const [activeTag, setActiveTag] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      try {
+        const { data, error: err } = await window.sb
+          .from('study_sets')
+          .select('id, title, description, tags, total_cards:cards(count), owner_id, updated_at, profiles(display_name)')
+          .eq('visibility', 'public')
+          .order('updated_at', { ascending: false })
+          .limit(100);
+        if (err) throw err;
+        setSets((data || []).map(s => ({ ...s, total_cards: s.total_cards?.[0]?.count ?? 0 })));
+      } catch (e) {
+        setError('Öffentliche Sets konnten nicht geladen werden.');
+      }
+      setLoading(false);
+    })();
+  }, []);
+
+  const filtered = sets.filter(s => {
+    const matchSearch = !search || s.title.toLowerCase().includes(search.toLowerCase()) || (s.description || '').toLowerCase().includes(search.toLowerCase());
+    const matchTag = !activeTag || (s.tags || []).includes(activeTag);
+    return matchSearch && matchTag;
+  });
+
+  // Collect tags that actually appear in loaded sets
+  const usedTagIds = [...new Set(sets.flatMap(s => s.tags || []))];
+  const usedTags = PREDEFINED_TAGS.filter(t => usedTagIds.includes(t.id));
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, flex: 1, minHeight: 0 }}>
+      {/* Header */}
+      <div>
+        <h1 style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 700, color: 'var(--text-main)', margin: '0 0 4px', letterSpacing: '-0.02em' }}>Entdecken</h1>
+        <div style={{ fontSize: 13, color: 'var(--text-light)' }}>Öffentliche Lernsets der Community durchsuchen</div>
+      </div>
+
+      {/* Search bar */}
+      <div style={{ display: 'flex', gap: 10 }}>
+        <div style={{ flex: 1, position: 'relative' }}>
+          <Icons.Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-lighter)', pointerEvents: 'none' }}/>
+          <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Lernsets suchen…"
+            style={{ width: '100%', boxSizing: 'border-box', padding: '10px 14px 10px 36px', border: '1px solid var(--border-light)', borderRadius: 12, background: 'var(--bg-panel)', fontSize: 14, color: 'var(--text-main)', fontFamily: 'inherit', outline: 'none' }}
+            onFocus={e => e.target.style.borderColor = '#6366f1'}
+            onBlur={e => e.target.style.borderColor = 'var(--border-light)'}/>
+        </div>
+      </div>
+
+      {/* Tag filter */}
+      {usedTags.length > 0 && (
+        <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap' }}>
+          <button onClick={() => setActiveTag(null)}
+            style={{ padding: '4px 12px', borderRadius: 999, border: `1.5px solid ${!activeTag ? '#6366f1' : 'var(--border-light)'}`, background: !activeTag ? '#eef2ff' : 'transparent', color: !activeTag ? '#6366f1' : 'var(--text-lighter)', fontSize: 12, fontWeight: !activeTag ? 600 : 400, cursor: 'pointer', transition: 'all 0.12s', fontFamily: 'inherit' }}>
+            Alle
+          </button>
+          {usedTags.map(t => (
+            <button key={t.id} onClick={() => setActiveTag(activeTag === t.id ? null : t.id)}
+              style={{ padding: '4px 12px', borderRadius: 999, border: `1.5px solid ${activeTag === t.id ? t.color : 'var(--border-light)'}`, background: activeTag === t.id ? `${t.color}18` : 'transparent', color: activeTag === t.id ? t.color : 'var(--text-lighter)', fontSize: 12, fontWeight: activeTag === t.id ? 600 : 400, cursor: 'pointer', transition: 'all 0.12s', fontFamily: 'inherit' }}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Results */}
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingBottom: 20 }}>
+        {loading ? (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', paddingTop: 60 }}>
+            <div style={{ fontFamily: 'Caveat', fontSize: 20, color: 'var(--text-lighter)' }}>Lädt…</div>
+          </div>
+        ) : error ? (
+          <div style={{ padding: '20px', background: '#fee2e2', borderRadius: 12, color: '#991b1b', fontSize: 13 }}>{error}</div>
+        ) : filtered.length === 0 ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', paddingTop: 60, gap: 12 }}>
+            <div style={{ fontSize: 40 }}>🔍</div>
+            <div style={{ fontFamily: 'Caveat', fontSize: 22, color: 'var(--text-light)' }}>Keine Sets gefunden</div>
+            <div style={{ fontSize: 13, color: 'var(--text-lighter)' }}>Versuche einen anderen Suchbegriff oder Filter</div>
+          </div>
+        ) : (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, alignContent: 'start' }}>
+            {filtered.map(s => <DiscoverCard key={s.id} set={s}/>)}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+const DiscoverCard = ({ set }) => {
+  const setTags = (set.tags || []).slice(0, 3);
+  const authorName = set.profiles?.display_name || 'Anonym';
+  const lastStudy = set.updated_at ? (() => {
+    const diff = Date.now() - new Date(set.updated_at).getTime();
+    const d = Math.floor(diff / 86400000);
+    if (d === 0) return 'Heute'; if (d === 1) return 'Gestern'; return `vor ${d} T.`;
+  })() : '—';
+  return (
+    <a href={`lernset.html?id=${set.id}`} style={{ display: 'flex', flexDirection: 'column', gap: 11, padding: '16px 18px', background: 'var(--bg-panel)', borderRadius: 14, border: '1px solid var(--border-light)', textDecoration: 'none', boxShadow: '0 1px 3px rgba(15,23,42,0.04)', transition: 'all 0.15s' }}
+      onMouseEnter={e => { e.currentTarget.style.borderColor='#c7d2fe'; e.currentTarget.style.boxShadow='0 4px 16px rgba(99,102,241,0.08)'; }}
+      onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border-light)'; e.currentTarget.style.boxShadow='0 1px 3px rgba(15,23,42,0.04)'; }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8 }}>
+        <div style={{ minWidth: 0 }}>
+          <div style={{ fontSize: 14.5, fontWeight: 600, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontFamily: 'Instrument Sans' }}>{set.title}</div>
+          {set.description && <div style={{ fontSize: 12, color: 'var(--text-light)', marginTop: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{set.description}</div>}
+        </div>
+        <span style={{ fontSize: 9.5, color: '#059669', background: '#d1fae5', padding: '2px 7px', borderRadius: 4, fontWeight: 700, flexShrink: 0 }}>Öffentlich</span>
+      </div>
+      {setTags.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+          {setTags.map(id => <TagChip key={id} label={PREDEFINED_TAGS.find(t => t.id === id)?.label || id} color={tagColor(id)} small/>)}
+        </div>
+      )}
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 2 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+          <div style={{ width: 20, height: 20, borderRadius: '50%', background: 'linear-gradient(135deg,#6366f1,#818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <span style={{ fontSize: 9, color: 'white', fontWeight: 700 }}>{authorName[0]?.toUpperCase()}</span>
+          </div>
+          <span style={{ fontSize: 11.5, color: 'var(--text-lighter)' }}>{authorName}</span>
+        </div>
+        <span style={{ fontSize: 11, color: 'var(--text-lighter)' }}>{set.total_cards} Karten · {lastStudy}</span>
+      </div>
+    </a>
+  );
+};
+
 // ─── Set Card ────────────────────────────────────────────────
-const SetCard = ({ set, onDelete }) => {
+const SetCard = ({ set, onDelete, onUpdate }) => {
+  const [showVisMenu, setShowVisMenu] = useState(false);
   const pct = set.total_cards ? Math.round((set.mastered_cards / set.total_cards) * 100) : 0;
   const isDraft = set.total_cards === 0;
   const lastStudy = set.updated_at ? (() => {
@@ -1582,6 +1790,9 @@ const SetCard = ({ set, onDelete }) => {
     const d = Math.floor(h/24); if (d === 1) return 'Gestern'; return `vor ${d} T.`;
   })() : '—';
 
+  const vis = VISIBILITY_OPTIONS.find(v => v.id === (set.visibility || 'private'));
+  const setTags = (set.tags || []).slice(0, 3);
+
   const handleDelete = async (e) => {
     e.preventDefault(); e.stopPropagation();
     if (!confirm(`"${set.title}" wirklich löschen?`)) return;
@@ -1589,10 +1800,18 @@ const SetCard = ({ set, onDelete }) => {
     onDelete(set.id);
   };
 
+  const handleVisChange = async (e, newVis) => {
+    e.preventDefault(); e.stopPropagation();
+    setShowVisMenu(false);
+    const { data } = await window.sb.from('study_sets').update({ visibility: newVis }).eq('id', set.id).select().single();
+    if (data && onUpdate) onUpdate(data);
+  };
+
   return (
-    <a href={`lernset.html?id=${set.id}`} style={{ display: 'flex', flexDirection: 'column', gap: 14, padding: '18px 20px', background: 'var(--bg-panel)', borderRadius: 14, border: '1px solid var(--border-light)', transition: 'border-color 0.15s, box-shadow 0.15s', textDecoration: 'none', boxShadow: '0 1px 3px rgba(15,23,42,0.04)' }}
+    <a href={`lernset.html?id=${set.id}`} style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: '18px 20px', background: 'var(--bg-panel)', borderRadius: 14, border: '1px solid var(--border-light)', transition: 'border-color 0.15s, box-shadow 0.15s', textDecoration: 'none', boxShadow: '0 1px 3px rgba(15,23,42,0.04)', position: 'relative' }}
       onMouseEnter={e => { e.currentTarget.style.borderColor='#c7d2fe'; e.currentTarget.style.boxShadow='0 4px 16px rgba(99,102,241,0.08)'; }}
       onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border-light)'; e.currentTarget.style.boxShadow='0 1px 3px rgba(15,23,42,0.04)'; }}>
+
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, minWidth: 0 }}>
@@ -1604,13 +1823,42 @@ const SetCard = ({ set, onDelete }) => {
             <div style={{ fontSize: 11.5, color: 'var(--text-lighter)', marginTop: 1 }}>{set.total_cards} Karten · {lastStudy}</div>
           </div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 3, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0, position: 'relative' }}>
           {!isDraft && pct === 100 && <span style={{ fontSize: 10, color: '#059669', background: '#d1fae5', padding: '2px 7px', borderRadius: 4, fontWeight: 600 }}>Fertig</span>}
           {isDraft && <span style={{ fontSize: 10, color: 'var(--text-light)', background: 'var(--bg-active)', padding: '2px 7px', borderRadius: 4, fontWeight: 600 }}>Entwurf</span>}
           {set.due_cards > 0 && <span style={{ fontSize: 10, color: '#dc2626', background: '#fee2e2', padding: '2px 7px', borderRadius: 4, fontWeight: 600 }}>{set.due_cards} fällig</span>}
+
+          {/* Visibility badge */}
+          <button onClick={e => { e.preventDefault(); e.stopPropagation(); setShowVisMenu(v => !v); }}
+            style={{ display: 'flex', alignItems: 'center', gap: 3, padding: '2px 7px', borderRadius: 6, background: vis.bg, border: `1px solid ${vis.color}44`, cursor: 'pointer', color: vis.color, fontSize: 10, fontWeight: 600 }}>
+            <vis.Icon size={10}/> {vis.label}
+          </button>
+
+          {showVisMenu && (
+            <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 4, background: 'var(--bg-panel)', borderRadius: 12, border: '1px solid var(--border-light)', boxShadow: '0 8px 24px rgba(15,23,42,0.12)', padding: 6, zIndex: 50, minWidth: 150 }}
+              onClick={e => { e.preventDefault(); e.stopPropagation(); }}>
+              {VISIBILITY_OPTIONS.map(v => (
+                <div key={v.id} onClick={e => handleVisChange(e, v.id)}
+                  style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', borderRadius: 8, cursor: 'pointer', background: set.visibility === v.id ? v.bg : 'transparent', color: set.visibility === v.id ? v.color : 'var(--text-muted)', fontSize: 12.5, fontWeight: set.visibility === v.id ? 600 : 400 }}
+                  onMouseEnter={e => { if (set.visibility !== v.id) e.currentTarget.style.background = 'var(--bg-hover)'; }}
+                  onMouseLeave={e => { if (set.visibility !== v.id) e.currentTarget.style.background = 'transparent'; }}>
+                  <v.Icon size={13}/> <div><div>{v.label}</div><div style={{ fontSize: 10, opacity: 0.65 }}>{v.desc}</div></div>
+                  {set.visibility === v.id && <Icons.Check size={12} style={{ marginLeft: 'auto' }}/>}
+                </div>
+              ))}
+            </div>
+          )}
           <button onClick={handleDelete} style={{ padding: 4, background: 'none', border: 'none', borderRadius: 5, cursor: 'pointer', color: '#cbd5e1', display: 'flex' }}><Icons.MoreH size={14}/></button>
         </div>
       </div>
+
+      {/* Tags */}
+      {setTags.length > 0 && (
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+          {setTags.map(id => <TagChip key={id} label={PREDEFINED_TAGS.find(t => t.id === id)?.label || id} color={tagColor(id)} small/>)}
+          {(set.tags || []).length > 3 && <span style={{ fontSize: 10.5, color: 'var(--text-lighter)', alignSelf: 'center' }}>+{set.tags.length - 3}</span>}
+        </div>
+      )}
 
       {/* Progress bar */}
       <div>
@@ -2159,7 +2407,10 @@ const Dashboard = () => {
   const showDocs = active === 'docs';
   const showSettings = active === 'settings';
   const showAI = active === 'ai';
-  const showSets = !showDocs && !showSettings && !showAI;
+  const showDiscover = active === 'discover';
+  const showSets = !showDocs && !showSettings && !showAI && !showDiscover;
+
+  const handleSetUpdated = (updated) => setSets(prev => prev.map(s => s.id === updated.id ? { ...s, ...updated } : s));
 
   return (
     <div className="dot-paper" style={{ height: '100vh', overflow: 'hidden', display: 'flex' }}>
@@ -2210,6 +2461,7 @@ const Dashboard = () => {
         {showDocs && <DocsPanel userId={user?.id}/>}
         {showSettings && <SettingsPanel user={user} profile={profile} onProfileUpdate={setProfile} darkMode={darkMode} setDarkMode={setDarkMode} onShowToast={showToast}/>}
         {showAI && <FlowAIPage onClose={() => setActive('home')}/>}
+        {showDiscover && <DiscoverPage/>}
 
         {showSets && (
           <>
@@ -2230,7 +2482,7 @@ const Dashboard = () => {
 
             <div style={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 10 }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                <div style={{ display: 'flex', alignItems: 'baseline', gap: 12 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                   <h2 style={{ fontFamily: 'Instrument Sans', fontSize: 15, fontWeight: 600, color: 'var(--text-main)', margin: 0 }}>Alle Lernsets</h2>
                   <div style={{ display: 'flex', gap: 2, background: 'var(--bg-active)', padding: 2, borderRadius: 7 }}>
                     {[{ k:'all', l:'Alle' }, { k:'due', l:'Fällig' }].map(t => (
@@ -2238,11 +2490,17 @@ const Dashboard = () => {
                     ))}
                   </div>
                 </div>
+                <button onClick={() => setActive('discover')}
+                  style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 14px', background: 'var(--bg-panel)', border: '1px solid var(--border-light)', borderRadius: 9, fontSize: 12.5, color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit', fontWeight: 500, transition: 'all 0.15s', boxShadow: '0 1px 2px rgba(15,23,42,0.04)' }}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor='#c7d2fe'; e.currentTarget.style.color='#6366f1'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border-light)'; e.currentTarget.style.color='var(--text-muted)'; }}>
+                  <Icons.Search size={13}/> Suchen
+                </button>
               </div>
 
               <div style={{ display: filteredSets.length > 0 ? 'grid' : 'flex', gridTemplateColumns: 'repeat(2, 1fr)', gap: 12, flex: 1, minHeight: 0, overflowY: 'auto', paddingRight: 4, paddingBottom: 20, alignContent: 'start' }}>
                 {filteredSets.length > 0
-                  ? filteredSets.map(s => <SetCard key={s.id} set={s} onDelete={handleSetDeleted}/>)
+                  ? filteredSets.map(s => <SetCard key={s.id} set={s} onDelete={handleSetDeleted} onUpdate={handleSetUpdated}/>)
                   : <EmptyState onNewSet={() => setShowModal(true)}/>
                 }
               </div>
