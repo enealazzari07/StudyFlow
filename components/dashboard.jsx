@@ -162,9 +162,8 @@ const PREDEFINED_TAGS = [
   { id: 'pruefung',    label: 'Prüfung',               color: '#dc2626' },
 ];
 const VISIBILITY_OPTIONS = [
-  { id: 'private', label: 'Privat',      desc: 'Nur du',             Icon: (p) => <Icons.Lock  {...p}/>, color: '#64748b', bg: '#f1f5f9' },
-  { id: 'normal',  label: 'Geteilt',     desc: 'Per Link teilbar',   Icon: (p) => <Icons.Users {...p}/>, color: '#6366f1', bg: '#eef2ff' },
-  { id: 'public',  label: 'Öffentlich',  desc: 'Für alle sichtbar',  Icon: (p) => <Icons.Eye   {...p}/>, color: '#059669', bg: '#d1fae5' },
+  { id: 'private', label: 'Privat',      desc: 'Nur du siehst es',   Icon: (p) => <Icons.Lock {...p}/>, color: '#64748b', bg: '#f1f5f9' },
+  { id: 'public',  label: 'Öffentlich',  desc: 'Für alle sichtbar',  Icon: (p) => <Icons.Eye  {...p}/>, color: '#059669', bg: '#d1fae5' },
 ];
 const tagColor = (id) => PREDEFINED_TAGS.find(t => t.id === id)?.color || '#6366f1';
 const TagChip = ({ label, color, onRemove, small }) => (
