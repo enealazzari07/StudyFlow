@@ -378,6 +378,9 @@ const Whiteboard = () => {
   const shapeRef = useRef({ active: false, type: null, x1: 0, y1: 0, x2: 0, y2: 0 });
   const moveRef = useRef({ active: false, kind: null, id: null, startX: 0, startY: 0, origin: null });
   const dragPanRef = useRef({ active: false, startX: 0, startY: 0, originX: 0, originY: 0 });
+  const channelRef = useRef(null);
+  const isRemoteRef = useRef(false);
+  const broadcastTimerRef = useRef(null);
 
   const [user, setUser] = useState(null);
   const [docRow, setDocRow] = useState(null);
@@ -400,6 +403,7 @@ const Whiteboard = () => {
   const [selected, setSelected] = useState(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [coworkers, setCoworkers] = useState([]);
 
   useEffect(() => { boardRef.current = board; }, [board]);
   useEffect(() => { panRef.current = pan; }, [pan]);
@@ -539,6 +543,48 @@ const Whiteboard = () => {
     autosaveRef.current = window.setTimeout(() => { save(); }, 1200);
     return () => window.clearTimeout(autosaveRef.current);
   }, [board, title, loading, save, user]);
+
+  /* realtime channel — set up when docRow.id is known */
+  useEffect(() => {
+    const id = docRow?.id;
+    if (!id || !user) return;
+
+    const ch = window.sb.channel(`wb:${id}`, { config: { broadcast: { self: false }, presence: { key: clientId } } });
+
+    ch.on('broadcast', { event: 'board' }, ({ payload }) => {
+      if (payload.cid === clientId) return;
+      isRemoteRef.current = true;
+      setBoard(payload.board);
+    })
+    .on('presence', { event: 'sync' }, () => {
+      const all = Object.values(ch.presenceState()).flat();
+      setCoworkers(all.filter(p => p.cid !== clientId));
+    })
+    .subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await ch.track({ cid: clientId, email: user.email || 'Anonym' });
+      }
+    });
+
+    channelRef.current = ch;
+    return () => {
+      window.clearTimeout(broadcastTimerRef.current);
+      ch.unsubscribe();
+      channelRef.current = null;
+      setCoworkers([]);
+    };
+  }, [docRow?.id, user, clientId]);
+
+  /* broadcast local board changes to coworkers */
+  useEffect(() => {
+    if (loading) return;
+    if (isRemoteRef.current) { isRemoteRef.current = false; return; }
+    if (!channelRef.current) return;
+    window.clearTimeout(broadcastTimerRef.current);
+    broadcastTimerRef.current = window.setTimeout(() => {
+      channelRef.current?.send({ type: 'broadcast', event: 'board', payload: { cid: clientId, board: boardRef.current } });
+    }, 150);
+  }, [board, loading, clientId]);
 
   /* keyboard shortcuts */
   useEffect(() => {
@@ -950,6 +996,23 @@ const Whiteboard = () => {
 
       {/* top-right: cowork bar */}
       <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', alignItems: 'center', gap: 8, zIndex: 20 }}>
+        {/* Live coworkers — only shown when others are present */}
+        {coworkers.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(12px)', border: '1px solid rgba(15,23,42,0.08)', borderRadius: 14, padding: '6px 12px', gap: 8, boxShadow: '0 2px 10px rgba(15,23,42,0.08)' }}>
+            <div style={{ display: 'flex' }}>
+              {coworkers.slice(0, 3).map((c, i) => (
+                <div key={c.cid} style={{ marginLeft: i > 0 ? -7 : 0 }}>
+                  <Avatar name={c.email} color={AVATAR_COLORS[i % AVATAR_COLORS.length]} size={26} ring />
+                </div>
+              ))}
+            </div>
+            <div style={{ width: 1, height: 16, background: '#e2e8f0' }}/>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5, color: '#10b981', fontWeight: 500 }}>
+              <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }}/>
+              Cowork aktiv
+            </div>
+          </div>
+        )}
         {/* Zoom */}
         <div style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(12px)', border: '1px solid rgba(15,23,42,0.08)', padding: '8px 12px', borderRadius: 14, fontFamily: 'JetBrains Mono', fontSize: 12, color: '#475569', boxShadow: '0 2px 10px rgba(15,23,42,0.08)', minWidth: 54, textAlign: 'center' }}>
           {Math.round(zoom * 100)}%
@@ -1073,11 +1136,20 @@ const Whiteboard = () => {
               </div>
               <button onClick={() => setShareOpen(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}><Icons.X size={18}/></button>
             </div>
-            {/* Owner info */}
+            {/* Collaborators preview */}
             <div style={{ background: '#f8fafc', borderRadius: 14, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <Avatar name={user?.email || 'Du'} color="#06b6d4" size={28} ring />
+              <div style={{ display: 'flex' }}>
+                <Avatar name={user?.email || 'Du'} color="#06b6d4" size={28} ring />
+                {coworkers.slice(0, 2).map((c, i) => (
+                  <div key={c.cid} style={{ marginLeft: -8 }}>
+                    <Avatar name={c.email} color={AVATAR_COLORS[(i + 1) % AVATAR_COLORS.length]} size={28} ring />
+                  </div>
+                ))}
+              </div>
               <div style={{ fontSize: 12.5, color: '#475569' }}>
-                Nur du hast Zugriff — teile den Link, um zusammenzuarbeiten
+                {coworkers.length > 0
+                  ? <><span style={{ fontWeight: 500 }}>{coworkers.length + 1} aktiv</span> auf diesem Board</>
+                  : 'Nur du — teile den Link zum Zusammenarbeiten'}
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
