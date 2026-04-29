@@ -27,31 +27,10 @@ const ANIM_CSS = `
     0%,100% { transform: translateY(0px) rotate(var(--rot,0deg)); }
     50%      { transform: translateY(-12px) rotate(var(--rot,0deg)); }
   }
-  @keyframes scrollBounce {
-    0%,100% { transform: translateY(0); opacity: 0.7; }
-    50%     { transform: translateY(9px); opacity: 0.3; }
-  }
-  @keyframes heroLine {
-    from { width: 0; }
-    to   { width: 100%; }
-  }
-  @keyframes progressFill {
-    from { transform: scaleX(0); }
-    to   { transform: scaleX(1); }
-  }
   @keyframes glowPulse {
     0%,100% { opacity: 0.5; transform: scale(1); }
     50%     { opacity: 0.8; transform: scale(1.05); }
   }
-  @keyframes typeIn {
-    from { width: 0; }
-    to   { width: 100%; }
-  }
-  @keyframes cursorBlink {
-    0%,100% { border-color: #6366f1; }
-    50%     { border-color: transparent; }
-  }
-
   /* Reveal on scroll */
   .sf-reveal {
     opacity: 0;
@@ -86,22 +65,34 @@ const ANIM_CSS = `
   .hw { opacity: 0; display: inline-block; }
   .hw.in { animation: fadeUp 0.7s cubic-bezier(0.16,1,0.3,1) forwards; }
 
-  /* 3D card tilt */
-  .bento-tilt {
-    transform-style: preserve-3d;
-    will-change: transform;
-  }
-
   /* Cursor glow */
   .cursor-glow {
     position: fixed;
-    width: 640px; height: 640px;
+    width: 700px; height: 700px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(99,102,241,0.10) 0%, rgba(99,102,241,0.03) 45%, transparent 70%);
+    background: radial-gradient(circle, rgba(99,102,241,0.16) 0%, rgba(99,102,241,0.05) 45%, transparent 70%);
     pointer-events: none;
     z-index: 0;
     transform: translate(-50%, -50%);
   }
+
+  /* Nav link hover */
+  .nav-link {
+    transition: color 0.2s ease;
+    position: relative;
+  }
+  .nav-link::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0; bottom: -2px;
+    height: 1.5px;
+    background: #6366f1;
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.25s cubic-bezier(0.16,1,0.3,1);
+  }
+  .nav-link:hover { color: #4f46e5 !important; }
+  .nav-link:hover::after { transform: scaleX(1); }
 
   /* Particle canvas */
   .sf-particles {
@@ -157,8 +148,8 @@ const HeroParticles = () => {
       y: Math.random() * canvas.offsetHeight,
       vx: (Math.random() - 0.5) * 0.4,
       vy: (Math.random() - 0.5) * 0.4,
-      r: Math.random() * 2.2 + 1.2,
-      opacity: Math.random() * 0.5 + 0.28,
+      r: Math.random() * 2.4 + 1.3,
+      opacity: Math.random() * 0.45 + 0.38,
     }));
 
     const onMove = (e) => {
@@ -194,7 +185,7 @@ const HeroParticles = () => {
           const d = Math.hypot(ps[i].x - ps[j].x, ps[i].y - ps[j].y);
           if (d < 140) {
             ctx.beginPath();
-            ctx.strokeStyle = `rgba(99,102,241,${(1 - d / 140) * 0.4})`;
+            ctx.strokeStyle = `rgba(99,102,241,${(1 - d / 140) * 0.58})`;
             ctx.lineWidth = 1;
             ctx.moveTo(ps[i].x, ps[i].y);
             ctx.lineTo(ps[j].x, ps[j].y);
@@ -221,7 +212,7 @@ const HeroParticles = () => {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="sf-particles" style={{ opacity: 0.95 }}/>;
+  return <canvas ref={canvasRef} className="sf-particles"/>;
 };
 
 // ─── Cursor Glow ─────────────────────────────────────────────
@@ -395,44 +386,53 @@ const BentoCard = ({ feature, delay = 0 }) => {
     md: { gridColumn: 'span 2', gridRow: 'span 1', minHeight: 260 },
     sm: { gridColumn: 'span 1', gridRow: 'span 1', minHeight: 340 },
   };
+  const rafRef = useRef(null);
 
   const onMove = (e) => {
-    const r = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - r.left, y = e.clientY - r.top;
-    const cx = r.width / 2, cy = r.height / 2;
-    const rX = ((y - cy) / cy) * -9;
-    const rY = ((x - cx) / cx) * 9;
-    // No transition during move — instant response
-    e.currentTarget.style.transition = 'box-shadow 0.2s ease';
-    e.currentTarget.style.transform = `perspective(800px) rotateX(${rX}deg) rotateY(${rY}deg) translateY(-6px) scale(1.02)`;
-    e.currentTarget.style.boxShadow = '0 24px 55px rgba(99,102,241,0.15), 0 6px 20px rgba(15,23,42,0.09)';
+    const el = e.currentTarget;
+    const cx = e.clientX, cy = e.clientY; // capture before rAF
+    if (rafRef.current) return;
+    rafRef.current = requestAnimationFrame(() => {
+      rafRef.current = null;
+      const r = el.getBoundingClientRect();
+      const x = cx - r.left, y = cy - r.top;
+      const rX = ((y - r.height / 2) / (r.height / 2)) * -4;
+      const rY = ((x - r.width  / 2) / (r.width  / 2)) *  4;
+      el.style.transition = 'box-shadow 0.25s ease';
+      el.style.transform = `perspective(1000px) rotateX(${rX}deg) rotateY(${rY}deg) translateY(-3px) scale(1.012)`;
+      el.style.boxShadow = '0 16px 40px rgba(99,102,241,0.10), 0 4px 16px rgba(15,23,42,0.07)';
+    });
   };
   const onLeave = (e) => {
-    // Smooth spring back on leave
-    e.currentTarget.style.transition = 'transform 0.7s cubic-bezier(0.16,1,0.3,1), box-shadow 0.4s ease';
-    e.currentTarget.style.transform = 'perspective(800px) rotateX(0) rotateY(0) translateY(0) scale(1)';
-    e.currentTarget.style.boxShadow = '0 1px 2px rgba(15,23,42,0.04), 0 2px 10px rgba(15,23,42,0.04)';
+    if (rafRef.current) { cancelAnimationFrame(rafRef.current); rafRef.current = null; }
+    e.currentTarget.style.transition = 'transform 0.9s cubic-bezier(0.16,1,0.3,1), box-shadow 0.5s ease';
+    e.currentTarget.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateY(0) scale(1)';
+    e.currentTarget.style.boxShadow = '';
   };
 
+  // Outer wrapper carries the scroll-reveal transform; inner carries the tilt transform.
+  // Keeping them on separate elements prevents the two transforms from fighting each other.
   return (
-    <div className="bento-tilt sf-reveal-scale" style={{ ...sizeMap[feature.size], transitionDelay: `${delay}s`, background: 'white', borderRadius: 18, border: '1px solid rgba(15,23,42,0.07)', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 2px 10px rgba(15,23,42,0.04)', padding: 24, overflow: 'hidden', cursor: 'default', position: 'relative', display: isSm ? 'flex' : 'block', flexDirection: isSm ? 'column' : undefined }}
-      onMouseMove={onMove} onMouseLeave={onLeave}>
-      <div style={{ position: 'relative', zIndex: 2, maxWidth: feature.size === 'lg' ? '50%' : '100%', flexShrink: 0 }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: '#eef2ff', color: '#4f46e5', fontSize: 11, fontWeight: 600, letterSpacing: '0.02em', border: '1px solid #e0e7ff' }}>
-          {feature.icon} {feature.badge}
+    <div className="sf-reveal-scale" style={{ ...sizeMap[feature.size], transitionDelay: `${delay}s` }}>
+      <div style={{ background: 'white', borderRadius: 18, border: '1px solid rgba(15,23,42,0.07)', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 2px 10px rgba(15,23,42,0.04)', padding: 24, overflow: 'hidden', cursor: 'default', position: 'relative', height: '100%', boxSizing: 'border-box', display: isSm ? 'flex' : 'block', flexDirection: isSm ? 'column' : undefined, willChange: 'transform' }}
+        onMouseMove={onMove} onMouseLeave={onLeave}>
+        <div style={{ position: 'relative', zIndex: 2, maxWidth: feature.size === 'lg' ? '50%' : '100%', flexShrink: 0 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '4px 10px', borderRadius: 999, background: '#eef2ff', color: '#4f46e5', fontSize: 11, fontWeight: 600, letterSpacing: '0.02em', border: '1px solid #e0e7ff' }}>
+            {feature.icon} {feature.badge}
+          </div>
+          <div style={{ fontFamily: 'Caveat', fontWeight: 600, fontSize: feature.size==='lg'?42:isSm?28:32, color: '#0f172a', lineHeight: 1.1, marginTop: 10, letterSpacing: '-0.01em' }}>
+            {feature.title}
+          </div>
+          <div style={{ fontSize: feature.size==='lg'?15:13, color: '#64748b', marginTop: 6, lineHeight: 1.5, maxWidth: feature.size==='lg'?340:'100%' }}>
+            {feature.subtitle}
+          </div>
         </div>
-        <div style={{ fontFamily: 'Caveat', fontWeight: 600, fontSize: feature.size==='lg'?42:isSm?28:32, color: '#0f172a', lineHeight: 1.1, marginTop: 10, letterSpacing: '-0.01em' }}>
-          {feature.title}
-        </div>
-        <div style={{ fontSize: feature.size==='lg'?15:13, color: '#64748b', marginTop: 6, lineHeight: 1.5, maxWidth: feature.size==='lg'?340:'100%' }}>
-          {feature.subtitle}
-        </div>
+        {isSm ? (
+          <div style={{ flex: 1, position: 'relative', marginTop: 16, minHeight: 140 }}><BentoVisual kind={feature.visual}/></div>
+        ) : (
+          <BentoVisual kind={feature.visual}/>
+        )}
       </div>
-      {isSm ? (
-        <div style={{ flex: 1, position: 'relative', marginTop: 16, minHeight: 140 }}><BentoVisual kind={feature.visual}/></div>
-      ) : (
-        <BentoVisual kind={feature.visual}/>
-      )}
     </div>
   );
 };
@@ -475,9 +475,9 @@ const Nav = () => {
           <div style={{ fontFamily: 'Caveat', fontSize: 26, fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>StudyFlow</div>
         </a>
         <div className="nav-links" style={{ display: 'flex', alignItems: 'center', gap: 28, fontSize: 14, color: '#475569' }}>
-          <a href="#features" style={{ textDecoration: 'none', color: 'inherit' }}>Features</a>
-          <a href="changelog.html" style={{ textDecoration: 'none', color: 'inherit' }}>Changelog</a>
-          <a href="#preis" style={{ textDecoration: 'none', color: 'inherit' }}>Preise</a>
+          <a href="#features" className="nav-link" style={{ textDecoration: 'none', color: 'inherit' }}>Features</a>
+          <a href="changelog.html" className="nav-link" style={{ textDecoration: 'none', color: 'inherit' }}>Changelog</a>
+          <a href="#preis" className="nav-link" style={{ textDecoration: 'none', color: 'inherit' }}>Preise</a>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <a href="login.html" className="btn-ghost" style={{ padding: '8px 14px' }}>Anmelden</a>
@@ -541,9 +541,9 @@ const Hero = () => {
       <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: 24, pointerEvents: 'none' }}>
         <HeroParticles/>
         {/* Soft radial bg glow */}
-        <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 900, height: 600, background: 'radial-gradient(ellipse, rgba(99,102,241,0.14) 0%, rgba(99,102,241,0.04) 50%, transparent 70%)', animation: 'glowPulse 4s ease-in-out infinite', pointerEvents: 'none' }}/>
-        <div style={{ position: 'absolute', top: '70%', left: '25%', transform: 'translate(-50%,-50%)', width: 400, height: 300, background: 'radial-gradient(ellipse, rgba(139,92,246,0.08) 0%, transparent 70%)', animation: 'glowPulse 5s ease-in-out infinite 1.5s', pointerEvents: 'none' }}/>
-        <div style={{ position: 'absolute', top: '20%', left: '80%', transform: 'translate(-50%,-50%)', width: 350, height: 280, background: 'radial-gradient(ellipse, rgba(99,102,241,0.07) 0%, transparent 70%)', animation: 'glowPulse 6s ease-in-out infinite 0.7s', pointerEvents: 'none' }}/>
+        <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 1000, height: 650, background: 'radial-gradient(ellipse, rgba(99,102,241,0.22) 0%, rgba(99,102,241,0.07) 45%, transparent 70%)', animation: 'glowPulse 4s ease-in-out infinite', pointerEvents: 'none' }}/>
+        <div style={{ position: 'absolute', top: '70%', left: '25%', transform: 'translate(-50%,-50%)', width: 450, height: 340, background: 'radial-gradient(ellipse, rgba(139,92,246,0.14) 0%, transparent 70%)', animation: 'glowPulse 5s ease-in-out infinite 1.5s', pointerEvents: 'none' }}/>
+        <div style={{ position: 'absolute', top: '20%', left: '80%', transform: 'translate(-50%,-50%)', width: 380, height: 300, background: 'radial-gradient(ellipse, rgba(99,102,241,0.12) 0%, transparent 70%)', animation: 'glowPulse 6s ease-in-out infinite 0.7s', pointerEvents: 'none' }}/>
       </div>
 
       {/* Floating sticky note — parallax layer 1 */}
@@ -593,11 +593,11 @@ const Hero = () => {
 
         {/* CTAs */}
         <div className="mobile-wrap" style={{ display: 'flex', gap: 12, justifyContent: 'center', marginTop: 36, animation: 'fadeUp 0.8s 1.1s cubic-bezier(0.16,1,0.3,1) both', opacity: 0 }}>
-          <a href="dashboard.html" className="btn-primary" style={{ padding: '14px 24px', fontSize: 15, boxShadow: '0 8px 24px rgba(99,102,241,0.25)' }}>
+          <a href="dashboard.html" className="btn-primary" style={{ padding: '14px 28px', fontSize: 15, boxShadow: '0 8px 24px rgba(99,102,241,0.25)' }}>
             Kostenlos starten <Icons.ArrowRight size={16}/>
           </a>
-          <a href="#demo" className="btn-ghost" style={{ padding: '14px 22px', fontSize: 15 }}>
-            <Icons.Play size={14}/> Demo ansehen (2 Min)
+          <a href="login.html" className="btn-ghost" style={{ padding: '14px 22px', fontSize: 15 }}>
+            Anmelden
           </a>
         </div>
 
