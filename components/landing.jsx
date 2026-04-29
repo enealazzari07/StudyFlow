@@ -188,7 +188,7 @@ const HeroParticles = () => {
           const d = Math.hypot(ps[i].x - ps[j].x, ps[i].y - ps[j].y);
           if (d < 140) {
             ctx.beginPath();
-            ctx.strokeStyle = `rgba(99,102,241,${(1 - d / 140) * 0.58})`;
+            ctx.strokeStyle = `rgba(99,102,241,${(1 - d / 140) * 0.22})`;
             ctx.lineWidth = 1;
             ctx.moveTo(ps[i].x, ps[i].y);
             ctx.lineTo(ps[j].x, ps[j].y);
@@ -542,7 +542,7 @@ const Hero = () => {
       </div>
 
       {/* Floating sticky note — parallax layer 1 */}
-      <div ref={stickyRef} className="hide-mobile" style={{ position: 'absolute', top: 40, left: 40, zIndex: 2, willChange: 'transform', transformOrigin: 'center' }}>
+      <div ref={stickyRef} className="hide-mobile" style={{ position: 'absolute', top: 180, left: 40, zIndex: 2, willChange: 'transform', transformOrigin: 'center' }}>
         <StickyNote color="yellow" rotate={-6} tape>
           <div style={{ fontFamily: 'Caveat', fontSize: 18, color: '#0f172a', lineHeight: 1.2, maxWidth: 140 }}>
             Klausur in <span style={{ textDecoration: 'line-through', color: '#64748b' }}>3 Wochen</span>{' '}
