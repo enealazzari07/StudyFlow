@@ -225,122 +225,150 @@ const DokumentEditor = () => {
   };
 
   if (loading) return (
-    <div className="dot-paper" style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-      <div style={{ fontFamily: 'Caveat', fontSize: 24, color: '#64748b' }}>Lädt…</div>
+    <div style={{ minHeight: ‘100vh’, display: ‘flex’, alignItems: ‘center’, justifyContent: ‘center’, background: ‘#f8f9fb’ }}>
+      <div style={{ fontFamily: ‘Caveat’, fontSize: 28, color: ‘#94a3b8’ }}>Lädt…</div>
     </div>
   );
 
+  const wordCount = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const DOC_COLORS = [‘#0f172a’,’#6366f1’,’#ef4444’,’#f59e0b’,’#10b981’,’#3b82f6’,’#ec4899’,’#8b5cf6’];
+  const PEN_SIZES_DOC = [{v:2,label:’S’},{v:5,label:’M’},{v:10,label:’L’}];
+
   return (
-    <div className="dot-paper" style={{ minHeight: '100vh' }}>
-      <header style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '18px 32px', background: 'white', borderBottom: '1px solid rgba(15,23,42,0.06)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
-          <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 6, color: '#64748b', fontSize: 13, flexShrink: 0 }}>
-            <Icons.ArrowLeft size={14}/> Dashboard
+    <div style={{ minHeight: ‘100vh’, background: ‘#f4f5f7’, display: ‘flex’, flexDirection: ‘column’ }}>
+
+      {/* ── Sticky header ── */}
+      <header style={{
+        position: ‘sticky’, top: 0, zIndex: 30,
+        background: ‘rgba(255,255,255,0.97)’, backdropFilter: ‘blur(16px)’,
+        borderBottom: ‘1px solid rgba(15,23,42,0.07)’,
+        padding: ‘0 28px’, height: 58,
+        display: ‘flex’, alignItems: ‘center’, justifyContent: ‘space-between’,
+        boxShadow: ‘0 1px 4px rgba(15,23,42,0.05)’,
+      }}>
+        <div style={{ display: ‘flex’, alignItems: ‘center’, gap: 14 }}>
+          <a href="dashboard.html" style={{ display: ‘flex’, alignItems: ‘center’, gap: 8, textDecoration: ‘none’ }}>
+            <Icons.Logo size={26}/>
+            <span style={{ fontFamily: ‘Caveat’, fontSize: 22, fontWeight: 600, color: ‘#0f172a’, lineHeight: 1 }}>StudyFlow</span>
           </a>
-          <div style={{ height: 20, width: 1, background: '#e2e8f0' }}></div>
-          <div style={{ minWidth: 0 }}>
-            <div style={{ fontFamily: 'Instrument Sans', fontSize: 16, fontWeight: 600, color: '#0f172a', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {title || 'Dokument'}
+          <div style={{ width: 1, height: 22, background: ‘#e2e8f0’, flexShrink: 0 }}/>
+          <div style={{ display: ‘flex’, alignItems: ‘center’, gap: 8 }}>
+            <div style={{ width: 28, height: 28, borderRadius: 8, background: ‘#eef2ff’, display: ‘flex’, alignItems: ‘center’, justifyContent: ‘center’ }}>
+              <Icons.Doc size={14} style={{ color: ‘#6366f1’ }}/>
             </div>
-            <div style={{ fontSize: 12, color: '#94a3b8', marginTop: 2 }}>
-              {docRow ? `Gespeichert · ${formatFileSize(docRow.file_size)}` : 'Noch nicht gespeichert'}
-              {savedAt && <span> · zuletzt {savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>}
-            </div>
+            <input
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              placeholder="Dokumenttitel…"
+              style={{ border: ‘none’, outline: ‘none’, fontSize: 14, fontWeight: 500, color: ‘#0f172a’, background: ‘transparent’, width: 220 }}
+            />
           </div>
         </div>
-
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button onClick={save} disabled={saving} className="btn-primary" style={{ padding: '9px 14px', opacity: saving ? 0.7 : 1 }}>
-            {saving ? 'Speichert…' : <><Icons.Check size={14}/> Speichern</>}
+        <div style={{ display: ‘flex’, alignItems: ‘center’, gap: 10 }}>
+          {savedAt && (
+            <span style={{ fontSize: 11.5, color: ‘#94a3b8’, display: ‘flex’, alignItems: ‘center’, gap: 4 }}>
+              <Icons.Check size={11}/> {savedAt.toLocaleTimeString(‘de-DE’, { hour: ‘2-digit’, minute: ‘2-digit’ })}
+            </span>
+          )}
+          {docRow && <span style={{ fontSize: 11.5, color: ‘#94a3b8’ }}>{formatFileSize(docRow.file_size)}</span>}
+          <button onClick={save} disabled={saving} style={{ padding: ‘8px 18px’, background: saving ? ‘#f1f5f9’ : ‘#0f172a’, color: saving ? ‘#94a3b8’ : ‘white’, border: ‘none’, borderRadius: 10, fontSize: 13, fontWeight: 500, cursor: saving ? ‘default’ : ‘pointer’, fontFamily: ‘inherit’, display: ‘flex’, alignItems: ‘center’, gap: 6, transition: ‘background 0.15s’ }}>
+            {saving ? ‘Speichert…’ : <><Icons.Check size={13}/> Speichern</>}
           </button>
         </div>
       </header>
 
-      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '28px 32px 100px' }}>
+      {/* ── Content ── */}
+      <div style={{ flex: 1, maxWidth: 1240, width: ‘100%’, margin: ‘0 auto’, padding: ‘28px 28px 80px’, display: ‘grid’, gridTemplateColumns: ‘1fr 420px’, gap: 20, alignItems: ‘start’, boxSizing: ‘border-box’ }}>
+
         {error && (
-          <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 16px', fontSize: 13, color: '#991b1b', marginBottom: 18, display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10 }}>
-            <span>{error}</span>
-            <button onClick={() => setError('')} style={{ background: 'none', border: 'none', color: '#991b1b', cursor: 'pointer', padding: 0 }}><Icons.X size={14}/></button>
+          <div style={{ gridColumn: ‘1/-1’, background: ‘#fee2e2’, border: ‘1px solid #fecaca’, borderRadius: 12, padding: ‘12px 16px’, fontSize: 13, color: ‘#991b1b’, display: ‘flex’, justifyContent: ‘space-between’, alignItems: ‘center’ }}>
+            {error}
+            <button onClick={() => setError(‘’)} style={{ background: ‘none’, border: ‘none’, color: ‘#991b1b’, cursor: ‘pointer’, padding: 0 }}><Icons.X size={14}/></button>
           </div>
         )}
 
-        <div style={{ display: 'grid', gridTemplateColumns: '1.1fr 0.9fr', gap: 16, alignItems: 'start' }}>
-          {/* Text */}
-          <div style={{ background: 'white', borderRadius: 16, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 2px 8px rgba(15,23,42,0.04)', overflow: 'hidden' }}>
-            <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(15,23,42,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Notizen</div>
-              <input
-                value={title}
-                onChange={e => setTitle(e.target.value)}
-                className="input-paper"
-                placeholder="Titel…"
-                style={{ width: 280, fontSize: 13 }}
-              />
+        {/* ── Notes panel ── */}
+        <div style={{ background: ‘white’, borderRadius: 20, border: ‘1px solid rgba(15,23,42,0.07)’, boxShadow: ‘0 2px 16px rgba(15,23,42,0.06)’, overflow: ‘hidden’, display: ‘flex’, flexDirection: ‘column’ }}>
+          <div style={{ padding: ‘14px 20px’, borderBottom: ‘1px solid rgba(15,23,42,0.06)’, display: ‘flex’, alignItems: ‘center’, justifyContent: ‘space-between’, background: ‘#fafafa’ }}>
+            <div style={{ display: ‘flex’, alignItems: ‘center’, gap: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: ‘50%’, background: ‘#6366f1’ }}/>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: ‘#475569’, letterSpacing: ‘0.07em’, textTransform: ‘uppercase’ }}>Notizen</span>
             </div>
+            <span style={{ fontSize: 11.5, color: ‘#94a3b8’ }}>{wordCount} Wörter</span>
+          </div>
+          {/* Lined paper textarea */}
+          <div style={{ position: ‘relative’, flex: 1 }}>
+            <div style={{ position: ‘absolute’, inset: 0, backgroundImage: ‘repeating-linear-gradient(transparent, transparent 31px, rgba(99,102,241,0.08) 31px, rgba(99,102,241,0.08) 32px)’, backgroundPositionY: ‘20px’, pointerEvents: ‘none’ }}/>
             <textarea
               value={text}
               onChange={e => setText(e.target.value)}
-              placeholder="Schreib deine Notizen…"
-              style={{
-                width: '100%',
-                minHeight: 420,
-                padding: 16,
-                border: 'none',
-                outline: 'none',
-                resize: 'vertical',
-                fontSize: 14,
-                lineHeight: 1.6,
-                color: '#334155',
-                background: 'transparent',
-                fontFamily: 'inherit',
-                boxSizing: 'border-box',
-              }}
+              placeholder="Schreib deine Notizen hier…"
+              style={{ position: ‘relative’, width: ‘100%’, minHeight: 560, padding: ‘20px 24px 28px’, border: ‘none’, outline: ‘none’, resize: ‘vertical’, fontSize: 15, lineHeight: ‘32px’, color: ‘#1e293b’, background: ‘transparent’, fontFamily: ‘inherit’, boxSizing: ‘border-box’ }}
             />
           </div>
+        </div>
 
-          {/* Draw */}
-          <div style={{ background: 'white', borderRadius: 16, border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 2px 8px rgba(15,23,42,0.04)', overflow: 'hidden' }}>
-            <div style={{ padding: '14px 16px', borderBottom: '1px solid rgba(15,23,42,0.06)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-              <div style={{ fontSize: 12, fontWeight: 700, color: '#0f172a', letterSpacing: '0.06em', textTransform: 'uppercase' }}>Skizze</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <button onClick={() => setPen(p => ({ ...p, mode: 'pen' }))} className="btn-ghost" style={{ padding: '7px 10px', fontSize: 12, background: pen.mode === 'pen' ? '#f1f5f9' : 'transparent' }}>
-                  <Icons.Edit size={13}/> Stift
+        {/* ── Sketch panel ── */}
+        <div style={{ background: ‘white’, borderRadius: 20, border: ‘1px solid rgba(15,23,42,0.07)’, boxShadow: ‘0 2px 16px rgba(15,23,42,0.06)’, overflow: ‘hidden’ }}>
+          {/* Panel header */}
+          <div style={{ padding: ‘14px 20px’, borderBottom: ‘1px solid rgba(15,23,42,0.06)’, display: ‘flex’, alignItems: ‘center’, justifyContent: ‘space-between’, background: ‘#fafafa’ }}>
+            <div style={{ display: ‘flex’, alignItems: ‘center’, gap: 8 }}>
+              <div style={{ width: 8, height: 8, borderRadius: ‘50%’, background: ‘#f59e0b’ }}/>
+              <span style={{ fontSize: 11.5, fontWeight: 700, color: ‘#475569’, letterSpacing: ‘0.07em’, textTransform: ‘uppercase’ }}>Skizze</span>
+            </div>
+            <button onClick={clearCanvas} style={{ fontSize: 12, color: ‘#94a3b8’, background: ‘none’, border: ‘none’, cursor: ‘pointer’, padding: ‘3px 8px’, borderRadius: 6, fontFamily: ‘inherit’ }}
+              onMouseEnter={e => e.currentTarget.style.background = ‘#f1f5f9’}
+              onMouseLeave={e => e.currentTarget.style.background = ‘none’}
+            >Löschen</button>
+          </div>
+
+          {/* Tool strip */}
+          <div style={{ padding: ‘10px 16px’, borderBottom: ‘1px solid rgba(15,23,42,0.05)’, display: ‘flex’, alignItems: ‘center’, gap: 10, flexWrap: ‘wrap’ }}>
+            {/* Mode toggle */}
+            <div style={{ display: ‘flex’, background: ‘#f1f5f9’, borderRadius: 10, padding: 3, gap: 2 }}>
+              {[{mode:’pen’,label:’✏️ Stift’},{mode:’eraser’,label:’Radierer’}].map(({mode,label}) => (
+                <button key={mode} onClick={() => setPen(p => ({ ...p, mode }))} style={{ padding: ‘5px 12px’, borderRadius: 8, border: ‘none’, fontSize: 12, fontWeight: 500, cursor: ‘pointer’, fontFamily: ‘inherit’, background: pen.mode === mode ? ‘white’ : ‘transparent’, color: pen.mode === mode ? ‘#0f172a’ : ‘#64748b’, boxShadow: pen.mode === mode ? ‘0 1px 3px rgba(15,23,42,0.1)’ : ‘none’, transition: ‘all 0.15s’ }}>
+                  {label}
                 </button>
-                <button onClick={() => setPen(p => ({ ...p, mode: 'eraser' }))} className="btn-ghost" style={{ padding: '7px 10px', fontSize: 12, background: pen.mode === 'eraser' ? '#f1f5f9' : 'transparent' }}>
-                  <Icons.Trash size={13}/> Radierer
-                </button>
-                <button onClick={clearCanvas} className="btn-ghost" style={{ padding: '7px 10px', fontSize: 12 }}>
-                  Löschen
-                </button>
-              </div>
+              ))}
             </div>
 
-            <div style={{ padding: 14, display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <input type="color" value={pen.color} disabled={pen.mode !== 'pen'} onChange={e => setPen(p => ({ ...p, color: e.target.value }))} style={{ width: 42, height: 28, border: '1px solid #e2e8f0', borderRadius: 8, background: 'white' }}/>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 11.5, color: '#64748b', marginBottom: 6 }}>Strichstärke</div>
-                  <input type="range" min={2} max={12} value={pen.width} onChange={e => setPen(p => ({ ...p, width: +e.target.value }))} style={{ width: '100%', accentColor: '#6366f1' }}/>
-                </div>
-                <div style={{ fontSize: 12, color: '#64748b', width: 42, textAlign: 'right' }}>{pen.width}px</div>
-              </div>
-
-              <div style={{ border: '1px solid rgba(15,23,42,0.08)', borderRadius: 12, overflow: 'hidden', background: 'white', height: 420 }}>
-                <canvas
-                  ref={canvasRef}
-                  onPointerDown={onPointerDown}
-                  onPointerMove={onPointerMove}
-                  onPointerUp={onPointerUp}
-                  onPointerCancel={onPointerCancel}
-                  style={{ width: '100%', height: '100%', touchAction: 'none', cursor: pen.mode === 'eraser' ? 'crosshair' : 'crosshair' }}
+            {/* Color swatches */}
+            <div style={{ display: ‘flex’, gap: 5, alignItems: ‘center’ }}>
+              {DOC_COLORS.map(c => (
+                <button key={c} onClick={() => setPen(p => ({ ...p, color: c, mode: ‘pen’ }))}
+                  style={{ width: 20, height: 20, borderRadius: ‘50%’, background: c, border: ‘none’, cursor: ‘pointer’, padding: 0, outline: pen.color === c && pen.mode === ‘pen’ ? `2.5px solid ${c}` : ‘none’, outlineOffset: 2, transform: pen.color === c && pen.mode === ‘pen’ ? ‘scale(1.2)’ : ‘scale(1)’, transition: ‘transform 0.12s’ }}
                 />
-              </div>
-              <div style={{ fontSize: 12, color: '#94a3b8' }}>
-                Tipp: Mit Touch/Stift funktioniert’s am besten.
-              </div>
+              ))}
+            </div>
+
+            {/* Size */}
+            <div style={{ display: ‘flex’, gap: 4, marginLeft: ‘auto’, alignItems: ‘center’ }}>
+              {PEN_SIZES_DOC.map(s => (
+                <button key={s.label} onClick={() => setPen(p => ({ ...p, width: s.v }))}
+                  style={{ width: 30, height: 30, borderRadius: 8, border: pen.width === s.v ? ‘2px solid #6366f1’ : ‘1px solid #e2e8f0’, background: pen.width === s.v ? ‘#eef2ff’ : ‘white’, cursor: ‘pointer’, display: ‘flex’, alignItems: ‘center’, justifyContent: ‘center’, transition: ‘all 0.12s’ }}>
+                  <div style={{ width: s.v, height: s.v, borderRadius: ‘50%’, background: pen.width === s.v ? ‘#6366f1’ : ‘#334155’ }}/>
+                </button>
+              ))}
             </div>
           </div>
+
+          {/* Canvas */}
+          <div style={{ margin: ‘14px 16px’, borderRadius: 14, overflow: ‘hidden’, border: ‘1px solid rgba(15,23,42,0.07)’, boxShadow: ‘inset 0 1px 3px rgba(15,23,42,0.04)’ }}>
+            <canvas
+              ref={canvasRef}
+              onPointerDown={onPointerDown}
+              onPointerMove={onPointerMove}
+              onPointerUp={onPointerUp}
+              onPointerCancel={onPointerCancel}
+              style={{ width: ‘100%’, height: 480, display: ‘block’, touchAction: ‘none’, cursor: ‘crosshair’ }}
+            />
+          </div>
+          <div style={{ padding: ‘0 16px 14px’, fontSize: 11.5, color: ‘#94a3b8’, textAlign: ‘center’ }}>
+            Mit Touch oder Stift zeichnen
+          </div>
         </div>
+
       </div>
 
       <AIAssistant/>

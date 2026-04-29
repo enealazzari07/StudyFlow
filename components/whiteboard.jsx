@@ -937,31 +937,40 @@ const Whiteboard = () => {
       </div>
 
       {/* top-left: logo + title */}
-      <div style={{ position: 'absolute', top: 14, left: 14, display: 'flex', alignItems: 'center', gap: 8, background: 'white', borderRadius: 10, padding: '6px 10px 6px 8px', border: '1px solid rgba(15,23,42,0.06)', boxShadow: '0 1px 2px rgba(15,23,42,0.04)', zIndex: 20 }}>
-        <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 8, paddingRight: 8, borderRight: '1px solid #e2e8f0', textDecoration: 'none' }}>
-          <Icons.Logo size={22} />
-          <span style={{ fontFamily: 'Caveat', fontSize: 18, fontWeight: 600, color: '#0f172a' }}>StudyFlow</span>
+      <div style={{ position: 'absolute', top: 14, left: 14, display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(12px)', borderRadius: 14, padding: '8px 14px 8px 10px', border: '1px solid rgba(15,23,42,0.08)', boxShadow: '0 2px 10px rgba(15,23,42,0.08)', zIndex: 20 }}>
+        <a href="dashboard.html" style={{ display: 'flex', alignItems: 'center', gap: 8, paddingRight: 10, borderRight: '1px solid #e2e8f0', textDecoration: 'none' }}>
+          <Icons.Logo size={24} />
+          <span style={{ fontFamily: 'Caveat', fontSize: 20, fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>StudyFlow</span>
         </a>
-        <input value={title} onChange={(e) => setTitle(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: 13, color: '#0f172a', fontWeight: 500, width: 160 }} />
-        <span style={{ fontSize: 10.5, color: '#a78bfa', background: '#f3e8ff', padding: '1px 6px', borderRadius: 4, fontWeight: 500 }}>Kostenlos</span>
-        {savedAt && <span style={{ fontSize: 11, color: '#94a3b8' }}>{savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <input value={title} onChange={(e) => setTitle(e.target.value)} style={{ border: 'none', outline: 'none', fontSize: 13, color: '#0f172a', fontWeight: 500, width: 170, background: 'transparent' }} />
+          {savedAt && <span style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>{saving ? '↻ sync' : `✓ ${savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}`}</span>}
+        </div>
       </div>
 
-      {/* top-right: user + zoom + share */}
+      {/* top-right: cowork bar */}
       <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', alignItems: 'center', gap: 8, zIndex: 20 }}>
-        <button style={{ background: 'white', border: '1px solid rgba(15,23,42,0.08)', padding: '6px 10px', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#475569', fontFamily: 'inherit' }}>
-          <Avatar name={user?.email || 'Du'} color="#06b6d4" size={22} />
-          <Icons.Chevron size={10}/>
-        </button>
-        <div style={{ display: 'flex' }}>
-          <Avatar name="Lara K" color="#ec4899" size={28} ring />
-          <div style={{ marginLeft: -6 }}><Avatar name="Tim R" color="#f59e0b" size={28} ring /></div>
+        {/* Live collaborators */}
+        <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(12px)', border: '1px solid rgba(15,23,42,0.08)', borderRadius: 14, padding: '6px 12px', gap: 8, boxShadow: '0 2px 10px rgba(15,23,42,0.08)' }}>
+          <div style={{ display: 'flex' }}>
+            <Avatar name={user?.email || 'Du'} color="#06b6d4" size={26} ring />
+            <div style={{ marginLeft: -7 }}><Avatar name="Lara K" color="#ec4899" size={26} ring /></div>
+            <div style={{ marginLeft: -7 }}><Avatar name="Tim R" color="#f59e0b" size={26} ring /></div>
+          </div>
+          <div style={{ width: 1, height: 16, background: '#e2e8f0' }}/>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5, color: '#10b981', fontWeight: 500 }}>
+            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }}/>
+            Cowork aktiv
+          </div>
         </div>
-        <div style={{ background: 'white', border: '1px solid rgba(15,23,42,0.08)', padding: '6px 10px', borderRadius: 10, fontFamily: 'JetBrains Mono', fontSize: 11.5, color: '#475569', display: 'flex', alignItems: 'center', gap: 5 }}>
-          <Icons.Clock size={11}/>
-          {saving ? 'sync' : `${Math.round(zoom * 100)}%`}
+        {/* Zoom */}
+        <div style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(12px)', border: '1px solid rgba(15,23,42,0.08)', padding: '8px 12px', borderRadius: 14, fontFamily: 'JetBrains Mono', fontSize: 12, color: '#475569', boxShadow: '0 2px 10px rgba(15,23,42,0.08)', minWidth: 54, textAlign: 'center' }}>
+          {Math.round(zoom * 100)}%
         </div>
-        <button onClick={() => setShareOpen(true)} style={{ padding: '7px 14px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: 10, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 1px 2px rgba(139,92,246,0.3)', display: 'flex', alignItems: 'center', gap: 6 }}>
+        {/* Share */}
+        <button onClick={() => setShareOpen(true)} style={{ padding: '8px 16px', background: '#6366f1', color: 'white', border: 'none', borderRadius: 14, fontSize: 13, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 14px rgba(99,102,241,0.35)', display: 'flex', alignItems: 'center', gap: 6, transition: 'opacity 0.15s' }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '0.88'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '1'}>
           <Icons.Share size={14}/> Teilen
         </button>
       </div>
@@ -1065,16 +1074,37 @@ const Whiteboard = () => {
 
       {/* share modal */}
       {shareOpen && (
-        <div style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.36)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
-          <div style={{ width: 520, background: 'white', borderRadius: 24, boxShadow: '0 24px 60px rgba(15,23,42,0.22)', padding: 20 }}>
-            <div style={{ fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 8 }}>Board teilen</div>
-            <div style={{ fontSize: 13, color: '#64748b', marginBottom: 14 }}>Link für Coworking und gemeinsames Bearbeiten.</div>
-            <div style={{ display: 'flex', gap: 10 }}>
-              <input readOnly value={shareUrl} style={{ flex: 1, border: '1px solid #cbd5e1', borderRadius: 12, padding: '11px 12px', fontSize: 12, color: '#334155' }} />
-              <button onClick={copyShareLink} style={{ border: 'none', borderRadius: 12, padding: '0 16px', background: copied ? '#16a34a' : '#0f172a', color: 'white', fontWeight: 600, cursor: 'pointer' }}>{copied ? 'Kopiert' : 'Kopieren'}</button>
+        <div onClick={() => setShareOpen(false)} style={{ position: 'absolute', inset: 0, background: 'rgba(15,23,42,0.45)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 50 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: 480, background: 'white', borderRadius: 24, boxShadow: '0 32px 80px rgba(15,23,42,0.2)', padding: '28px 28px 24px', animation: 'scaleIn 0.25s cubic-bezier(0.16,1,0.3,1)' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg, #6366f1, #818cf8)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' }}>
+                <Icons.Share size={18}/>
+              </div>
+              <div>
+                <div style={{ fontSize: 16, fontWeight: 600, color: '#0f172a' }}>Board teilen</div>
+                <div style={{ fontSize: 12, color: '#64748b', marginTop: 1 }}>Cowork-Link zum gemeinsamen Bearbeiten</div>
+              </div>
+              <button onClick={() => setShareOpen(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}><Icons.X size={18}/></button>
             </div>
-            <div style={{ marginTop: 14, display: 'flex', justifyContent: 'flex-end' }}>
-              <button onClick={() => setShareOpen(false)} style={{ border: '1px solid #e2e8f0', background: 'white', borderRadius: 10, padding: '9px 14px', cursor: 'pointer' }}>Schließen</button>
+            {/* Collaborators preview */}
+            <div style={{ background: '#f8fafc', borderRadius: 14, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{ display: 'flex' }}>
+                <Avatar name={user?.email || 'Du'} color="#06b6d4" size={28} ring />
+                <div style={{ marginLeft: -8 }}><Avatar name="Lara K" color="#ec4899" size={28} ring /></div>
+                <div style={{ marginLeft: -8 }}><Avatar name="Tim R" color="#f59e0b" size={28} ring /></div>
+              </div>
+              <div style={{ fontSize: 12.5, color: '#475569' }}>
+                <span style={{ fontWeight: 500 }}>3 Personen</span> können dieses Board bearbeiten
+              </div>
+            </div>
+            <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>
+              <input readOnly value={shareUrl} onClick={e => e.target.select()} style={{ flex: 1, border: '1px solid #e2e8f0', borderRadius: 12, padding: '11px 14px', fontSize: 12.5, color: '#334155', background: '#fafafa', outline: 'none' }} />
+              <button onClick={copyShareLink} style={{ border: 'none', borderRadius: 12, padding: '0 18px', background: copied ? '#10b981' : '#0f172a', color: 'white', fontWeight: 600, cursor: 'pointer', fontSize: 13, whiteSpace: 'nowrap', transition: 'background 0.2s', fontFamily: 'inherit' }}>
+                {copied ? '✓ Kopiert' : 'Kopieren'}
+              </button>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <button onClick={() => setShareOpen(false)} style={{ border: '1px solid #e2e8f0', background: 'white', borderRadius: 10, padding: '9px 16px', cursor: 'pointer', fontSize: 13, color: '#475569', fontFamily: 'inherit' }}>Schließen</button>
             </div>
           </div>
         </div>
