@@ -31,6 +31,9 @@ const ANIM_CSS = `
     0%,100% { opacity: 0.5; transform: scale(1); }
     50%     { opacity: 0.8; transform: scale(1.05); }
   }
+  /* Keep dot background fixed while page scrolls */
+  .dot-paper { background-attachment: fixed !important; }
+
   /* Reveal on scroll */
   .sf-reveal {
     opacity: 0;
@@ -447,13 +450,10 @@ const Nav = () => {
   }, []);
 
   return (
-    <div style={{
-      position: 'fixed', zIndex: 50,
-      top: 16, left: 0, right: 0,
-      width: 'min(1200px, calc(100% - 48px))',
-      marginLeft: 'auto', marginRight: 'auto',
-    }}>
+    // Full-viewport-width wrapper — pointer-events none so it doesn't block clicks below
+    <div style={{ position: 'fixed', zIndex: 50, top: 16, left: 0, right: 0, display: 'flex', justifyContent: 'center', pointerEvents: 'none' }}>
       <nav style={{
+        width: 'min(1200px, calc(100% - 48px))',
         padding: '12px 20px',
         background: scrolled ? 'rgba(255,255,255,0.97)' : 'rgba(255,255,255,0.82)',
         backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
@@ -465,6 +465,7 @@ const Nav = () => {
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         transition: 'background 0.3s ease, box-shadow 0.3s ease',
         animation: 'fadeDown 0.7s 0.1s cubic-bezier(0.16,1,0.3,1) both',
+        pointerEvents: 'auto',
       }}>
         <a href="Landing.html" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
           <Icons.Logo size={30}/>
