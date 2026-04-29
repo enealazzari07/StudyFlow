@@ -55,32 +55,32 @@ const ANIM_CSS = `
   /* Reveal on scroll */
   .sf-reveal {
     opacity: 0;
-    transform: translateY(44px);
-    transition: opacity 0.85s cubic-bezier(0.16,1,0.3,1),
-                transform 0.85s cubic-bezier(0.16,1,0.3,1);
+    transform: translateY(56px);
+    transition: opacity 1s cubic-bezier(0.16,1,0.3,1),
+                transform 1s cubic-bezier(0.16,1,0.3,1);
   }
   .sf-reveal.sf-visible { opacity: 1; transform: translateY(0); }
 
   .sf-reveal-l {
-    opacity: 0; transform: translateX(-44px);
-    transition: opacity 0.85s cubic-bezier(0.16,1,0.3,1),
-                transform 0.85s cubic-bezier(0.16,1,0.3,1);
+    opacity: 0; transform: translateX(-56px);
+    transition: opacity 1s cubic-bezier(0.16,1,0.3,1),
+                transform 1s cubic-bezier(0.16,1,0.3,1);
   }
   .sf-reveal-l.sf-visible { opacity: 1; transform: translateX(0); }
 
   .sf-reveal-r {
-    opacity: 0; transform: translateX(44px);
-    transition: opacity 0.85s cubic-bezier(0.16,1,0.3,1),
-                transform 0.85s cubic-bezier(0.16,1,0.3,1);
+    opacity: 0; transform: translateX(56px);
+    transition: opacity 1s cubic-bezier(0.16,1,0.3,1),
+                transform 1s cubic-bezier(0.16,1,0.3,1);
   }
   .sf-reveal-r.sf-visible { opacity: 1; transform: translateX(0); }
 
   .sf-reveal-scale {
-    opacity: 0; transform: scale(0.92);
-    transition: opacity 0.85s cubic-bezier(0.16,1,0.3,1),
-                transform 0.85s cubic-bezier(0.16,1,0.3,1);
+    opacity: 0; transform: scale(0.88) translateY(24px);
+    transition: opacity 1s cubic-bezier(0.16,1,0.3,1),
+                transform 1s cubic-bezier(0.16,1,0.3,1);
   }
-  .sf-reveal-scale.sf-visible { opacity: 1; transform: scale(1); }
+  .sf-reveal-scale.sf-visible { opacity: 1; transform: scale(1) translateY(0); }
 
   /* Hero word-by-word */
   .hw { opacity: 0; display: inline-block; }
@@ -89,31 +89,18 @@ const ANIM_CSS = `
   /* 3D card tilt */
   .bento-tilt {
     transform-style: preserve-3d;
-    transition: box-shadow 0.25s ease, transform 0.1s ease;
     will-change: transform;
-  }
-
-  /* Scroll progress bar */
-  .sf-progress {
-    position: fixed; top: 0; left: 0; right: 0; height: 3px;
-    background: linear-gradient(90deg, #6366f1, #818cf8, #a78bfa);
-    transform-origin: left;
-    transform: scaleX(0);
-    z-index: 1000;
-    pointer-events: none;
-    transition: transform 0.1s linear;
   }
 
   /* Cursor glow */
   .cursor-glow {
     position: fixed;
-    width: 480px; height: 480px;
+    width: 640px; height: 640px;
     border-radius: 50%;
-    background: radial-gradient(circle, rgba(99,102,241,0.07) 0%, transparent 70%);
+    background: radial-gradient(circle, rgba(99,102,241,0.10) 0%, rgba(99,102,241,0.03) 45%, transparent 70%);
     pointer-events: none;
     z-index: 0;
     transform: translate(-50%, -50%);
-    transition: left 0.12s ease, top 0.12s ease;
   }
 
   /* Particle canvas */
@@ -121,18 +108,6 @@ const ANIM_CSS = `
     position: absolute; inset: 0; width: 100%; height: 100%;
     pointer-events: none;
   }
-
-  /* Scroll hint */
-  .scroll-hint {
-    position: absolute; bottom: 36px; left: 50%;
-    transform: translateX(-50%);
-    display: flex; flex-direction: column; align-items: center; gap: 8px;
-    color: #94a3b8; font-size: 12px; letter-spacing: 0.1em;
-    text-transform: uppercase; font-weight: 500;
-    animation: fadeUp 1s 1.8s cubic-bezier(0.16,1,0.3,1) both;
-    cursor: default; user-select: none;
-  }
-  .scroll-arrow { animation: scrollBounce 1.6s ease infinite; }
 
   /* Floating doodles */
   .doodle-float-1 { --rot: -6deg; animation: floatY 4.5s ease-in-out infinite; }
@@ -176,14 +151,14 @@ const HeroParticles = () => {
     window.addEventListener('resize', resize);
 
     // Init particles
-    const count = 55;
+    const count = 65;
     state.particles = Array.from({ length: count }, () => ({
       x: Math.random() * canvas.offsetWidth,
       y: Math.random() * canvas.offsetHeight,
-      vx: (Math.random() - 0.5) * 0.35,
-      vy: (Math.random() - 0.5) * 0.35,
-      r: Math.random() * 1.8 + 1,
-      opacity: Math.random() * 0.35 + 0.15,
+      vx: (Math.random() - 0.5) * 0.4,
+      vy: (Math.random() - 0.5) * 0.4,
+      r: Math.random() * 2.2 + 1.2,
+      opacity: Math.random() * 0.5 + 0.28,
     }));
 
     const onMove = (e) => {
@@ -217,9 +192,9 @@ const HeroParticles = () => {
       for (let i = 0; i < ps.length; i++) {
         for (let j = i + 1; j < ps.length; j++) {
           const d = Math.hypot(ps[i].x - ps[j].x, ps[i].y - ps[j].y);
-          if (d < 130) {
+          if (d < 140) {
             ctx.beginPath();
-            ctx.strokeStyle = `rgba(99,102,241,${(1 - d / 130) * 0.18})`;
+            ctx.strokeStyle = `rgba(99,102,241,${(1 - d / 140) * 0.4})`;
             ctx.lineWidth = 1;
             ctx.moveTo(ps[i].x, ps[i].y);
             ctx.lineTo(ps[j].x, ps[j].y);
@@ -246,22 +221,7 @@ const HeroParticles = () => {
     };
   }, []);
 
-  return <canvas ref={canvasRef} className="sf-particles" style={{ opacity: 0.55 }}/>;
-};
-
-// ─── Scroll Progress ──────────────────────────────────────────
-const ScrollProgress = () => {
-  const barRef = useRef(null);
-  useEffect(() => {
-    const onScroll = () => {
-      const max = document.documentElement.scrollHeight - window.innerHeight;
-      const pct = max > 0 ? window.scrollY / max : 0;
-      if (barRef.current) barRef.current.style.transform = `scaleX(${pct})`;
-    };
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-  return <div ref={barRef} className="sf-progress"/>;
+  return <canvas ref={canvasRef} className="sf-particles" style={{ opacity: 0.95 }}/>;
 };
 
 // ─── Cursor Glow ─────────────────────────────────────────────
@@ -288,6 +248,22 @@ const CursorGlow = () => {
   }, []);
 
   return <div ref={ref} className="cursor-glow"/>;
+};
+
+// ─── Scroll Parallax hook ─────────────────────────────────────
+const useScrollParallax = (ref, factor = 0.08) => {
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onScroll = () => {
+      const rect = el.getBoundingClientRect();
+      const center = rect.top + rect.height / 2 - window.innerHeight / 2;
+      el.style.transform = `translateY(${center * factor}px)`;
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    onScroll();
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
 };
 
 // ─── Scroll Reveal setup (runs once at root) ──────────────────
@@ -424,13 +400,17 @@ const BentoCard = ({ feature, delay = 0 }) => {
     const r = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - r.left, y = e.clientY - r.top;
     const cx = r.width / 2, cy = r.height / 2;
-    const rX = ((y - cy) / cy) * -7;
-    const rY = ((x - cx) / cx) * 7;
-    e.currentTarget.style.transform = `perspective(700px) rotateX(${rX}deg) rotateY(${rY}deg) translateY(-4px) scale(1.01)`;
-    e.currentTarget.style.boxShadow = '0 20px 50px rgba(99,102,241,0.12), 0 4px 16px rgba(15,23,42,0.08)';
+    const rX = ((y - cy) / cy) * -9;
+    const rY = ((x - cx) / cx) * 9;
+    // No transition during move — instant response
+    e.currentTarget.style.transition = 'box-shadow 0.2s ease';
+    e.currentTarget.style.transform = `perspective(800px) rotateX(${rX}deg) rotateY(${rY}deg) translateY(-6px) scale(1.02)`;
+    e.currentTarget.style.boxShadow = '0 24px 55px rgba(99,102,241,0.15), 0 6px 20px rgba(15,23,42,0.09)';
   };
   const onLeave = (e) => {
-    e.currentTarget.style.transform = 'perspective(700px) rotateX(0) rotateY(0) translateY(0) scale(1)';
+    // Smooth spring back on leave
+    e.currentTarget.style.transition = 'transform 0.7s cubic-bezier(0.16,1,0.3,1), box-shadow 0.4s ease';
+    e.currentTarget.style.transform = 'perspective(800px) rotateX(0) rotateY(0) translateY(0) scale(1)';
     e.currentTarget.style.boxShadow = '0 1px 2px rgba(15,23,42,0.04), 0 2px 10px rgba(15,23,42,0.04)';
   };
 
@@ -458,25 +438,57 @@ const BentoCard = ({ feature, delay = 0 }) => {
 };
 
 // ─── Nav ──────────────────────────────────────────────────────
-const Nav = () => (
-  <nav style={{ position: 'sticky', top: 16, zIndex: 50, margin: '16px auto 0', maxWidth: 1200, padding: '12px 20px', background: 'rgba(255,255,255,0.85)', backdropFilter: 'blur(18px)', WebkitBackdropFilter: 'blur(18px)', border: '1px solid rgba(15,23,42,0.08)', borderRadius: 16, display: 'flex', alignItems: 'center', justifyContent: 'space-between', boxShadow: '0 1px 2px rgba(15,23,42,0.04), 0 4px 16px rgba(15,23,42,0.04)', animation: 'fadeDown 0.7s 0.1s cubic-bezier(0.16,1,0.3,1) both' }}>
-    <a href="Landing.html" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
-      <Icons.Logo size={30}/>
-      <div style={{ fontFamily: 'Caveat', fontSize: 26, fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>StudyFlow</div>
-    </a>
-    <div className="nav-links" style={{ display: 'flex', alignItems: 'center', gap: 28, fontSize: 14, color: '#475569' }}>
-      <a href="#features" style={{ textDecoration: 'none', color: 'inherit' }}>Features</a>
-      <a href="changelog.html" style={{ textDecoration: 'none', color: 'inherit' }}>Changelog</a>
-      <a href="#preis" style={{ textDecoration: 'none', color: 'inherit' }}>Preise</a>
+const Nav = () => {
+  const [stuck, setStuck] = useState(false);
+  useEffect(() => {
+    const fn = () => setStuck(window.scrollY > 50);
+    window.addEventListener('scroll', fn, { passive: true });
+    return () => window.removeEventListener('scroll', fn);
+  }, []);
+
+  return (
+    <div style={{
+      position: 'fixed', zIndex: 50,
+      top: stuck ? 0 : 16,
+      left: stuck ? 0 : '50%',
+      right: stuck ? 0 : 'auto',
+      transform: stuck ? 'none' : 'translateX(-50%)',
+      width: stuck ? '100%' : 'min(1200px, calc(100% - 48px))',
+      transition: 'top 0.4s cubic-bezier(0.16,1,0.3,1), left 0.4s cubic-bezier(0.16,1,0.3,1), right 0.4s, transform 0.4s, width 0.4s',
+      animation: 'fadeDown 0.7s 0.1s cubic-bezier(0.16,1,0.3,1) both',
+    }}>
+      <nav style={{
+        padding: stuck ? '11px 32px' : '12px 20px',
+        background: stuck ? 'rgba(255,255,255,0.97)' : 'rgba(255,255,255,0.85)',
+        backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+        border: stuck ? 'none' : '1px solid rgba(15,23,42,0.08)',
+        borderBottom: stuck ? '1px solid rgba(15,23,42,0.09)' : 'none',
+        borderRadius: stuck ? 0 : 16,
+        boxShadow: stuck
+          ? '0 1px 0 rgba(15,23,42,0.06), 0 6px 24px rgba(15,23,42,0.07)'
+          : '0 1px 2px rgba(15,23,42,0.04), 0 4px 16px rgba(15,23,42,0.04)',
+        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+        transition: 'all 0.4s cubic-bezier(0.16,1,0.3,1)',
+      }}>
+        <a href="Landing.html" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
+          <Icons.Logo size={30}/>
+          <div style={{ fontFamily: 'Caveat', fontSize: 26, fontWeight: 600, color: '#0f172a', lineHeight: 1 }}>StudyFlow</div>
+        </a>
+        <div className="nav-links" style={{ display: 'flex', alignItems: 'center', gap: 28, fontSize: 14, color: '#475569' }}>
+          <a href="#features" style={{ textDecoration: 'none', color: 'inherit' }}>Features</a>
+          <a href="changelog.html" style={{ textDecoration: 'none', color: 'inherit' }}>Changelog</a>
+          <a href="#preis" style={{ textDecoration: 'none', color: 'inherit' }}>Preise</a>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <a href="login.html" className="btn-ghost" style={{ padding: '8px 14px' }}>Anmelden</a>
+          <a href="dashboard.html" className="btn-primary" style={{ padding: '8px 14px' }}>
+            Kostenlos starten <Icons.ArrowRight size={14}/>
+          </a>
+        </div>
+      </nav>
     </div>
-    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-      <a href="login.html" className="btn-ghost" style={{ padding: '8px 14px' }}>Anmelden</a>
-      <a href="dashboard.html" className="btn-primary" style={{ padding: '8px 14px' }}>
-        Kostenlos starten <Icons.ArrowRight size={14}/>
-      </a>
-    </div>
-  </nav>
-);
+  );
+};
 
 // ─── Hero ─────────────────────────────────────────────────────
 const Hero = () => {
@@ -524,12 +536,14 @@ const Hero = () => {
   );
 
   return (
-    <section style={{ maxWidth: 1200, margin: '80px auto 0', padding: '0 24px 0', position: 'relative', minHeight: '88vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+    <section style={{ maxWidth: 1200, margin: '0 auto', padding: '96px 24px 0', position: 'relative', minHeight: '94vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
       {/* Particle canvas — full hero bg */}
       <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: 24, pointerEvents: 'none' }}>
         <HeroParticles/>
         {/* Soft radial bg glow */}
-        <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 700, height: 500, background: 'radial-gradient(ellipse, rgba(99,102,241,0.06) 0%, transparent 70%)', animation: 'glowPulse 4s ease-in-out infinite', pointerEvents: 'none' }}/>
+        <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 900, height: 600, background: 'radial-gradient(ellipse, rgba(99,102,241,0.14) 0%, rgba(99,102,241,0.04) 50%, transparent 70%)', animation: 'glowPulse 4s ease-in-out infinite', pointerEvents: 'none' }}/>
+        <div style={{ position: 'absolute', top: '70%', left: '25%', transform: 'translate(-50%,-50%)', width: 400, height: 300, background: 'radial-gradient(ellipse, rgba(139,92,246,0.08) 0%, transparent 70%)', animation: 'glowPulse 5s ease-in-out infinite 1.5s', pointerEvents: 'none' }}/>
+        <div style={{ position: 'absolute', top: '20%', left: '80%', transform: 'translate(-50%,-50%)', width: 350, height: 280, background: 'radial-gradient(ellipse, rgba(99,102,241,0.07) 0%, transparent 70%)', animation: 'glowPulse 6s ease-in-out infinite 0.7s', pointerEvents: 'none' }}/>
       </div>
 
       {/* Floating sticky note — parallax layer 1 */}
@@ -594,37 +608,38 @@ const Hero = () => {
         </div>
       </div>
 
-      {/* Scroll hint */}
-      <div className="scroll-hint" onClick={() => document.getElementById('features')?.scrollIntoView({ behavior: 'smooth' })}>
-        <span>Entdecken</span>
-        <span className="scroll-arrow">
-          <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-            <path d="M8 3v10M4 9l4 4 4-4" stroke="#94a3b8" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-        </span>
-      </div>
     </section>
   );
 };
 
 // ─── Bento Grid ───────────────────────────────────────────────
-const BentoGrid = () => (
-  <section id="features" style={{ maxWidth: 1200, margin: '100px auto 40px', padding: '0 24px' }}>
-    <div style={{ textAlign: 'center', marginBottom: 48 }}>
-      <div className="sf-reveal section-label">Dein Werkzeugkasten</div>
-      <div className="sf-reveal" style={{ fontFamily: 'Instrument Sans', fontSize: 44, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em', marginTop: 4 }}>
-        Alles was du zum Lernen brauchst.
+const BentoGrid = () => {
+  const headingRef = useRef(null);
+  useScrollParallax(headingRef, -0.06);
+
+  return (
+    <section id="features" style={{ maxWidth: 1200, margin: '120px auto 40px', padding: '0 24px', position: 'relative' }}>
+      {/* Background glow that moves on scroll */}
+      <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 800, height: 500, background: 'radial-gradient(ellipse, rgba(99,102,241,0.05) 0%, transparent 70%)', pointerEvents: 'none', animation: 'glowPulse 6s ease-in-out infinite' }}/>
+      <div ref={headingRef} style={{ textAlign: 'center', marginBottom: 52 }}>
+        <div className="sf-reveal section-label">Dein Werkzeugkasten</div>
+        <div className="sf-reveal" style={{ fontFamily: 'Instrument Sans', fontSize: 46, fontWeight: 600, color: '#0f172a', letterSpacing: '-0.02em', marginTop: 6 }}>
+          Alles was du zum Lernen brauchst.
+        </div>
+        <div className="sf-reveal" style={{ fontSize: 17, color: '#64748b', marginTop: 12, maxWidth: 500, marginInline: 'auto', lineHeight: 1.55 }}>
+          Alles in einer App — kein Tab-Chaos mehr.
+        </div>
       </div>
-    </div>
-    <div className="bento-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gridAutoRows: 'minmax(230px, auto)', gap: 16 }}>
-      {LANDING_FEATURES.map((f, i) => <BentoCard key={f.id} feature={f} delay={i * 0.06}/>)}
-    </div>
-  </section>
-);
+      <div className="bento-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gridAutoRows: 'minmax(230px, auto)', gap: 18, position: 'relative' }}>
+        {LANDING_FEATURES.map((f, i) => <BentoCard key={f.id} feature={f} delay={i * 0.08}/>)}
+      </div>
+    </section>
+  );
+};
 
 // ─── AI Spotlight ─────────────────────────────────────────────
 const AISpotlight = () => (
-  <section id="ai" style={{ maxWidth: 1200, margin: '100px auto', padding: '0 24px' }}>
+  <section id="ai" style={{ maxWidth: 1200, margin: '120px auto', padding: '0 24px' }}>
     <div style={{ position: 'relative', background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%)', borderRadius: 28, padding: '72px 60px', color: 'white', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', inset: 0, opacity: 0.15, backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '22px 22px' }}/>
       {/* Glow orbs */}
@@ -823,7 +838,6 @@ const Landing = () => {
   return (
     <div className="dot-paper" style={{ minHeight: '100vh', overflowX: 'hidden' }}>
       <style>{ANIM_CSS}</style>
-      <ScrollProgress/>
       <CursorGlow/>
       <Nav/>
       <Hero/>
