@@ -950,19 +950,6 @@ const Whiteboard = () => {
 
       {/* top-right: cowork bar */}
       <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', alignItems: 'center', gap: 8, zIndex: 20 }}>
-        {/* Live collaborators */}
-        <div style={{ display: 'flex', alignItems: 'center', background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(12px)', border: '1px solid rgba(15,23,42,0.08)', borderRadius: 14, padding: '6px 12px', gap: 8, boxShadow: '0 2px 10px rgba(15,23,42,0.08)' }}>
-          <div style={{ display: 'flex' }}>
-            <Avatar name={user?.email || 'Du'} color="#06b6d4" size={26} ring />
-            <div style={{ marginLeft: -7 }}><Avatar name="Lara K" color="#ec4899" size={26} ring /></div>
-            <div style={{ marginLeft: -7 }}><Avatar name="Tim R" color="#f59e0b" size={26} ring /></div>
-          </div>
-          <div style={{ width: 1, height: 16, background: '#e2e8f0' }}/>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 11.5, color: '#10b981', fontWeight: 500 }}>
-            <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981' }}/>
-            Cowork aktiv
-          </div>
-        </div>
         {/* Zoom */}
         <div style={{ background: 'rgba(255,255,255,0.97)', backdropFilter: 'blur(12px)', border: '1px solid rgba(15,23,42,0.08)', padding: '8px 12px', borderRadius: 14, fontFamily: 'JetBrains Mono', fontSize: 12, color: '#475569', boxShadow: '0 2px 10px rgba(15,23,42,0.08)', minWidth: 54, textAlign: 'center' }}>
           {Math.round(zoom * 100)}%
@@ -1086,15 +1073,11 @@ const Whiteboard = () => {
               </div>
               <button onClick={() => setShareOpen(false)} style={{ marginLeft: 'auto', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', padding: 4 }}><Icons.X size={18}/></button>
             </div>
-            {/* Collaborators preview */}
+            {/* Owner info */}
             <div style={{ background: '#f8fafc', borderRadius: 14, padding: '12px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ display: 'flex' }}>
-                <Avatar name={user?.email || 'Du'} color="#06b6d4" size={28} ring />
-                <div style={{ marginLeft: -8 }}><Avatar name="Lara K" color="#ec4899" size={28} ring /></div>
-                <div style={{ marginLeft: -8 }}><Avatar name="Tim R" color="#f59e0b" size={28} ring /></div>
-              </div>
+              <Avatar name={user?.email || 'Du'} color="#06b6d4" size={28} ring />
               <div style={{ fontSize: 12.5, color: '#475569' }}>
-                <span style={{ fontWeight: 500 }}>3 Personen</span> können dieses Board bearbeiten
+                Nur du hast Zugriff — teile den Link, um zusammenzuarbeiten
               </div>
             </div>
             <div style={{ display: 'flex', gap: 8, marginBottom: 16 }}>

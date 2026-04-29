@@ -235,7 +235,7 @@ const DokumentEditor = () => {
   const PEN_SIZES_DOC = [{v:2,label:’S’},{v:5,label:’M’},{v:10,label:’L’}];
 
   return (
-    <div style={{ minHeight: ‘100vh’, background: ‘#f4f5f7’, display: ‘flex’, flexDirection: ‘column’ }}>
+    <div className="dot-paper" style={{ minHeight: ‘100vh’, display: ‘flex’, flexDirection: ‘column’ }}>
 
       {/* ── Sticky header ── */}
       <header style={{
