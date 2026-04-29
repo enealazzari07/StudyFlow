@@ -449,9 +449,9 @@ const Nav = () => {
   return (
     <div style={{
       position: 'fixed', zIndex: 50,
-      top: 16, left: '50%', transform: 'translateX(-50%)',
+      top: 16, left: 0, right: 0,
       width: 'min(1200px, calc(100% - 48px))',
-      animation: 'fadeDown 0.7s 0.1s cubic-bezier(0.16,1,0.3,1) both',
+      marginLeft: 'auto', marginRight: 'auto',
     }}>
       <nav style={{
         padding: '12px 20px',
@@ -464,6 +464,7 @@ const Nav = () => {
           : '0 1px 2px rgba(15,23,42,0.04), 0 4px 16px rgba(15,23,42,0.04)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         transition: 'background 0.3s ease, box-shadow 0.3s ease',
+        animation: 'fadeDown 0.7s 0.1s cubic-bezier(0.16,1,0.3,1) both',
       }}>
         <a href="Landing.html" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
           <Icons.Logo size={30}/>
