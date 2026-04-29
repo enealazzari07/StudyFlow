@@ -241,23 +241,29 @@ const AIAssistant = ({ defaultOpen = false, context = "" }) => {
 
   return (
     <>
-      {/* Floating button */}
+      {/* Floating button — notebook style */}
       {!open && (
         <button
           onClick={() => setOpen(true)}
-          className="float"
           style={{
             position: 'fixed', bottom: 28, right: 28, zIndex: 80,
-            width: 58, height: 58, borderRadius: '50%',
-            background: 'linear-gradient(135deg, #6366f1 0%, #818cf8 100%)',
-            border: 'none', cursor: 'pointer',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            color: 'white',
-            boxShadow: '0 8px 24px rgba(99,102,241,0.4), 0 2px 6px rgba(99,102,241,0.3)',
+            width: 56, height: 64, borderRadius: 12,
+            background: 'white',
+            border: '1.5px solid rgba(15,23,42,0.12)',
+            cursor: 'pointer',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 5,
+            boxShadow: '0 4px 18px rgba(15,23,42,0.10), 0 1px 4px rgba(15,23,42,0.06)',
+            transition: 'box-shadow 0.2s ease, transform 0.2s ease',
           }}
+          onMouseEnter={e => { e.currentTarget.style.boxShadow = '0 8px 28px rgba(99,102,241,0.18), 0 2px 8px rgba(15,23,42,0.08)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
+          onMouseLeave={e => { e.currentTarget.style.boxShadow = '0 4px 18px rgba(15,23,42,0.10), 0 1px 4px rgba(15,23,42,0.06)'; e.currentTarget.style.transform = ''; }}
         >
-          <div className="pulse-ring" style={{ position: 'absolute', inset: 0, borderRadius: '50%' }}></div>
-          <Icons.Sparkles size={26} />
+          {/* Notebook lines decoration */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 3, position: 'absolute', top: 9, left: 9, right: 9, opacity: 0.18 }}>
+            {[0,1,2].map(i => <div key={i} style={{ height: 1.5, background: '#6366f1', borderRadius: 1 }}/>)}
+          </div>
+          <Icons.Sparkles size={18} style={{ color: '#6366f1', position: 'relative', zIndex: 1, marginTop: 10 }}/>
+          <div style={{ fontSize: 8, fontWeight: 700, color: '#6366f1', letterSpacing: '0.06em', fontFamily: 'Caveat, cursive', fontSize: 11, lineHeight: 1 }}>Flow</div>
         </button>
       )}
 
