@@ -439,9 +439,9 @@ const BentoCard = ({ feature, delay = 0 }) => {
 
 // ─── Nav ──────────────────────────────────────────────────────
 const Nav = () => {
-  const [stuck, setStuck] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
   useEffect(() => {
-    const fn = () => setStuck(window.scrollY > 50);
+    const fn = () => setScrolled(window.scrollY > 40);
     window.addEventListener('scroll', fn, { passive: true });
     return () => window.removeEventListener('scroll', fn);
   }, []);
@@ -449,26 +449,21 @@ const Nav = () => {
   return (
     <div style={{
       position: 'fixed', zIndex: 50,
-      top: stuck ? 0 : 16,
-      left: stuck ? 0 : '50%',
-      right: stuck ? 0 : 'auto',
-      transform: stuck ? 'none' : 'translateX(-50%)',
-      width: stuck ? '100%' : 'min(1200px, calc(100% - 48px))',
-      transition: 'top 0.4s cubic-bezier(0.16,1,0.3,1), left 0.4s cubic-bezier(0.16,1,0.3,1), right 0.4s, transform 0.4s, width 0.4s',
+      top: 16, left: '50%', transform: 'translateX(-50%)',
+      width: 'min(1200px, calc(100% - 48px))',
       animation: 'fadeDown 0.7s 0.1s cubic-bezier(0.16,1,0.3,1) both',
     }}>
       <nav style={{
-        padding: stuck ? '11px 32px' : '12px 20px',
-        background: stuck ? 'rgba(255,255,255,0.97)' : 'rgba(255,255,255,0.85)',
+        padding: '12px 20px',
+        background: scrolled ? 'rgba(255,255,255,0.97)' : 'rgba(255,255,255,0.82)',
         backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
-        border: stuck ? 'none' : '1px solid rgba(15,23,42,0.08)',
-        borderBottom: stuck ? '1px solid rgba(15,23,42,0.09)' : 'none',
-        borderRadius: stuck ? 0 : 16,
-        boxShadow: stuck
-          ? '0 1px 0 rgba(15,23,42,0.06), 0 6px 24px rgba(15,23,42,0.07)'
+        border: '1px solid rgba(15,23,42,0.08)',
+        borderRadius: 16,
+        boxShadow: scrolled
+          ? '0 4px 28px rgba(15,23,42,0.11)'
           : '0 1px 2px rgba(15,23,42,0.04), 0 4px 16px rgba(15,23,42,0.04)',
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        transition: 'all 0.4s cubic-bezier(0.16,1,0.3,1)',
+        transition: 'background 0.3s ease, box-shadow 0.3s ease',
       }}>
         <a href="Landing.html" style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
           <Icons.Logo size={30}/>
@@ -536,14 +531,12 @@ const Hero = () => {
   );
 
   return (
-    <section style={{ maxWidth: 1200, margin: '0 auto', padding: '96px 24px 0', position: 'relative', minHeight: '94vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-      {/* Particle canvas — full hero bg */}
-      <div style={{ position: 'absolute', inset: 0, overflow: 'hidden', borderRadius: 24, pointerEvents: 'none' }}>
-        <HeroParticles/>
-        {/* Soft radial bg glow */}
-        <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 1000, height: 650, background: 'radial-gradient(ellipse, rgba(99,102,241,0.22) 0%, rgba(99,102,241,0.07) 45%, transparent 70%)', animation: 'glowPulse 4s ease-in-out infinite', pointerEvents: 'none' }}/>
-        <div style={{ position: 'absolute', top: '70%', left: '25%', transform: 'translate(-50%,-50%)', width: 450, height: 340, background: 'radial-gradient(ellipse, rgba(139,92,246,0.14) 0%, transparent 70%)', animation: 'glowPulse 5s ease-in-out infinite 1.5s', pointerEvents: 'none' }}/>
-        <div style={{ position: 'absolute', top: '20%', left: '80%', transform: 'translate(-50%,-50%)', width: 380, height: 300, background: 'radial-gradient(ellipse, rgba(99,102,241,0.12) 0%, transparent 70%)', animation: 'glowPulse 6s ease-in-out infinite 0.7s', pointerEvents: 'none' }}/>
+    <section style={{ maxWidth: 1200, margin: '0 auto', padding: '96px 24px 0', position: 'relative', zIndex: 1, minHeight: '94vh', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+      {/* Soft radial glows — no clipping container so they blend into page */}
+      <div style={{ position: 'fixed', top: 0, left: 0, right: 0, height: '100vh', pointerEvents: 'none', zIndex: 0 }}>
+        <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 1000, height: 650, background: 'radial-gradient(ellipse, rgba(99,102,241,0.18) 0%, rgba(99,102,241,0.05) 50%, transparent 70%)', animation: 'glowPulse 4s ease-in-out infinite' }}/>
+        <div style={{ position: 'absolute', top: '70%', left: '25%', transform: 'translate(-50%,-50%)', width: 500, height: 380, background: 'radial-gradient(ellipse, rgba(139,92,246,0.11) 0%, transparent 70%)', animation: 'glowPulse 5s ease-in-out infinite 1.5s' }}/>
+        <div style={{ position: 'absolute', top: '20%', left: '80%', transform: 'translate(-50%,-50%)', width: 400, height: 320, background: 'radial-gradient(ellipse, rgba(99,102,241,0.10) 0%, transparent 70%)', animation: 'glowPulse 6s ease-in-out infinite 0.7s' }}/>
       </div>
 
       {/* Floating sticky note — parallax layer 1 */}
@@ -618,7 +611,7 @@ const BentoGrid = () => {
   useScrollParallax(headingRef, -0.06);
 
   return (
-    <section id="features" style={{ maxWidth: 1200, margin: '120px auto 40px', padding: '0 24px', position: 'relative' }}>
+    <section id="features" style={{ maxWidth: 1200, margin: '120px auto 40px', padding: '0 24px', position: 'relative', zIndex: 1 }}>
       {/* Background glow that moves on scroll */}
       <div style={{ position: 'absolute', top: '30%', left: '50%', transform: 'translate(-50%,-50%)', width: 800, height: 500, background: 'radial-gradient(ellipse, rgba(99,102,241,0.05) 0%, transparent 70%)', pointerEvents: 'none', animation: 'glowPulse 6s ease-in-out infinite' }}/>
       <div ref={headingRef} style={{ textAlign: 'center', marginBottom: 52 }}>
@@ -639,7 +632,7 @@ const BentoGrid = () => {
 
 // ─── AI Spotlight ─────────────────────────────────────────────
 const AISpotlight = () => (
-  <section id="ai" style={{ maxWidth: 1200, margin: '120px auto', padding: '0 24px' }}>
+  <section id="ai" style={{ maxWidth: 1200, margin: '120px auto', padding: '0 24px', position: 'relative', zIndex: 1 }}>
     <div style={{ position: 'relative', background: 'linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%)', borderRadius: 28, padding: '72px 60px', color: 'white', overflow: 'hidden' }}>
       <div style={{ position: 'absolute', inset: 0, opacity: 0.15, backgroundImage: 'radial-gradient(circle, white 1px, transparent 1px)', backgroundSize: '22px 22px' }}/>
       {/* Glow orbs */}
@@ -762,7 +755,7 @@ const Pricing = () => {
   };
 
   return (
-    <section id="preis" style={{ maxWidth: 1200, margin: '100px auto', padding: '0 24px' }}>
+    <section id="preis" style={{ maxWidth: 1200, margin: '100px auto', padding: '0 24px', position: 'relative', zIndex: 1 }}>
       {showPolicy && <PolicyModal onClose={() => { setShowPolicy(false); setCheckoutLoading(false); }} onConfirm={handleConfirmPurchase} loading={checkoutLoading}/>}
       <div style={{ textAlign: 'center', marginBottom: 60 }}>
         <div className="sf-reveal section-label">Preise</div>
@@ -838,6 +831,10 @@ const Landing = () => {
   return (
     <div className="dot-paper" style={{ minHeight: '100vh', overflowX: 'hidden' }}>
       <style>{ANIM_CSS}</style>
+      {/* Particle canvas covers full viewport width — no boxed clipping */}
+      <div style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 0 }}>
+        <HeroParticles/>
+      </div>
       <CursorGlow/>
       <Nav/>
       <Hero/>
