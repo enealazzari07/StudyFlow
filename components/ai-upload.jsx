@@ -26,6 +26,8 @@ function relativeTime(iso) {
   return `vor ${Math.floor(h / 24)} T.`;
 }
 
+const FREE_SCAN_LIMIT = 2;
+
 const AIUpload = () => {
   const [file, setFile] = useState(null);
   const [stage, setStage] = useState('idle');
@@ -42,7 +44,10 @@ const AIUpload = () => {
   const [generatedCards, setGeneratedCards] = useState([]);
   const [saving, setSaving] = useState(false);
   const [rawAIOutput, setRawAIOutput] = useState('');
+  const [userPlan, setUserPlan] = useState('free');
+  const [scansUsed, setScansUsed] = useState(0);
   const fileInputRef = useRef(null);
+  const profileRef = useRef(null);
 
   useEffect(() => {
     (async () => {
@@ -50,8 +55,18 @@ const AIUpload = () => {
       if (!session) return;
       setUserId(session.user.id);
       loadRecentDocs(session.user.id);
+
+      const { data: profile } = await window.sb.from('profiles')
+        .select('plan, scan_count_month, scan_month')
+        .eq('id', session.user.id)
+        .single();
+
+      profileRef.current = profile;
+      setUserPlan(profile?.plan || 'free');
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      const used = profile?.scan_month === currentMonth ? (profile?.scan_count_month || 0) : 0;
+      setScansUsed(used);
     })();
-    // respect URL params for in-set scanning: disable summary when requested
     if (paramNoSummary) {
       setNoSummaryMode(true);
       setOutput(o => ({ ...o, summary: false }));
@@ -103,6 +118,12 @@ const AIUpload = () => {
   const start = async () => {
     if (!file || !userId) return;
     setError('');
+
+    // Enforce free plan scan limit
+    if (userPlan !== 'pro' && scansUsed >= FREE_SCAN_LIMIT) {
+      setError(`Du hast dein monatliches Limit von ${FREE_SCAN_LIMIT} Doc-Scans erreicht. Upgrade auf Pro für unbegrenzte Analysen.`);
+      return;
+    }
 
     try {
       // Stage 1: Upload
@@ -158,9 +179,19 @@ const AIUpload = () => {
 
       setStage('done');
       loadRecentDocs(userId);
-      // If opened from a Lernset (targetSetId) and we don't have parsed cards, create placeholders as fallback
+
+      // Increment scan counter for free users
+      if (userPlan !== 'pro') {
+        const currentMonth = new Date().toISOString().slice(0, 7);
+        const profile = profileRef.current;
+        const prevCount = profile?.scan_month === currentMonth ? (profile?.scan_count_month || 0) : 0;
+        const newCount = prevCount + 1;
+        await window.sb.from('profiles').update({ scan_count_month: newCount, scan_month: currentMonth }).eq('id', userId);
+        setScansUsed(newCount);
+        profileRef.current = { ...profile, scan_count_month: newCount, scan_month: currentMonth };
+      }
+
       if (paramTargetSetId && generatedCards.length === 0 && !rawAIOutput) {
-        // Platzhalter entfernen, damit das Textfeld für die Eingabe bereit ist
         setGeneratedCards([]);
       }
     } catch (err) {
@@ -188,6 +219,23 @@ const AIUpload = () => {
       </header>
 
       <div className="px-mobile" style={{ maxWidth: 780, margin: '0 auto', padding: '48px 32px 80px', position: 'relative' }}>
+
+        {/* Usage badge for free users */}
+        {userPlan !== 'pro' && (
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10, marginBottom: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: scansUsed >= FREE_SCAN_LIMIT ? '#fef2f2' : '#eff6ff', border: `1px solid ${scansUsed >= FREE_SCAN_LIMIT ? '#fecaca' : '#bfdbfe'}`, borderRadius: 999, padding: '6px 14px', fontSize: 13 }}>
+              <span style={{ color: scansUsed >= FREE_SCAN_LIMIT ? '#dc2626' : '#2563eb', fontWeight: 600 }}>
+                {scansUsed} / {FREE_SCAN_LIMIT} Scans diesen Monat
+              </span>
+              {scansUsed >= FREE_SCAN_LIMIT
+                ? <span style={{ color: '#dc2626' }}>— Limit erreicht</span>
+                : <span style={{ color: '#64748b' }}>verbraucht</span>
+              }
+            </div>
+            <a href="dashboard.html?tab=settings" style={{ fontSize: 12.5, color: '#6366f1', fontWeight: 600, textDecoration: 'none' }}>Upgrade auf Pro →</a>
+          </div>
+        )}
+
         <div style={{ textAlign: 'center', marginBottom: 36, position: 'relative' }}>
           <div className="hide-mobile" style={{ position: 'absolute', top: -10, left: 60, transform: 'rotate(-12deg)' }}>
             <Doodles.Sparkle color="#f59e0b" size={18}/>
@@ -205,6 +253,23 @@ const AIUpload = () => {
             PDF, DOCX, Markdown oder einfach Text einfügen — Flow erstellt Karteikarten, Zusammenfassung und Quiz in ~8 Sekunden.
           </p>
         </div>
+
+        {/* Limit reached wall */}
+        {userPlan !== 'pro' && scansUsed >= FREE_SCAN_LIMIT && (
+          <div style={{ background: 'white', border: '1.5px solid #e0e7ff', borderRadius: 20, padding: '40px 32px', textAlign: 'center', marginBottom: 32, boxShadow: '0 4px 20px rgba(99,102,241,0.06)' }}>
+            <div style={{ width: 56, height: 56, borderRadius: 18, background: '#eef2ff', color: '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+              <Icons.Lock size={24}/>
+            </div>
+            <div style={{ fontFamily: 'Instrument Sans', fontSize: 22, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>Monatliches Limit erreicht</div>
+            <div style={{ fontSize: 14, color: '#64748b', maxWidth: 380, margin: '0 auto 24px' }}>
+              Du hast deine {FREE_SCAN_LIMIT} kostenlosen Doc-Scans für diesen Monat verbraucht. Mit Pro kannst du unbegrenzt scannen.
+            </div>
+            <a href="dashboard.html?tab=settings" className="btn-primary" style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '11px 24px', fontSize: 14, textDecoration: 'none' }}>
+              <Icons.Bolt size={14}/> Auf Pro upgraden
+            </a>
+            <div style={{ marginTop: 12, fontSize: 12, color: '#94a3b8' }}>Oder warte bis Monatsbeginn — dann wird dein Limit zurückgesetzt.</div>
+          </div>
+        )}
 
         {error && (
           <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 10, padding: '12px 16px', fontSize: 13, color: '#991b1b', marginBottom: 20 }}>

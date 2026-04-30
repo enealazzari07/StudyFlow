@@ -770,8 +770,20 @@ const Pricing = () => {
           <div style={{ fontFamily: 'Instrument Sans', fontSize: 42, fontWeight: 600, color: '#0f172a', marginBottom: 8 }}>0 € <span style={{ fontSize: 16, color: '#64748b', fontWeight: 500 }}>/Monat</span></div>
           <div style={{ fontSize: 14, color: '#64748b', marginBottom: 32 }}>Für den einfachen Start ins Semester.</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 40, flex: 1 }}>
-            {['Bis zu 10 Lernsets','3 AI-Analysen pro Monat','Basis-Lernstatistiken','Spaced Repetition (SM-2)'].map(f => (
+            {[
+              '2 Doc-Scans pro Monat',
+              'Bis zu 10 Lernsets',
+              'Spaced Repetition (SM-2)',
+              'Basis-Lernstatistiken',
+            ].map(f => (
               <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#334155' }}><span style={{ color: '#94a3b8', display: 'flex' }}><Icons.Check size={16}/></span>{f}</div>
+            ))}
+            {[
+              'Flow AI',
+              'Bildanalyse (Vision AI)',
+              'Live-Kollaboration',
+            ].map(f => (
+              <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#cbd5e1' }}><span style={{ color: '#e2e8f0', display: 'flex' }}><Icons.X size={16}/></span>{f}</div>
             ))}
           </div>
           <a href="login.html" className="btn-ghost" style={{ width: '100%', justifyContent: 'center', padding: '12px 0', fontSize: 15 }}>Kostenlos starten</a>
@@ -783,7 +795,14 @@ const Pricing = () => {
           <div style={{ fontFamily: 'Instrument Sans', fontSize: 42, fontWeight: 600, color: 'white', marginBottom: 8 }}>5,99 € <span style={{ fontSize: 16, color: '#a5b4fc', fontWeight: 500 }}>/Monat</span></div>
           <div style={{ fontSize: 14, color: '#c7d2fe', marginBottom: 32 }}>Für Power-User &amp; Lerngruppen. Jederzeit kündbar.</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 40, flex: 1 }}>
-            {['Unbegrenzte Lernsets','Unbegrenzte AI & Vision AI','Live-Kollaboration mit Freunden','Detaillierte Lern-Analytics','Prioritäts-Support'].map(f => (
+            {[
+              'Unbegrenzte Doc-Scans & AI',
+              'Flow AI (Chat mit deinen Docs)',
+              'Bildanalyse (Vision AI)',
+              'Unbegrenzte Lernsets',
+              'Live-Kollaboration mit Freunden',
+              'Detaillierte Lern-Analytics',
+            ].map(f => (
               <div key={f} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 14, color: '#e0e7ff' }}><span style={{ color: '#818cf8', display: 'flex' }}><Icons.Check size={16}/></span>{f}</div>
             ))}
           </div>

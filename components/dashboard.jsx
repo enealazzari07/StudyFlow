@@ -600,27 +600,56 @@ const SettingsPanel = ({ user, profile, onProfileUpdate, darkMode, setDarkMode }
     if (data) onProfileUpdate(data);
   };
 
+  const SUPABASE_URL = 'https://rbvzfqpgwmzefrdnexhq.supabase.co';
+
   const handleUpgrade = async () => {
     setUpgrading(true);
-    const { data } = await window.sb.from('profiles').update({ plan: 'pro' }).eq('id', user.id).select().single();
-    setUpgrading(false);
-    setShowUpgrade(false);
-    if (data) onProfileUpdate(data);
+    try {
+      const { data: { session } } = await window.sb.auth.getSession();
+      const token = session?.access_token;
+      if (!token) { window.location.href = 'login.html?redirect=pro'; return; }
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/stripe-checkout`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { url } = await res.json();
+      if (url) window.location.href = url; else throw new Error('Keine Checkout-URL');
+    } catch (e) {
+      alert('Fehler beim Öffnen des Checkouts: ' + (e.message || 'Unbekannter Fehler'));
+    } finally {
+      setUpgrading(false);
+    }
   };
 
-  const handleDowngrade = async () => {
-    if (!confirm('Auf Free downgraden?')) return;
-    const { data } = await window.sb.from('profiles').update({ plan: 'free' }).eq('id', user.id).select().single();
-    if (data) onProfileUpdate(data);
+  const handleManageSubscription = async () => {
+    try {
+      const { data: { session } } = await window.sb.auth.getSession();
+      const token = session?.access_token;
+      if (!token) return;
+      const res = await fetch(`${SUPABASE_URL}/functions/v1/stripe-portal`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const { url } = await res.json();
+      if (url) window.location.href = url; else throw new Error('Kein Portal-URL');
+    } catch (e) {
+      alert('Fehler: ' + (e.message || 'Unbekannter Fehler'));
+    }
   };
+
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const scansUsed = profile?.scan_month === currentMonth ? (profile?.scan_count_month || 0) : 0;
+  const FREE_SCAN_LIMIT = 2;
 
   const PRO_FEATURES = [
-    { icon: <Icons.Sparkles size={14}/>, label: 'Unbegrenzte AI-Analysen', free: '3 / Monat', pro: 'Unbegrenzt' },
+    { icon: <Icons.Sparkles size={14}/>, label: 'Doc-Scan (AI-Analyse)', free: `${scansUsed} / ${FREE_SCAN_LIMIT} pro Monat`, pro: 'Unbegrenzt' },
+    { icon: <Icons.Brain size={14}/>, label: 'Flow AI', free: false, pro: true },
     { icon: <Icons.Cards size={14}/>, label: 'Lernsets', free: 'Bis 10', pro: 'Unbegrenzt' },
     { icon: <Icons.Eye size={14}/>, label: 'Bildanalyse (Vision AI)', free: false, pro: true },
-    { icon: <Icons.Users size={14}/>, label: 'Kollaboration', free: false, pro: true },
+    { icon: <Icons.Users size={14}/>, label: 'Live-Kollaboration', free: false, pro: true },
     { icon: <Icons.Chart size={14}/>, label: 'Detaillierte Statistiken', free: false, pro: true },
-    { icon: <Icons.Mail size={14}/>, label: 'Uni-Mail Bonus', free: false, pro: 'Kostenlos!' },
   ];
 
   return (
@@ -680,16 +709,21 @@ const SettingsPanel = ({ user, profile, onProfileUpdate, darkMode, setDarkMode }
             {isPro && <span style={{ fontSize: 10, background: '#818cf8', color: 'white', padding: '2px 8px', borderRadius: 999, fontWeight: 600 }}>AKTIV</span>}
           </div>
           <div style={{ fontSize: 12.5, color: isPro ? '#a5b4fc' : 'var(--text-light)' }}>
-            {isPro ? 'Voller Zugriff auf alle Features — vielen Dank!' : 'Upgrade für unbegrenzte AI, Bildanalyse & mehr.'}
+            {isPro ? 'Voller Zugriff auf alle Features — vielen Dank!' : `Doc-Scans: ${scansUsed} von ${FREE_SCAN_LIMIT} diesen Monat genutzt.`}
           </div>
+          {!isPro && (
+            <div style={{ marginTop: 8, height: 4, background: 'rgba(15,23,42,0.08)', borderRadius: 999, overflow: 'hidden', maxWidth: 180 }}>
+              <div style={{ height: '100%', width: `${Math.min(100, (scansUsed / FREE_SCAN_LIMIT) * 100)}%`, background: scansUsed >= FREE_SCAN_LIMIT ? '#ef4444' : '#6366f1', borderRadius: 999, transition: 'width 0.3s' }}/>
+            </div>
+          )}
         </div>
         {isPro ? (
-          <button onClick={handleDowngrade} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '7px 14px', fontSize: 12, color: '#c7d2fe', cursor: 'pointer', fontFamily: 'inherit' }}>
-            Kündigen
+          <button onClick={handleManageSubscription} style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.2)', borderRadius: 8, padding: '7px 14px', fontSize: 12, color: '#c7d2fe', cursor: 'pointer', fontFamily: 'inherit' }}>
+            Abo verwalten / kündigen
           </button>
         ) : (
-          <button onClick={() => setShowUpgrade(true)} className="btn-primary" style={{ padding: '9px 18px', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', flexShrink: 0 }}>
-            <Icons.Sparkles size={13}/> Upgrade auf Pro
+          <button onClick={handleUpgrade} disabled={upgrading} className="btn-primary" style={{ padding: '9px 18px', background: 'linear-gradient(135deg, #6366f1, #4f46e5)', flexShrink: 0, opacity: upgrading ? 0.7 : 1 }}>
+            <Icons.Sparkles size={13}/> {upgrading ? 'Lädt…' : 'Upgrade auf Pro'}
           </button>
         )}
       </div>
@@ -1443,14 +1477,20 @@ const Sidebar = ({ user, profile, sets, active, onNav, onNewSet }) => {
         <div style={{ fontSize: 10.5, fontWeight: 600, color: 'var(--text-lighter)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: 6, padding: '0 8px' }}>Tools</div>
         {[{ id: 'ai', label: 'Flow AI', icon: <Icons.Sparkles size={15}/> }].map(item => {
           const isActive = active === item.id;
+          const locked = !isPro;
           return (
-            <div key={item.id} onClick={() => onNav(item.id)}
+            <div key={item.id}
+              onClick={() => locked ? onNav('settings') : onNav(item.id)}
               onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--bg-hover)'; }}
               onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent'; }}
-              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 8, background: isActive ? '#eef2ff' : 'transparent', color: isActive ? '#4f46e5' : 'var(--text-muted)', fontSize: 13, fontWeight: isActive ? 500 : 400, cursor: 'pointer', transition: 'background 0.1s' }}>
+              title={locked ? 'Flow AI ist nur im Pro-Plan verfügbar' : ''}
+              style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '7px 10px', borderRadius: 8, background: isActive ? '#eef2ff' : 'transparent', color: isActive ? '#4f46e5' : locked ? 'var(--text-lighter)' : 'var(--text-muted)', fontSize: 13, fontWeight: isActive ? 500 : 400, cursor: 'pointer', transition: 'background 0.1s' }}>
               {item.icon}
               <span style={{ flex: 1 }}>{item.label}</span>
-              {isActive && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', flexShrink: 0 }}/>}
+              {locked
+                ? <span style={{ fontSize: 9, background: 'linear-gradient(135deg,#6366f1,#818cf8)', color: 'white', padding: '2px 6px', borderRadius: 999, fontWeight: 700, letterSpacing: '0.04em' }}>PRO</span>
+                : isActive && <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', flexShrink: 0 }}/>
+              }
             </div>
           );
         })}
