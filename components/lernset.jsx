@@ -221,6 +221,82 @@ const CardsList = ({ cards, setCards, currentSetId }) => {
   );
 };
 
+// ─── Share Modal ──────────────────────────────────────────────
+const ShareModal = ({ set, userId, onClose }) => {
+  const [token, setToken] = useState(null);
+  const [copied, setCopied] = useState(false);
+  const [loadingToken, setLoadingToken] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      const { data: existing } = await window.sb
+        .from('set_share_tokens')
+        .select('token')
+        .eq('set_id', set.id)
+        .eq('created_by', userId)
+        .maybeSingle();
+      if (existing) { setToken(existing.token); setLoadingToken(false); return; }
+      const { data } = await window.sb
+        .from('set_share_tokens')
+        .insert({ set_id: set.id, created_by: userId })
+        .select('token')
+        .single();
+      if (data) setToken(data.token);
+      setLoadingToken(false);
+    })();
+  }, []);
+
+  const shareUrl = token ? `${window.location.origin}/share.html?token=${encodeURIComponent(token)}` : '';
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(shareUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2500);
+    });
+  };
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(15,23,42,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, backdropFilter: 'blur(4px)' }}
+      onClick={onClose}>
+      <div style={{ background: 'white', borderRadius: 20, padding: '28px 28px 24px', width: 440, boxShadow: '0 24px 64px rgba(15,23,42,0.18)', border: '1px solid rgba(15,23,42,0.07)' }}
+        onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 18 }}>
+          <div>
+            <div style={{ fontFamily: 'Instrument Sans', fontWeight: 700, fontSize: 17, color: '#0f172a' }}>Lernset teilen</div>
+            <div style={{ fontSize: 12.5, color: '#64748b', marginTop: 2 }}>{set.title}</div>
+          </div>
+          <button onClick={onClose} style={{ background: '#f1f5f9', border: 'none', borderRadius: 8, padding: 7, cursor: 'pointer', color: '#64748b', display: 'flex' }}>
+            <Icons.X size={15}/>
+          </button>
+        </div>
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 11, color: '#94a3b8', fontWeight: 600, letterSpacing: '0.06em', textTransform: 'uppercase', marginBottom: 6 }}>Teilen-Link</div>
+          {loadingToken ? (
+            <div style={{ background: '#f8fafc', borderRadius: 10, padding: '12px 14px', border: '1px solid #e2e8f0', fontSize: 17, color: '#94a3b8', fontFamily: 'Caveat' }}>Erstelle Link…</div>
+          ) : !token ? (
+            <div style={{ background: '#fee2e2', borderRadius: 10, padding: '12px 14px', border: '1px solid #fecaca', fontSize: 13, color: '#dc2626' }}>Fehler beim Generieren. Bitte Seite neu laden.</div>
+          ) : (
+            <input readOnly value={shareUrl} onClick={e => e.target.select()}
+              style={{ width: '100%', boxSizing: 'border-box', padding: '11px 14px', background: '#f8fafc', border: '1.5px solid #c7d2fe', borderRadius: 10, fontSize: 12, color: '#334155', fontFamily: 'JetBrains Mono, monospace', outline: 'none', cursor: 'text', lineHeight: 1.5 }}/>
+          )}
+        </div>
+        <div style={{ fontSize: 12.5, color: '#64748b', background: '#eff6ff', borderRadius: 10, padding: '10px 14px', marginBottom: 16, border: '1px solid #bfdbfe', lineHeight: 1.55 }}>
+          Wer diesen Link öffnet, kann das Lernset <strong>in seine eigene Bibliothek</strong> hinzufügen — mit eigenem Lernfortschritt.
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button onClick={handleCopy} disabled={loadingToken}
+            style={{ flex: 1, padding: '10px 0', background: copied ? '#059669' : '#6366f1', color: 'white', border: 'none', borderRadius: 10, fontSize: 13.5, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, transition: 'background 0.2s' }}>
+            {copied ? <><Icons.Check size={14}/> Kopiert!</> : <><Icons.Share size={14}/> Link kopieren</>}
+          </button>
+          <button onClick={onClose} style={{ padding: '10px 18px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: 10, fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' }}>
+            Schließen
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 // ─── Main ─────────────────────────────────────────────────────
 const LernsetDetail = () => {
   const [studySet, setStudySet] = useState(null);
@@ -229,6 +305,8 @@ const LernsetDetail = () => {
   const [notFound, setNotFound] = useState(false);
   const [isPublic, setIsPublic] = useState(false);
   const [togglingVisibility, setTogglingVisibility] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
 
   const toggleVisibility = async () => {
     if (togglingVisibility) return;
@@ -246,6 +324,7 @@ const LernsetDetail = () => {
     (async () => {
       const session = await window.requireAuth();
       if (!session) return;
+      setCurrentUser(session.user);
 
       if (!setId) { setNotFound(true); setLoading(false); return; }
 
@@ -321,6 +400,9 @@ const LernsetDetail = () => {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <button onClick={() => setShowShare(true)} className="btn-ghost" style={{ padding: '7px 12px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }}>
+            <Icons.Share size={13}/> Teilen
+          </button>
           <button
             onClick={toggleVisibility}
             disabled={togglingVisibility}
@@ -423,6 +505,10 @@ const LernsetDetail = () => {
       <CardsList cards={cards} setCards={setCards} currentSetId={setId}/>
 
       <AIAssistant/>
+
+      {showShare && studySet && currentUser && (
+        <ShareModal set={studySet} userId={currentUser.id} onClose={() => setShowShare(false)}/>
+      )}
     </div>
   );
 };
