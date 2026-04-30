@@ -931,35 +931,42 @@ const DocsPanel = ({ userId }) => {
   };
 
   const IconForType = ({ type }) => {
-    if (type === 'folder') return (
-      <img
-        src={EMPTY_FOLDER_ART}
-        alt=""
-        style={{ width: 20, height: 20, objectFit: 'contain', display: 'block' }}
-      />
-    );
     if (type === 'whiteboard') return (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <rect x="2" y="2" width="16" height="16" rx="3" fill="#818cf8" opacity="0.15" stroke="#818cf8" strokeWidth="1.5"/>
-        <circle cx="6" cy="6" r="0.8" fill="#818cf8"/>
-        <circle cx="10" cy="6" r="0.8" fill="#818cf8"/>
-        <circle cx="14" cy="6" r="0.8" fill="#818cf8"/>
-        <circle cx="6" cy="10" r="0.8" fill="#818cf8"/>
-        <circle cx="10" cy="10" r="0.8" fill="#818cf8"/>
-        <circle cx="14" cy="10" r="0.8" fill="#818cf8"/>
-        <circle cx="6" cy="14" r="0.8" fill="#818cf8"/>
-        <circle cx="10" cy="14" r="0.8" fill="#818cf8"/>
-        <circle cx="14" cy="14" r="0.8" fill="#818cf8"/>
-      </svg>
+      <div style={{ width: 48, height: 48, borderRadius: 14, background: '#eef2ff', border: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="3"/>
+          <circle cx="8" cy="8" r="0.9" fill="#6366f1" stroke="none"/>
+          <circle cx="12" cy="8" r="0.9" fill="#6366f1" stroke="none"/>
+          <circle cx="16" cy="8" r="0.9" fill="#6366f1" stroke="none"/>
+          <circle cx="8" cy="12" r="0.9" fill="#6366f1" stroke="none"/>
+          <circle cx="12" cy="12" r="0.9" fill="#6366f1" stroke="none"/>
+          <circle cx="16" cy="12" r="0.9" fill="#6366f1" stroke="none"/>
+          <circle cx="8" cy="16" r="0.9" fill="#6366f1" stroke="none"/>
+          <circle cx="12" cy="16" r="0.9" fill="#6366f1" stroke="none"/>
+          <circle cx="16" cy="16" r="0.9" fill="#6366f1" stroke="none"/>
+        </svg>
+      </div>
     );
     return (
-      <svg width="20" height="20" viewBox="0 0 20 20" fill="none">
-        <rect x="3" y="1" width="11" height="18" rx="2" fill="#6366f1" opacity="0.12" stroke="#6366f1" strokeWidth="1.5"/>
-        <path d="M6 7h8M6 10h8M6 13h5" stroke="#6366f1" strokeWidth="1.2" strokeLinecap="round"/>
-        <path d="M14 1l3 3h-3V1z" fill="#6366f1" opacity="0.5"/>
-      </svg>
+      <div style={{ width: 48, height: 48, borderRadius: 14, background: '#eef2ff', border: '1px solid #c7d2fe', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#6366f1" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14 2 14 8 20 8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10 9 9 9 8 9"/>
+        </svg>
+      </div>
     );
   };
+
+  const FolderIcon = () => (
+    <div style={{ width: 48, height: 48, borderRadius: 14, background: '#fffbeb', border: '1px solid #fde68a', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="#d97706" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+      </svg>
+    </div>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16, flex: 1, minHeight: 0, overflowY: 'auto', paddingBottom: 80 }}>
@@ -1033,25 +1040,24 @@ const DocsPanel = ({ userId }) => {
             const folderArt = childCount > 0 ? FILLED_FOLDER_ART : EMPTY_FOLDER_ART;
             return (
               <div key={item.id} onClick={() => openItem(item)}
-                onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor='#6366f1'; e.currentTarget.style.background='#eef2ff'; }}
+                onDragOver={e => { e.preventDefault(); e.currentTarget.style.borderColor='#fde68a'; e.currentTarget.style.background='#fffbeb'; }}
                 onDragLeave={e => { e.currentTarget.style.borderColor='var(--border-light)'; e.currentTarget.style.background='var(--bg-panel)'; }}
                 onDrop={e => { e.currentTarget.style.borderColor='var(--border-light)'; e.currentTarget.style.background='var(--bg-panel)'; handleDrop(e.dataTransfer.getData('text/plain'), item.id); }}
-                style={{ background: 'var(--bg-panel)', borderRadius: 14, padding: '14px 14px 12px', border: '1px solid var(--border-light)', cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s', display: 'flex', flexDirection: 'column', gap: 10, position: 'relative' }}
-                onMouseEnter={e => { e.currentTarget.style.borderColor='#fcd34d'; e.currentTarget.style.boxShadow='0 4px 16px rgba(245,158,11,0.1)'; }}
+                style={{ background: 'var(--bg-panel)', borderRadius: 12, border: '1px solid var(--border-light)', cursor: 'pointer', transition: 'border-color 0.15s, box-shadow 0.15s, background 0.15s', display: 'flex', flexDirection: 'column', overflow: 'hidden', position: 'relative' }}
+                onMouseEnter={e => { e.currentTarget.style.borderColor='#fde68a'; e.currentTarget.style.boxShadow='0 4px 16px rgba(245,158,11,0.08)'; }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border-light)'; e.currentTarget.style.boxShadow='none'; e.currentTarget.style.background='var(--bg-panel)'; }}>
-                <div style={{ height: 84, borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'transparent', overflow: 'hidden' }}>
-                  <img
-                    src={folderArt}
-                    alt={childCount > 0 ? 'Ordner mit Inhalten' : 'Leerer Ordner'}
-                    style={{ width: 74, height: 74, objectFit: 'contain', display: 'block', filter: childCount > 0 ? 'drop-shadow(0 10px 18px rgba(37, 99, 235, 0.16))' : 'drop-shadow(0 8px 14px rgba(37, 99, 235, 0.12))' }}
-                  />
+                <div style={{ height: 100, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'linear-gradient(180deg, #fffbeb 0%, var(--bg-panel) 100%)', borderBottom: '1px solid var(--border-light)' }}>
+                  <FolderIcon/>
                 </div>
-                <div style={{ fontSize: 13.5, fontWeight: 500, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-lighter)' }}>
-                  {childCount} {childCount === 1 ? 'Element' : 'Elemente'}
+                <div style={{ padding: '10px 12px' }}>
+                  <div style={{ fontSize: 13, fontWeight: 500, color: 'var(--text-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.name}</div>
+                  <div style={{ fontSize: 11, color: 'var(--text-lighter)', marginTop: 2, display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ padding: '1px 5px', background: '#fffbeb', borderRadius: 4, fontSize: 10, fontWeight: 600, color: '#d97706' }}>Ordner</span>
+                    <span>{childCount} {childCount === 1 ? 'Element' : 'Elemente'}</span>
+                  </div>
                 </div>
-                <button onClick={e => deleteItem(item.id, e)} style={{ position: 'absolute', top: 8, right: 8, background: 'none', border: 'none', color: 'var(--text-lighter)', cursor: 'pointer', padding: 4, borderRadius: 4, display: 'flex' }}
-                  onMouseEnter={e => e.currentTarget.style.color='#ef4444'} onMouseLeave={e => e.currentTarget.style.color='#cbd5e1'}>
+                <button onClick={e => deleteItem(item.id, e)} style={{ position: 'absolute', top: 6, right: 6, background: 'var(--bg-panel)', border: 'none', color: 'var(--text-lighter)', cursor: 'pointer', padding: 4, borderRadius: 5, display: 'flex', opacity: 0.8 }}
+                  onMouseEnter={e => e.currentTarget.style.color='#ef4444'} onMouseLeave={e => e.currentTarget.style.color='var(--text-lighter)'}>
                   <Icons.X size={12}/>
                 </button>
               </div>
@@ -1070,13 +1076,13 @@ const DocsPanel = ({ userId }) => {
               onMouseLeave={e => { e.currentTarget.style.borderColor='var(--border-light)'; e.currentTarget.style.boxShadow='none'; }}>
               {/* Preview area */}
               <div style={{
-                height: 110,
+                height: 100,
                 background: item.doc_type === 'whiteboard'
-                  ? 'radial-gradient(circle, var(--text-lighter) 1px, transparent 1px) 0 0 / 18px 18px, var(--bg-panel)'
+                  ? 'linear-gradient(180deg, #eef2ff 0%, var(--bg-panel) 100%)'
                   : 'linear-gradient(180deg, var(--bg-main) 0%, var(--bg-panel) 100%)',
                 display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid var(--border-light)',
               }}>
-                <div style={{ opacity: 0.35 }}><IconForType type={item.doc_type}/></div>
+                <IconForType type={item.doc_type}/>
               </div>
               {/* Footer */}
               <div style={{ padding: '10px 12px' }}>

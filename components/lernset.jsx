@@ -227,6 +227,20 @@ const LernsetDetail = () => {
   const [cards, setCards] = useState([]);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [isPublic, setIsPublic] = useState(false);
+  const [togglingVisibility, setTogglingVisibility] = useState(false);
+
+  const toggleVisibility = async () => {
+    if (togglingVisibility) return;
+    setTogglingVisibility(true);
+    const next = !isPublic;
+    const { error } = await window.sb
+      .from('study_sets')
+      .update({ is_public: next })
+      .eq('id', setId);
+    if (!error) setIsPublic(next);
+    setTogglingVisibility(false);
+  };
 
   useEffect(() => {
     (async () => {
@@ -244,6 +258,7 @@ const LernsetDetail = () => {
       if (!s) { setNotFound(true); setLoading(false); return; }
 
       setStudySet(s);
+      setIsPublic(!!s.is_public);
       document.title = `${s.title} — StudyFlow`;
 
       const { data: c } = await window.sb
@@ -306,8 +321,29 @@ const LernsetDetail = () => {
           </div>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <button className="btn-ghost" style={{ padding: '7px 12px', fontSize: 13 }}>
-            <Icons.Share size={13}/> Teilen
+          <button
+            onClick={toggleVisibility}
+            disabled={togglingVisibility}
+            className="btn-ghost"
+            title={isPublic ? 'Öffentlich — klicken um auf Privat umzustellen' : 'Privat — klicken um auf Öffentlich umzustellen'}
+            style={{ padding: '7px 12px', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6, opacity: togglingVisibility ? 0.6 : 1, transition: 'opacity 0.15s' }}
+          >
+            {isPublic ? (
+              <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/>
+                  <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+                </svg>
+                Öffentlich
+              </>
+            ) : (
+              <>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+                Privat
+              </>
+            )}
           </button>
         </div>
       </header>

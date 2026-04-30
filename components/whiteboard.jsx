@@ -400,6 +400,10 @@ const Whiteboard = () => {
   const [selected, setSelected] = useState(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [collaborators, setCollaborators] = useState([]);
+  const channelRef = useRef(null);
+  const broadcastThrottleRef = useRef(null);
+  const isRemoteUpdate = useRef(false);
 
   useEffect(() => { boardRef.current = board; }, [board]);
   useEffect(() => { panRef.current = pan; }, [pan]);
@@ -458,6 +462,53 @@ const Whiteboard = () => {
       setLoading(false);
     })();
   }, [docId]);
+
+  /* realtime collaboration */
+  useEffect(() => {
+    if (!docId) return;
+    const channelName = `whiteboard:${docId}`;
+    const ch = window.sb.channel(channelName, { config: { broadcast: { self: false } } });
+
+    ch.on('broadcast', { event: 'board-update' }, ({ payload }) => {
+      if (payload?.clientId === clientId) return;
+      isRemoteUpdate.current = true;
+      setBoard({
+        strokes:  payload.board?.strokes  || [],
+        shapes:   payload.board?.shapes   || [],
+        texts:    payload.board?.texts    || [],
+        notes:    payload.board?.notes    || [],
+        emojis:   payload.board?.emojis   || [],
+        frames:   payload.board?.frames   || [],
+        comments: payload.board?.comments || [],
+        images:   payload.board?.images   || [],
+      });
+      setTimeout(() => { isRemoteUpdate.current = false; }, 50);
+    });
+
+    ch.on('presence', { event: 'sync' }, () => {
+      const state = ch.presenceState();
+      const others = Object.values(state).flat().filter(p => p.clientId !== clientId);
+      setCollaborators(others);
+    });
+
+    ch.subscribe(async (status) => {
+      if (status === 'SUBSCRIBED') {
+        await ch.track({ clientId, joinedAt: new Date().toISOString() });
+      }
+    });
+
+    channelRef.current = ch;
+    return () => { window.sb.removeChannel(ch); };
+  }, [docId, clientId]);
+
+  /* broadcast board changes to collaborators (throttled) */
+  useEffect(() => {
+    if (isRemoteUpdate.current || !channelRef.current || !docId) return;
+    window.clearTimeout(broadcastThrottleRef.current);
+    broadcastThrottleRef.current = window.setTimeout(() => {
+      channelRef.current?.send({ type: 'broadcast', event: 'board-update', payload: { clientId, board: boardRef.current } });
+    }, 80);
+  }, [board, clientId, docId]);
 
   /* canvas resize */
   useEffect(() => {
@@ -947,8 +998,22 @@ const Whiteboard = () => {
         {savedAt && <span style={{ fontSize: 11, color: '#94a3b8' }}>{savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>}
       </div>
 
-      {/* top-right: user + zoom + share */}
+      {/* top-right: collaborators + user + zoom + share */}
       <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', alignItems: 'center', gap: 8, zIndex: 20 }}>
+        {/* Live collaborators */}
+        {collaborators.length > 0 && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            {collaborators.slice(0, 4).map((c, i) => (
+              <div key={c.clientId || i} title="Mitarbeiter aktiv" style={{ width: 28, height: 28, borderRadius: '50%', background: ['#10b981','#f59e0b','#3b82f6','#ec4899'][i % 4], border: '2px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'white', fontWeight: 600, marginLeft: i > 0 ? -8 : 0 }}>
+                {String.fromCharCode(65 + i)}
+              </div>
+            ))}
+            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 8, padding: '3px 8px', fontSize: 11, color: '#10b981', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }}/>
+              {collaborators.length} live
+            </div>
+          </div>
+        )}
         <button style={{ background: 'white', border: '1px solid rgba(15,23,42,0.08)', padding: '6px 10px', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#475569', fontFamily: 'inherit' }}>
           <Avatar name={user?.email || 'Du'} color="#06b6d4" size={22} />
           <Icons.Chevron size={10}/>
