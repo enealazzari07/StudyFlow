@@ -428,7 +428,7 @@ const Whiteboard = () => {
   const [history, setHistory] = useState([]);
   const [pan, setPan] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
-  const [showTemplates, setShowTemplates] = useState(true);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [showStickers, setShowStickers] = useState(false);
   const [showShapePicker, setShowShapePicker] = useState(false);
   const [selected, setSelected] = useState(null);
@@ -608,15 +608,20 @@ const Whiteboard = () => {
       const payload = { type: 'studyflow_whiteboard', client_id: clientId, updated_at: new Date().toISOString(), title, ...boardRef.current };
       const blob = new Blob([JSON.stringify(payload)], { type: WB_MIME });
       const safe = title.replace(/[^a-zA-Z0-9._-]/g, '_') || 'whiteboard';
-      const path = docRow?.file_path || `${user.id}/${Date.now()}_${safe}.whiteboard.json`;
-      await window.sb.storage.from('documents').upload(path, blob, { contentType: WB_MIME, upsert: true });
+      // Use stable path: prefer existing file_path, then docId-based path (deterministic, no timestamp churn)
+      const existingPath = docRow?.file_path && docRow.file_path !== '' ? docRow.file_path : null;
+      const path = existingPath || `${user.id}/${docId || Date.now()}_${safe}.whiteboard.json`;
+      const { error: upErr } = await window.sb.storage.from('documents').upload(path, blob, { contentType: WB_MIME, upsert: true });
+      if (upErr) throw new Error(`Speicherfehler: ${upErr.message}`);
       const meta = { name: title, file_path: path, file_size: blob.size, mime_type: WB_MIME };
       let row = docRow;
       if (docRow?.id) {
-        const { data } = await window.sb.from('documents').update(meta).eq('id', docRow.id).select().single();
+        const { data, error: dbErr } = await window.sb.from('documents').update(meta).eq('id', docRow.id).select().single();
+        if (dbErr) throw new Error(`DB-Fehler: ${dbErr.message}`);
         if (data) row = data;
       } else {
-        const { data } = await window.sb.from('documents').insert({ owner_id: user.id, doc_type: 'whiteboard', ...meta }).select().single();
+        const { data, error: dbErr } = await window.sb.from('documents').insert({ owner_id: user.id, doc_type: 'whiteboard', ...meta }).select().single();
+        if (dbErr) throw new Error(`DB-Fehler: ${dbErr.message}`);
         if (data) {
           row = data;
           const url = new URL(window.location.href);
@@ -627,18 +632,30 @@ const Whiteboard = () => {
       setDocRow(row);
       setSavedAt(new Date());
       return row;
+    } catch (err) {
+      console.error('Whiteboard save failed:', err);
+      alert(err.message || 'Speichern fehlgeschlagen');
+      return null;
     } finally {
       setSaving(false);
     }
-  }, [clientId, docRow, title, user]);
+  }, [clientId, docId, docRow, title, user]);
 
-  /* autosave */
+  /* autosave — 300 ms after last change */
   useEffect(() => {
     if (loading || !user) return undefined;
     window.clearTimeout(autosaveRef.current);
-    autosaveRef.current = window.setTimeout(() => { save(); }, 1200);
+    autosaveRef.current = window.setTimeout(() => { save(); }, 300);
     return () => window.clearTimeout(autosaveRef.current);
   }, [board, title, loading, save, user]);
+
+  /* save before tab/window close */
+  useEffect(() => {
+    if (!user) return undefined;
+    const onUnload = () => { save(); };
+    window.addEventListener('beforeunload', onUnload);
+    return () => window.removeEventListener('beforeunload', onUnload);
+  }, [save, user]);
 
   /* keyboard shortcuts */
   useEffect(() => {
@@ -1327,16 +1344,8 @@ const Whiteboard = () => {
         </button>
       </div>
 
-      {/* templates panel / button */}
+      {/* templates panel */}
       {showTemplates && <TemplatesPanel onClose={() => setShowTemplates(false)} onInsert={insertTemplate} />}
-      {!showTemplates && (
-        <div style={{ position: 'absolute', right: 30, top: 380, display: 'flex', alignItems: 'center', gap: 8, zIndex: 15 }}>
-          <span style={{ fontSize: 22 }}>✨</span>
-          <button onClick={() => setShowTemplates(true)} style={{ background: 'white', border: '1px solid rgba(15,23,42,0.08)', padding: '8px 14px', borderRadius: 999, fontSize: 13, color: '#0f172a', cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 8px rgba(15,23,42,0.06)' }}>
-            Vorlagen <span style={{ color: '#94a3b8' }}>›</span>
-          </button>
-        </div>
-      )}
 
       {showStickers && <StickersPanel onClose={() => setShowStickers(false)} onPick={placeSticker} />}
 

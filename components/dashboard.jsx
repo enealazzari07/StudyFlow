@@ -892,7 +892,7 @@ const DocsPanel = ({ userId }) => {
   const createWhiteboard = async () => {
     const { data, error: err } = await window.sb.from('documents').insert({
       owner_id: userId, name: 'Neues Whiteboard',
-      doc_type: 'whiteboard', file_path: '', file_size: 0,
+      doc_type: 'whiteboard', file_path: null, file_size: 0,
       mime_type: 'application/studyflow-whiteboard+json',
       folder_id: currentFolder,
     }).select().single();
