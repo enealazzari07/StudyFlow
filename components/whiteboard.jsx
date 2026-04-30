@@ -404,10 +404,12 @@ const Whiteboard = () => {
   const channelRef = useRef(null);
   const broadcastThrottleRef = useRef(null);
   const isRemoteUpdate = useRef(false);
+  const userRef = useRef(null);
 
   useEffect(() => { boardRef.current = board; }, [board]);
   useEffect(() => { panRef.current = pan; }, [pan]);
   useEffect(() => { zoomRef.current = zoom; }, [zoom]);
+  useEffect(() => { userRef.current = user; }, [user]);
 
   const pushHistory = useCallback(() => setHistory((prev) => [...prev.slice(-39), clone(boardRef.current)]), []);
   const mutateBoard = useCallback((fn) => setBoard((prev) => { const next = clone(prev); fn(next); return next; }), []);
@@ -492,8 +494,16 @@ const Whiteboard = () => {
     });
 
     ch.subscribe(async (status) => {
-      if (status === 'SUBSCRIBED') {
-        await ch.track({ clientId, joinedAt: new Date().toISOString() });
+      if (status === 'SUBSCRIBED' && userRef.current) {
+        const u = userRef.current;
+        const name = u.user_metadata?.full_name || u.email || '';
+        const initials = name
+          .split(/[\s.@]+/)
+          .filter(Boolean)
+          .slice(0, 2)
+          .map(p => p[0].toUpperCase())
+          .join('');
+        await ch.track({ clientId, initials: initials || '?', joinedAt: new Date().toISOString() });
       }
     });
 
@@ -998,34 +1008,33 @@ const Whiteboard = () => {
         {savedAt && <span style={{ fontSize: 11, color: '#94a3b8' }}>{savedAt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })}</span>}
       </div>
 
-      {/* top-right: collaborators + user + zoom + share */}
-      <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', alignItems: 'center', gap: 8, zIndex: 20 }}>
-        {/* Live collaborators */}
-        {collaborators.length > 0 && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            {collaborators.slice(0, 4).map((c, i) => (
-              <div key={c.clientId || i} title="Mitarbeiter aktiv" style={{ width: 28, height: 28, borderRadius: '50%', background: ['#10b981','#f59e0b','#3b82f6','#ec4899'][i % 4], border: '2px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'white', fontWeight: 600, marginLeft: i > 0 ? -8 : 0 }}>
-                {String.fromCharCode(65 + i)}
-              </div>
-            ))}
-            <div style={{ background: 'white', border: '1px solid #e2e8f0', borderRadius: 8, padding: '3px 8px', fontSize: 11, color: '#10b981', fontWeight: 500, display: 'flex', alignItems: 'center', gap: 4 }}>
-              <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }}/>
-              {collaborators.length} live
+      {/* top-right: avatar group + share */}
+      <div style={{ position: 'absolute', top: 14, right: 14, display: 'flex', alignItems: 'center', gap: 10, zIndex: 20 }}>
+        {/* Own avatar + collaborators — single overlapping group */}
+        {(() => {
+          const ownName = user?.user_metadata?.full_name || user?.email || 'Du';
+          const ownInitials = ownName.split(/[\s.@]+/).filter(Boolean).slice(0, 2).map(p => p[0].toUpperCase()).join('') || '?';
+          const colors = ['#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#ec4899'];
+          const allUsers = [
+            { initials: ownInitials, color: colors[0], label: 'Du' },
+            ...collaborators.slice(0, 4).map((c, i) => ({ initials: c.initials || '?', color: colors[(i + 1) % colors.length], label: 'Mitarbeiter' })),
+          ];
+          return (
+            <div style={{ display: 'flex', alignItems: 'center' }}>
+              {allUsers.map((u, i) => (
+                <div key={i} title={u.label} style={{ width: 30, height: 30, borderRadius: '50%', background: u.color, border: '2px solid white', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: 'white', fontWeight: 700, marginLeft: i > 0 ? -8 : 0, zIndex: allUsers.length - i, position: 'relative', letterSpacing: '-0.02em' }}>
+                  {u.initials}
+                </div>
+              ))}
+              {collaborators.length > 0 && (
+                <div style={{ marginLeft: 8, background: 'white', border: '1px solid #e2e8f0', borderRadius: 8, padding: '3px 8px', fontSize: 11, color: '#10b981', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: '#10b981', display: 'inline-block' }}/>
+                  {collaborators.length + 1} online
+                </div>
+              )}
             </div>
-          </div>
-        )}
-        <button style={{ background: 'white', border: '1px solid rgba(15,23,42,0.08)', padding: '6px 10px', borderRadius: 10, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#475569', fontFamily: 'inherit' }}>
-          <Avatar name={user?.email || 'Du'} color="#06b6d4" size={22} />
-          <Icons.Chevron size={10}/>
-        </button>
-        <div style={{ display: 'flex' }}>
-          <Avatar name="Lara K" color="#ec4899" size={28} ring />
-          <div style={{ marginLeft: -6 }}><Avatar name="Tim R" color="#f59e0b" size={28} ring /></div>
-        </div>
-        <div style={{ background: 'white', border: '1px solid rgba(15,23,42,0.08)', padding: '6px 10px', borderRadius: 10, fontFamily: 'JetBrains Mono', fontSize: 11.5, color: '#475569', display: 'flex', alignItems: 'center', gap: 5 }}>
-          <Icons.Clock size={11}/>
-          {saving ? 'sync' : `${Math.round(zoom * 100)}%`}
-        </div>
+          );
+        })()}
         <button onClick={() => setShareOpen(true)} style={{ padding: '7px 14px', background: '#8b5cf6', color: 'white', border: 'none', borderRadius: 10, fontSize: 12.5, fontWeight: 500, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 1px 2px rgba(139,92,246,0.3)', display: 'flex', alignItems: 'center', gap: 6 }}>
           <Icons.Share size={14}/> Teilen
         </button>
