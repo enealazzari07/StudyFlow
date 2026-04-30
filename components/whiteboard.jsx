@@ -202,6 +202,40 @@ function withinBox(x, y, box, pad = 0) {
   return x >= box.x - pad && x <= box.x + box.width + pad && y >= box.y - pad && y <= box.y + box.height + pad;
 }
 
+/* returns array of { kind, id } for every object whose bounding box overlaps the marquee (world coords) */
+function objectsInMarquee(board, ax, ay, bx, by) {
+  const minX = Math.min(ax, bx), maxX = Math.max(ax, bx);
+  const minY = Math.min(ay, by), maxY = Math.max(ay, by);
+  const overlap = (ox, oy, ow, oh) => ox + ow >= minX && ox <= maxX && oy + oh >= minY && oy <= maxY;
+  const result = [];
+  for (const n of board.notes)    if (overlap(n.x, n.y, n.width, n.height))        result.push({ kind: 'notes',    id: n.id });
+  for (const t of board.texts)    if (overlap(t.x, t.y, t.width, t.height || 48)) result.push({ kind: 'texts',    id: t.id });
+  for (const f of board.frames)   if (overlap(f.x, f.y, f.width, f.height))        result.push({ kind: 'frames',   id: f.id });
+  for (const i of board.images)   if (overlap(i.x, i.y, i.width, i.height))        result.push({ kind: 'images',   id: i.id });
+  for (const e of board.emojis)   if (overlap(e.x, e.y, 50, 50))                  result.push({ kind: 'emojis',   id: e.id });
+  for (const c of board.comments) if (overlap(c.x, c.y, c.width, c.height || 140))result.push({ kind: 'comments', id: c.id });
+  for (const s of board.shapes) {
+    const sx = Math.min(s.x1, s.x2), sy = Math.min(s.y1, s.y2);
+    const sw = Math.abs(s.x2 - s.x1), sh = Math.abs(s.y2 - s.y1);
+    if (overlap(sx, sy, sw, sh)) result.push({ kind: 'shapes', id: s.id });
+  }
+  return result;
+}
+
+/* find nearest object center within radius (world coords), returns { x, y, id, kind } or null */
+function findNearestAnchor(board, wx, wy, radius) {
+  let best = null, bestD = radius;
+  const check = (x, y, cx, cy, id, kind) => {
+    const d = Math.hypot(wx - cx, wy - cy);
+    if (d < bestD) { bestD = d; best = { x: cx, y: cy, id, kind }; }
+  };
+  for (const n of board.notes)  check(0,0, n.x + n.width/2, n.y + n.height/2, n.id, 'notes');
+  for (const t of board.texts)  check(0,0, t.x + t.width/2, t.y + (t.height||48)/2, t.id, 'texts');
+  for (const f of board.frames) check(0,0, f.x + f.width/2, f.y + f.height/2, f.id, 'frames');
+  for (const i of board.images) check(0,0, i.x + i.width/2, i.y + i.height/2, i.id, 'images');
+  return best;
+}
+
 function findStroke(board, x, y, zoom) {
   for (let i = board.strokes.length - 1; i >= 0; i -= 1) {
     const stroke = board.strokes[i];
@@ -398,13 +432,18 @@ const Whiteboard = () => {
   const [showStickers, setShowStickers] = useState(false);
   const [showShapePicker, setShowShapePicker] = useState(false);
   const [selected, setSelected] = useState(null);
+  const [multiSelected, setMultiSelected] = useState([]); // [{ kind, id }]
+  const [marquee, setMarquee] = useState(null);           // screen rect { x,y,w,h }
+  const [contextMenu, setContextMenu] = useState(null);   // { x,y, target:{kind,id}|null }
   const [shareOpen, setShareOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [collaborators, setCollaborators] = useState([]);
   const channelRef = useRef(null);
   const broadcastThrottleRef = useRef(null);
   const isRemoteUpdate = useRef(false);
+  const isInteractingRef = useRef(false);
   const userRef = useRef(null);
+  const marqueeRef = useRef({ active: false, x1: 0, y1: 0, x2: 0, y2: 0 });
 
   useEffect(() => { boardRef.current = board; }, [board]);
   useEffect(() => { panRef.current = pan; }, [pan]);
@@ -511,9 +550,9 @@ const Whiteboard = () => {
     return () => { window.sb.removeChannel(ch); };
   }, [docId, clientId]);
 
-  /* broadcast board changes to collaborators (throttled) */
+  /* broadcast board changes to collaborators — only when not actively dragging/drawing */
   useEffect(() => {
-    if (isRemoteUpdate.current || !channelRef.current || !docId) return;
+    if (isRemoteUpdate.current || isInteractingRef.current || !channelRef.current || !docId) return;
     window.clearTimeout(broadcastThrottleRef.current);
     broadcastThrottleRef.current = window.setTimeout(() => {
       channelRef.current?.send({ type: 'broadcast', event: 'board-update', payload: { clientId, board: boardRef.current } });
@@ -621,12 +660,31 @@ const Whiteboard = () => {
         save();
         return;
       }
-      if ((event.key === 'Delete' || event.key === 'Backspace') && selected && !isEditing) {
-        mutateBoard((draft) => {
-          draft[selected.kind] = draft[selected.kind].filter((item) => item.id !== selected.id);
-        });
+      if (event.key === 'Escape') {
         setSelected(null);
+        setMultiSelected([]);
+        setMarquee(null);
+        marqueeRef.current.active = false;
+        setContextMenu(null);
         return;
+      }
+      if ((event.key === 'Delete' || event.key === 'Backspace') && !isEditing) {
+        if (multiSelected.length > 0) {
+          pushHistory();
+          mutateBoard((draft) => {
+            for (const sel of multiSelected) draft[sel.kind] = draft[sel.kind].filter(o => o.id !== sel.id);
+          });
+          setMultiSelected([]);
+          return;
+        }
+        if (selected) {
+          pushHistory();
+          mutateBoard((draft) => {
+            draft[selected.kind] = draft[selected.kind].filter((item) => item.id !== selected.id);
+          });
+          setSelected(null);
+          return;
+        }
       }
       if (!isEditing && !event.ctrlKey && !event.metaKey && !event.altKey) {
         const mapped = SHORTCUT_MAP[event.key.toLowerCase()];
@@ -640,7 +698,7 @@ const Whiteboard = () => {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [mutateBoard, save, selected]);
+  }, [multiSelected, mutateBoard, pushHistory, save, selected]);
 
   /* template insert */
   const insertTemplate = useCallback((templateId) => {
@@ -777,8 +835,11 @@ const Whiteboard = () => {
   const onPointerDown = useCallback((event) => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+    if (event.button === 2) return; // right-click handled by onContextMenu
     canvas.setPointerCapture?.(event.pointerId);
     const world = getWorldPoint(event, canvas, panRef.current, zoomRef.current);
+    isInteractingRef.current = true;
+    setContextMenu(null);
 
     if (tool === 'pan' || event.button === 1) {
       dragPanRef.current = { active: true, startX: event.clientX, startY: event.clientY, originX: panRef.current.x, originY: panRef.current.y };
@@ -787,10 +848,21 @@ const Whiteboard = () => {
     if (tool === 'select') {
       const found = findSelection(boardRef.current, world.x, world.y, zoomRef.current);
       if (found) {
-        moveRef.current = { active: true, kind: found.kind, id: found.item.id, startX: world.x, startY: world.y, origin: clone(found.item) };
-        setSelected({ kind: found.kind, id: found.item.id });
+        // If clicking a multi-selected item, move the whole group; else single select
+        const inMulti = multiSelected.some(s => s.id === found.item.id);
+        if (inMulti && multiSelected.length > 1) {
+          moveRef.current = { active: true, kind: found.kind, id: found.item.id, startX: world.x, startY: world.y, origin: clone(found.item), multi: multiSelected.map(s => ({ ...s, origin: boardRef.current[s.kind].find(o => o.id === s.id) })) };
+        } else {
+          moveRef.current = { active: true, kind: found.kind, id: found.item.id, startX: world.x, startY: world.y, origin: clone(found.item), multi: null };
+          setSelected({ kind: found.kind, id: found.item.id });
+          setMultiSelected([]);
+        }
       } else {
+        // Start marquee selection on empty canvas
         setSelected(null);
+        setMultiSelected([]);
+        marqueeRef.current = { active: true, x1: event.clientX, y1: event.clientY, x2: event.clientX, y2: event.clientY };
+        setMarquee({ x: event.clientX, y: event.clientY, w: 0, h: 0 });
       }
       return;
     }
@@ -798,38 +870,48 @@ const Whiteboard = () => {
       pushHistory();
       const theme = STICKY_THEMES[boardRef.current.notes.length % STICKY_THEMES.length];
       mutateBoard((draft) => { draft.notes.push({ id: randomId('note'), x: world.x, y: world.y, width: 180, height: 130, text: 'Neue Notiz', ...theme }); });
+      setTool('select');
       return;
     }
     if (tool === 'text') {
       pushHistory();
       mutateBoard((draft) => { draft.texts.push({ id: randomId('text'), x: world.x, y: world.y, width: 180, height: 48, text: 'Text', color, bubble: false }); });
+      setTool('select');
       return;
     }
     if (tool === 'comment') {
       pushHistory();
       mutateBoard((draft) => { draft.comments.push({ id: randomId('comment'), x: world.x, y: world.y, width: 260, height: 140, text: 'Kommentar' }); });
+      setTool('select');
       return;
     }
     if (tool === 'frame') {
       pushHistory();
       mutateBoard((draft) => { draft.frames.push({ id: randomId('frame'), x: world.x, y: world.y, width: 360, height: 220, title: 'Frame' }); });
+      setTool('select');
       return;
     }
     if (tool === 'eraser') {
+      pushHistory();
       const found = findSelection(boardRef.current, world.x, world.y, zoomRef.current);
       const strokeHit = findStroke(boardRef.current, world.x, world.y, zoomRef.current);
       if (found || strokeHit) {
-        pushHistory();
         mutateBoard((draft) => {
           if (found) draft[found.kind] = draft[found.kind].filter((item) => item.id !== found.item.id);
           if (strokeHit) draft.strokes.splice(strokeHit.index, 1);
         });
       }
+      // Also start wipe-area: reuse marquee ref with eraser mode
+      marqueeRef.current = { active: true, eraseMode: true, x1: event.clientX, y1: event.clientY, x2: event.clientX, y2: event.clientY };
+      setMarquee({ x: event.clientX, y: event.clientY, w: 0, h: 0, eraseMode: true });
       return;
     }
     if (['rect', 'circle', 'arrow', 'connector'].includes(tool)) {
       pushHistory();
-      shapeRef.current = { active: true, type: tool, x1: world.x, y1: world.y, x2: world.x, y2: world.y };
+      const snap = tool === 'connector' ? findNearestAnchor(boardRef.current, world.x, world.y, 40 / zoomRef.current) : null;
+      const sx = snap ? snap.x : world.x;
+      const sy = snap ? snap.y : world.y;
+      shapeRef.current = { active: true, type: tool, x1: sx, y1: sy, x2: sx, y2: sy, sourceId: snap?.id || null };
       return;
     }
     if (tool === 'pen' || tool === 'highlight') {
@@ -841,7 +923,7 @@ const Whiteboard = () => {
         stroke: { id: randomId('stroke'), tool, color, alpha: tool === 'highlight' ? 0.28 : 1, width, points: [world] },
       };
     }
-  }, [color, mutateBoard, penSizeId, pushHistory, tool]);
+  }, [color, multiSelected, mutateBoard, penSizeId, pushHistory, tool]);
 
   const onPointerMove = useCallback((event) => {
     const canvas = canvasRef.current;
@@ -850,17 +932,38 @@ const Whiteboard = () => {
       setPan({ x: dragPanRef.current.originX + event.clientX - dragPanRef.current.startX, y: dragPanRef.current.originY + event.clientY - dragPanRef.current.startY });
       return;
     }
+    // Update marquee rectangle (both select and erase mode)
+    if (marqueeRef.current.active) {
+      marqueeRef.current.x2 = event.clientX;
+      marqueeRef.current.y2 = event.clientY;
+      const { x1, y1, x2, y2 } = marqueeRef.current;
+      setMarquee({ x: Math.min(x1,x2), y: Math.min(y1,y2), w: Math.abs(x2-x1), h: Math.abs(y2-y1), eraseMode: marqueeRef.current.eraseMode });
+      return;
+    }
     if (moveRef.current.active) {
       const world = getWorldPoint(event, canvas, panRef.current, zoomRef.current);
       const dx = world.x - moveRef.current.startX;
       const dy = world.y - moveRef.current.startY;
       mutateBoard((draft) => {
-        draft[moveRef.current.kind] = draft[moveRef.current.kind].map((item) => {
-          if (item.id !== moveRef.current.id) return item;
-          const origin = moveRef.current.origin;
-          if (moveRef.current.kind === 'shapes') return { ...item, x1: origin.x1 + dx, y1: origin.y1 + dy, x2: origin.x2 + dx, y2: origin.y2 + dy };
-          return { ...item, x: origin.x + dx, y: origin.y + dy };
-        });
+        if (moveRef.current.multi && moveRef.current.multi.length > 1) {
+          // Move all multi-selected objects
+          for (const sel of moveRef.current.multi) {
+            draft[sel.kind] = draft[sel.kind].map((item) => {
+              if (item.id !== sel.id) return item;
+              const orig = sel.origin;
+              if (!orig) return item;
+              if (sel.kind === 'shapes') return { ...item, x1: orig.x1+dx, y1: orig.y1+dy, x2: orig.x2+dx, y2: orig.y2+dy };
+              return { ...item, x: orig.x + dx, y: orig.y + dy };
+            });
+          }
+        } else {
+          draft[moveRef.current.kind] = draft[moveRef.current.kind].map((item) => {
+            if (item.id !== moveRef.current.id) return item;
+            const origin = moveRef.current.origin;
+            if (moveRef.current.kind === 'shapes') return { ...item, x1: origin.x1+dx, y1: origin.y1+dy, x2: origin.x2+dx, y2: origin.y2+dy };
+            return { ...item, x: origin.x + dx, y: origin.y + dy };
+          });
+        }
       });
       return;
     }
@@ -873,11 +976,9 @@ const Whiteboard = () => {
     if (drawRef.current.active) {
       const world = getWorldPoint(event, canvas, panRef.current, zoomRef.current);
       const pts = drawRef.current.stroke.points;
-      /* point subsampling — only record if moved ≥ 3px in world space */
       if (!pts.length || dist2(pts[pts.length - 1], world) >= 3 / zoomRef.current) {
         drawRef.current.stroke.points.push(world);
       }
-      /* live preview — draw directly without full state clone */
       const ctx = canvas.getContext('2d');
       drawBoard(ctx, boardRef.current, panRef.current, zoomRef.current);
       const dpr = window.devicePixelRatio || 1;
@@ -893,22 +994,180 @@ const Whiteboard = () => {
   const onPointerUp = useCallback((event) => {
     dragPanRef.current.active = false;
     moveRef.current.active = false;
+    isInteractingRef.current = false;
+
+    // Finish marquee selection or wipe
+    if (marqueeRef.current.active) {
+      const { x1, y1, x2, y2, eraseMode } = marqueeRef.current;
+      marqueeRef.current = { active: false, x1: 0, y1: 0, x2: 0, y2: 0 };
+      setMarquee(null);
+      // Convert screen rect to world coords
+      const canvas = canvasRef.current;
+      if (canvas) {
+        const toWorld = (sx, sy) => ({
+          x: (sx - canvas.getBoundingClientRect().left - panRef.current.x) / zoomRef.current,
+          y: (sy - canvas.getBoundingClientRect().top  - panRef.current.y) / zoomRef.current,
+        });
+        const tl = toWorld(Math.min(x1,x2), Math.min(y1,y2));
+        const br = toWorld(Math.max(x1,x2), Math.max(y1,y2));
+        const found = objectsInMarquee(boardRef.current, tl.x, tl.y, br.x, br.y);
+        if (eraseMode && found.length > 0) {
+          mutateBoard((draft) => {
+            for (const sel of found) draft[sel.kind] = draft[sel.kind].filter(o => o.id !== sel.id);
+          });
+        } else if (!eraseMode && found.length > 0) {
+          setMultiSelected(found);
+          setSelected(null);
+        }
+      }
+      // broadcast after wipe/select
+      window.setTimeout(() => {
+        if (channelRef.current && docId) {
+          channelRef.current.send({ type: 'broadcast', event: 'board-update', payload: { clientId, board: boardRef.current } });
+        }
+      }, 20);
+      return;
+    }
+
     if (shapeRef.current.active) {
       const current = shapeRef.current;
       shapeRef.current = { active: false, type: null, x1: 0, y1: 0, x2: 0, y2: 0 };
       const dash = LINE_STYLES.find((s) => s.id === lineStyle)?.dash || [];
       const ae = ['arrow', 'connector'].includes(current.type) ? arrowEnd : 'none';
+      // Connector snap-to-target
+      const canvas = canvasRef.current;
+      let ex = current.x2, ey = current.y2, targetId = null;
+      if (canvas && current.type === 'connector') {
+        const world = getWorldPoint(event, canvas, panRef.current, zoomRef.current);
+        const snap = findNearestAnchor(boardRef.current, world.x, world.y, 40 / zoomRef.current);
+        if (snap) { ex = snap.x; ey = snap.y; targetId = snap.id; }
+      }
       mutateBoard((draft) => {
-        draft.shapes.push({ id: randomId('shape'), type: current.type, x1: current.x1, y1: current.y1, x2: current.x2, y2: current.y2, color, width: 2.5, dash, arrowEnd: ae });
+        draft.shapes.push({ id: randomId('shape'), type: current.type, x1: current.x1, y1: current.y1, x2: ex, y2: ey, color, width: 2.5, dash, arrowEnd: ae, sourceId: current.sourceId || null, targetId: targetId || null });
       });
+      // Broadcast + save after shape
+      window.setTimeout(() => {
+        if (channelRef.current && docId) channelRef.current.send({ type: 'broadcast', event: 'board-update', payload: { clientId, board: boardRef.current } });
+        save();
+      }, 50);
       return;
     }
+
     if (drawRef.current.active) {
       const stroke = clone(drawRef.current.stroke);
       drawRef.current = { active: false, stroke: null };
       mutateBoard((draft) => { draft.strokes.push(stroke); });
+      // Broadcast + save after stroke
+      window.setTimeout(() => {
+        if (channelRef.current && docId) channelRef.current.send({ type: 'broadcast', event: 'board-update', payload: { clientId, board: boardRef.current } });
+        save();
+      }, 50);
+      return;
     }
-  }, [color, lineStyle, arrowEnd, mutateBoard]);
+
+    // After a move — broadcast + save
+    window.setTimeout(() => {
+      if (channelRef.current && docId) channelRef.current.send({ type: 'broadcast', event: 'board-update', payload: { clientId, board: boardRef.current } });
+      save();
+    }, 50);
+  }, [clientId, color, docId, lineStyle, arrowEnd, mutateBoard, save]);
+
+  /* context menu */
+  const onContextMenu = useCallback((event) => {
+    event.preventDefault();
+    const canvas = canvasRef.current;
+    if (!canvas) return;
+    const world = getWorldPoint(event, canvas, panRef.current, zoomRef.current);
+    const found = findSelection(boardRef.current, world.x, world.y, zoomRef.current);
+    const strokeHit = findStroke(boardRef.current, world.x, world.y, zoomRef.current);
+    setContextMenu({
+      x: event.clientX,
+      y: event.clientY,
+      target: found ? { kind: found.kind, id: found.item.id } : strokeHit ? { kind: 'strokes', index: strokeHit.index } : null,
+      worldX: world.x,
+      worldY: world.y,
+    });
+  }, []);
+
+  const closeContextMenu = useCallback(() => setContextMenu(null), []);
+
+  const ctxDelete = useCallback(() => {
+    if (!contextMenu) return;
+    pushHistory();
+    if (contextMenu.target) {
+      mutateBoard((draft) => {
+        if (contextMenu.target.kind === 'strokes') {
+          draft.strokes.splice(contextMenu.target.index, 1);
+        } else {
+          draft[contextMenu.target.kind] = draft[contextMenu.target.kind].filter(o => o.id !== contextMenu.target.id);
+        }
+      });
+    } else if (multiSelected.length > 0) {
+      mutateBoard((draft) => {
+        for (const sel of multiSelected) draft[sel.kind] = draft[sel.kind].filter(o => o.id !== sel.id);
+      });
+      setMultiSelected([]);
+    }
+    setContextMenu(null);
+    save();
+  }, [contextMenu, multiSelected, mutateBoard, pushHistory, save]);
+
+  const ctxDuplicate = useCallback(() => {
+    if (!contextMenu?.target || contextMenu.target.kind === 'strokes') return;
+    pushHistory();
+    mutateBoard((draft) => {
+      const arr = draft[contextMenu.target.kind];
+      const item = arr.find(o => o.id === contextMenu.target.id);
+      if (!item) return;
+      const copy = { ...clone(item), id: randomId(contextMenu.target.kind.slice(0,-1)) };
+      if ('x' in copy) { copy.x += 20; copy.y += 20; }
+      if ('x1' in copy) { copy.x1 += 20; copy.y1 += 20; copy.x2 += 20; copy.y2 += 20; }
+      arr.push(copy);
+    });
+    setContextMenu(null);
+  }, [contextMenu, mutateBoard, pushHistory]);
+
+  const ctxBringFront = useCallback(() => {
+    if (!contextMenu?.target || contextMenu.target.kind === 'strokes') return;
+    mutateBoard((draft) => {
+      const arr = draft[contextMenu.target.kind];
+      const idx = arr.findIndex(o => o.id === contextMenu.target.id);
+      if (idx >= 0) { const [item] = arr.splice(idx, 1); arr.push(item); }
+    });
+    setContextMenu(null);
+  }, [contextMenu, mutateBoard]);
+
+  const ctxSendBack = useCallback(() => {
+    if (!contextMenu?.target || contextMenu.target.kind === 'strokes') return;
+    mutateBoard((draft) => {
+      const arr = draft[contextMenu.target.kind];
+      const idx = arr.findIndex(o => o.id === contextMenu.target.id);
+      if (idx >= 0) { const [item] = arr.splice(idx, 1); arr.unshift(item); }
+    });
+    setContextMenu(null);
+  }, [contextMenu, mutateBoard]);
+
+  const ctxAddNote = useCallback(() => {
+    if (!contextMenu) return;
+    pushHistory();
+    const theme = STICKY_THEMES[boardRef.current.notes.length % STICKY_THEMES.length];
+    mutateBoard((draft) => { draft.notes.push({ id: randomId('note'), x: contextMenu.worldX, y: contextMenu.worldY, width: 180, height: 130, text: 'Neue Notiz', ...theme }); });
+    setContextMenu(null);
+  }, [contextMenu, mutateBoard, pushHistory]);
+
+  const ctxAddText = useCallback(() => {
+    if (!contextMenu) return;
+    pushHistory();
+    mutateBoard((draft) => { draft.texts.push({ id: randomId('text'), x: contextMenu.worldX, y: contextMenu.worldY, width: 180, height: 48, text: 'Text', color: '#0f172a', bubble: false }); });
+    setContextMenu(null);
+  }, [contextMenu, mutateBoard, pushHistory]);
+
+  const ctxSelectAll = useCallback(() => {
+    const all = objectsInMarquee(boardRef.current, -1e9, -1e9, 1e9, 1e9);
+    setMultiSelected(all);
+    setSelected(null);
+    setContextMenu(null);
+  }, []);
 
   /* share */
   const shareUrl = (() => {
@@ -932,7 +1191,7 @@ const Whiteboard = () => {
 
   /* ─── render ── */
   return (
-    <div onPointerMove={onPointerMove} onPointerUp={onPointerUp} style={{ height: '100vh', overflow: 'hidden', position: 'relative', background: '#fafaf7' }}>
+    <div onPointerMove={onPointerMove} onPointerUp={onPointerUp} onClick={contextMenu ? closeContextMenu : undefined} style={{ height: '100vh', overflow: 'hidden', position: 'relative', background: '#fafaf7' }}>
       <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImagePick} style={{ display: 'none' }} />
 
       {/* canvas layer */}
@@ -940,8 +1199,14 @@ const Whiteboard = () => {
         <canvas
           ref={canvasRef}
           onPointerDown={onPointerDown}
+          onContextMenu={onContextMenu}
           style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', touchAction: 'none', cursor: tool === 'pan' ? 'grab' : tool === 'select' ? 'default' : tool === 'eraser' ? 'cell' : 'crosshair' }}
         />
+
+        {/* Marquee selection / wipe rectangle */}
+        {marquee && marquee.w > 4 && marquee.h > 4 && (
+          <div style={{ position: 'fixed', left: marquee.x, top: marquee.y, width: marquee.w, height: marquee.h, border: `1.5px ${marquee.eraseMode ? 'solid #ef4444' : 'dashed #6366f1'}`, background: marquee.eraseMode ? 'rgba(239,68,68,0.06)' : 'rgba(99,102,241,0.06)', borderRadius: 4, pointerEvents: 'none', zIndex: 30 }}/>
+        )}
 
         {board.frames.map((frame) => {
           const p = toScreen(frame.x, frame.y, pan, zoom);
@@ -954,8 +1219,13 @@ const Whiteboard = () => {
 
         {board.notes.map((note) => {
           const p = toScreen(note.x, note.y, pan, zoom);
+          const isMulti = multiSelected.some(s => s.id === note.id);
           return (
-            <textarea key={note.id} value={note.text} onPointerDown={(e) => startOverlayMove(e, 'notes', note)} onChange={(e) => updateArrayItem('notes', note.id, { text: e.target.value })} style={{ position: 'absolute', left: p.x, top: p.y, width: note.width * zoom, height: note.height * zoom, padding: `${14 * zoom}px`, background: note.bg, border: `${selected?.kind === 'notes' && selected?.id === note.id ? 2 : 1}px solid ${note.border}`, borderRadius: 6, boxShadow: '2px 3px 0 rgba(15,23,42,0.05), 0 8px 20px rgba(15,23,42,0.08)', fontFamily: 'Caveat', fontSize: Math.max(14, 18 * zoom), color: '#0f172a', resize: 'none', outline: 'none' }} />
+            <textarea key={note.id} value={note.text}
+              onPointerDown={(e) => startOverlayMove(e, 'notes', note)}
+              onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, target: { kind: 'notes', id: note.id }, worldX: 0, worldY: 0 }); }}
+              onChange={(e) => updateArrayItem('notes', note.id, { text: e.target.value })}
+              style={{ position: 'absolute', left: p.x, top: p.y, width: note.width * zoom, height: note.height * zoom, padding: `${14 * zoom}px`, background: note.bg, border: `${(selected?.kind === 'notes' && selected?.id === note.id) || isMulti ? 2 : 1}px solid ${isMulti ? '#6366f1' : note.border}`, borderRadius: 6, boxShadow: '2px 3px 0 rgba(15,23,42,0.05), 0 8px 20px rgba(15,23,42,0.08)', fontFamily: 'Caveat', fontSize: Math.max(14, 18 * zoom), color: '#0f172a', resize: 'none', outline: 'none' }} />
           );
         })}
 
@@ -989,10 +1259,27 @@ const Whiteboard = () => {
 
         {board.emojis.map((emoji) => {
           const p = toScreen(emoji.x, emoji.y, pan, zoom);
+          const isMulti = multiSelected.some(s => s.id === emoji.id);
           return (
-            <div key={emoji.id} onPointerDown={(e) => startOverlayMove(e, 'emojis', emoji)} style={{ position: 'absolute', left: p.x, top: p.y, fontSize: 32 * zoom, transform: `rotate(${emoji.rotate}deg)`, filter: 'drop-shadow(2px 3px 4px rgba(15,23,42,0.15))', cursor: 'grab', userSelect: 'none' }}>
+            <div key={emoji.id} onPointerDown={(e) => startOverlayMove(e, 'emojis', emoji)} onContextMenu={e => { e.preventDefault(); e.stopPropagation(); setContextMenu({ x: e.clientX, y: e.clientY, target: { kind: 'emojis', id: emoji.id }, worldX: 0, worldY: 0 }); }} style={{ position: 'absolute', left: p.x, top: p.y, fontSize: 32 * zoom, transform: `rotate(${emoji.rotate}deg)`, filter: 'drop-shadow(2px 3px 4px rgba(15,23,42,0.15))', cursor: 'grab', userSelect: 'none', outline: isMulti ? '2px dashed #6366f1' : 'none', borderRadius: 4 }}>
               {emoji.emoji}
             </div>
+          );
+        })}
+
+        {/* Multi-select highlight overlays for notes/texts/frames/images/comments */}
+        {multiSelected.map(sel => {
+          const items = boardRef.current[sel.kind];
+          if (!items) return null;
+          const item = items.find(o => o.id === sel.id);
+          if (!item || sel.kind === 'shapes') return null;
+          const px = 'x' in item ? item.x : 0;
+          const py = 'y' in item ? item.y : 0;
+          const pw = item.width || 80;
+          const ph = item.height || 40;
+          const sp = toScreen(px, py, pan, zoom);
+          return (
+            <div key={sel.id} style={{ position: 'absolute', left: sp.x - 3, top: sp.y - 3, width: pw * zoom + 6, height: ph * zoom + 6, border: '2px dashed #6366f1', borderRadius: 8, pointerEvents: 'none', background: 'rgba(99,102,241,0.04)', zIndex: 28 }}/>
           );
         })}
       </div>
@@ -1136,6 +1423,66 @@ const Whiteboard = () => {
           <ToolIcon size={14}><path d="M12 2L2 7l10 5 10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></ToolIcon>
         </button>
       </div>
+
+      {/* Right-click context menu */}
+      {contextMenu && (
+        <div
+          style={{ position: 'fixed', left: contextMenu.x, top: contextMenu.y, background: 'white', borderRadius: 12, boxShadow: '0 8px 32px rgba(15,23,42,0.18)', border: '1px solid rgba(15,23,42,0.08)', minWidth: 180, zIndex: 200, overflow: 'hidden', fontSize: 13, color: '#1e293b' }}
+          onPointerDown={e => e.stopPropagation()}
+        >
+          {contextMenu.target ? (
+            <>
+              <button onClick={ctxDuplicate} style={{ display:'flex', alignItems:'center', gap:9, width:'100%', padding:'10px 14px', border:'none', background:'none', cursor:'pointer', textAlign:'left', fontFamily:'inherit', fontSize:13 }}
+                onMouseEnter={e=>e.currentTarget.style.background='#f1f5f9'} onMouseLeave={e=>e.currentTarget.style.background='none'}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Duplizieren
+              </button>
+              <button onClick={ctxBringFront} style={{ display:'flex', alignItems:'center', gap:9, width:'100%', padding:'10px 14px', border:'none', background:'none', cursor:'pointer', textAlign:'left', fontFamily:'inherit', fontSize:13 }}
+                onMouseEnter={e=>e.currentTarget.style.background='#f1f5f9'} onMouseLeave={e=>e.currentTarget.style.background='none'}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="17 11 12 6 7 11"/><polyline points="17 18 12 13 7 18"/></svg>
+                In den Vordergrund
+              </button>
+              <button onClick={ctxSendBack} style={{ display:'flex', alignItems:'center', gap:9, width:'100%', padding:'10px 14px', border:'none', background:'none', cursor:'pointer', textAlign:'left', fontFamily:'inherit', fontSize:13 }}
+                onMouseEnter={e=>e.currentTarget.style.background='#f1f5f9'} onMouseLeave={e=>e.currentTarget.style.background='none'}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="7 13 12 18 17 13"/><polyline points="7 6 12 11 17 6"/></svg>
+                In den Hintergrund
+              </button>
+              <div style={{ height:1, background:'#f1f5f9', margin:'4px 0' }}/>
+              <button onClick={ctxDelete} style={{ display:'flex', alignItems:'center', gap:9, width:'100%', padding:'10px 14px', border:'none', background:'none', cursor:'pointer', textAlign:'left', fontFamily:'inherit', fontSize:13, color:'#ef4444' }}
+                onMouseEnter={e=>e.currentTarget.style.background='#fef2f2'} onMouseLeave={e=>e.currentTarget.style.background='none'}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+                Löschen
+              </button>
+            </>
+          ) : (
+            <>
+              <button onClick={ctxAddNote} style={{ display:'flex', alignItems:'center', gap:9, width:'100%', padding:'10px 14px', border:'none', background:'none', cursor:'pointer', textAlign:'left', fontFamily:'inherit', fontSize:13 }}
+                onMouseEnter={e=>e.currentTarget.style.background='#f1f5f9'} onMouseLeave={e=>e.currentTarget.style.background='none'}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="3"/></svg>
+                Notiz hinzufügen
+              </button>
+              <button onClick={ctxAddText} style={{ display:'flex', alignItems:'center', gap:9, width:'100%', padding:'10px 14px', border:'none', background:'none', cursor:'pointer', textAlign:'left', fontFamily:'inherit', fontSize:13 }}
+                onMouseEnter={e=>e.currentTarget.style.background='#f1f5f9'} onMouseLeave={e=>e.currentTarget.style.background='none'}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M4 7V4h16v3"/><path d="M9 20h6M12 4v16"/></svg>
+                Text hinzufügen
+              </button>
+              <div style={{ height:1, background:'#f1f5f9', margin:'4px 0' }}/>
+              <button onClick={ctxSelectAll} style={{ display:'flex', alignItems:'center', gap:9, width:'100%', padding:'10px 14px', border:'none', background:'none', cursor:'pointer', textAlign:'left', fontFamily:'inherit', fontSize:13 }}
+                onMouseEnter={e=>e.currentTarget.style.background='#f1f5f9'} onMouseLeave={e=>e.currentTarget.style.background='none'}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><rect x="3" y="3" width="18" height="18" rx="2" strokeDasharray="4 2"/></svg>
+                Alles auswählen
+              </button>
+              {multiSelected.length > 0 && (
+                <button onClick={ctxDelete} style={{ display:'flex', alignItems:'center', gap:9, width:'100%', padding:'10px 14px', border:'none', background:'none', cursor:'pointer', textAlign:'left', fontFamily:'inherit', fontSize:13, color:'#ef4444' }}
+                  onMouseEnter={e=>e.currentTarget.style.background='#fef2f2'} onMouseLeave={e=>e.currentTarget.style.background='none'}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"/></svg>
+                  Auswahl löschen ({multiSelected.length})
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      )}
 
       {/* share modal */}
       {shareOpen && (
